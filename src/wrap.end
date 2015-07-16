@@ -1,0 +1,11 @@
+    if (typeof define === 'function' && define.amd) {
+      define('knockout', function() {
+        return ko;
+      });
+    }
+	  
+    // Register in the values from the outer closure for common dependencies
+    // as local almond modules
+    return quark;
+}));
+

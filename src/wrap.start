@@ -1,0 +1,10 @@
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    // AMD.
+    define(['knockout', 'jquery', 'knockout-mapping', 'accounting-js', 'blockui'], factory);
+  } else {
+    // Browser globals.
+    root.komapping = ko.mapping;
+    root.$$ = factory(root.ko, root.$, root.komapping, root.accounting);
+  }
+}(this, function(ko, $, komapping, accounting) {
