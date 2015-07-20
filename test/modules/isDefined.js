@@ -1,4 +1,4 @@
-define(['../../dist/quark.js'], function($$) {
+define(['../../dist/quark-debug.js'], function($$) {
   describe('Pruebas de isDefined', function() {
     var definido = 'Hola'
     var noDefinido;

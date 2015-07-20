@@ -521,7 +521,7 @@ ko.bindingProvider.instance.preprocessNode = function (node) {
 
             // Tell Knockout about the new nodes so that it can apply bindings to them
             return [c1, c2];
-        }
+        }        
     }
 };
 
@@ -719,3 +719,46 @@ ko.bindingHandlers.hasContent = {
     }
 };
 ko.virtualElements.allowedBindings.hasContent = true;
+
+/**
+ * @function
+ *
+ * @description Binding que permite especificar un bloque que solo se debe mostrar si en el 
+ * contenido del componente NO se ha especificado algun contenido que cumpla con el selector especificado.
+ * <br />
+ * @example
+ * <!-- La forma mas facil de entenderlo es con un ejemplo. Por ejemplo un componente llamado nota,
+ * puede tener el siguiente HTML: -->
+ * <componente>
+ * <!-- ko hasNotContent: '.tituloCustom' -->
+ *  El titulo es:
+ *  <h1>
+ *   Titulo generico
+ *  </h1>
+ * <!-- /ko -->
+ * <p><!-- ko content: '.cuerpo' --><!-- /ko --></p>
+ * </componente>
+ * 
+ * <!-- Luego si se usa de la siguiente forma: -->
+ *  <nota>
+ *      <div class="cuerpo">Este es el cuerpo</div>
+ *  </nota>
+ * 
+ * <!-- Se mostrara el mensaje "El titulo es: Titulo Generico" ya que no se ha 
+ * especificado ningun contenido con clase "tituloCustom" -->
+ * 
+ * @memberOf Extensiones Knockout.Bindings
+ */
+ko.bindingHandlers.hasNotContent = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+
+        var newAccesor = function () {
+            return $(context.$componentTemplateNodes).filter(value).length > 0;
+        };
+
+        // If va asi por el IE8
+        return ko.bindingHandlers['ifnot'].init(element, newAccesor, allBindingsAccessor, context, context);
+    }
+};
+ko.virtualElements.allowedBindings.hasNotContent = true;
