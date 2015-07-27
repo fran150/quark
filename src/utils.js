@@ -483,7 +483,7 @@ function $$() {
         object.childs = {};
         for (var name in params) {
             object['childs'][name] = {};
-            object['childs'][name]['load'] = function(propertyName, vm) {
+            object['childs'][name]['load'] = function(propertyName, vm) {                
                 object[propertyName](vm);
                 object['childs'][propertyName]['loaded'] = true;
                 
@@ -494,6 +494,10 @@ function $$() {
                     vm.parentState = object['childs'][propertyName];
                 } else {
                     object['childs'][propertyName]['ready'] = true;
+                    
+                    if (self.isDefined(vm['ready'])) {
+                        vm['ready']();
+                    }
                 }
                                 
                 for (var property in params) {
@@ -512,6 +516,10 @@ function $$() {
                     callback();
                 }
                 
+                if (self.isFunction(object['ready'])) {
+                    object['ready']();
+                }
+
                 if (self.isDefined(object['parent'])) {
                     object.parentState['ready'] = true;
                     object.parent.childReady();
@@ -528,11 +536,15 @@ function $$() {
 
                 if (self.isDefined(callback)) {
                     callback();
+                }                              
+                
+                if (self.isFunction(object['ready'])) {
+                    object['ready']();
                 }
                 
                 if (self.isDefined(object['parent'])) {
                     object.parentState['ready'] = true;
-                    object.parent.childReady();
+                    object.parent.childReady();                    
                 }                                
             };
             object[name] = params[name];
@@ -555,18 +567,6 @@ function $$() {
                 } else if (!ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
                     object[name] = values[name];
                 }
-                /*
-                if (ko.isObservable(values[name])) {
-                    value = values[name]();
-                } else {
-                    value = values[name];
-                }
-
-                if (ko.isObservable(object[name])) {
-                    object[name](value);
-                } else {
-                    object[name] = value;
-                }*/
             }            
         }
     };

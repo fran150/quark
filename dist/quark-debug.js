@@ -493,7 +493,7 @@ function $$() {
         object.childs = {};
         for (var name in params) {
             object['childs'][name] = {};
-            object['childs'][name]['load'] = function(propertyName, vm) {
+            object['childs'][name]['load'] = function(propertyName, vm) {                
                 object[propertyName](vm);
                 object['childs'][propertyName]['loaded'] = true;
                 
@@ -504,6 +504,10 @@ function $$() {
                     vm.parentState = object['childs'][propertyName];
                 } else {
                     object['childs'][propertyName]['ready'] = true;
+                    
+                    if (self.isDefined(vm['ready'])) {
+                        vm['ready']();
+                    }
                 }
                                 
                 for (var property in params) {
@@ -522,6 +526,10 @@ function $$() {
                     callback();
                 }
                 
+                if (self.isFunction(object['ready'])) {
+                    object['ready']();
+                }
+
                 if (self.isDefined(object['parent'])) {
                     object.parentState['ready'] = true;
                     object.parent.childReady();
@@ -538,11 +546,15 @@ function $$() {
 
                 if (self.isDefined(callback)) {
                     callback();
+                }                              
+                
+                if (self.isFunction(object['ready'])) {
+                    object['ready']();
                 }
                 
                 if (self.isDefined(object['parent'])) {
                     object.parentState['ready'] = true;
-                    object.parent.childReady();
+                    object.parent.childReady();                    
                 }                                
             };
             object[name] = params[name];
@@ -565,18 +577,6 @@ function $$() {
                 } else if (!ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
                     object[name] = values[name];
                 }
-                /*
-                if (ko.isObservable(values[name])) {
-                    value = values[name]();
-                } else {
-                    value = values[name];
-                }
-
-                if (ko.isObservable(object[name])) {
-                    object[name](value);
-                } else {
-                    object[name] = value;
-                }*/
             }            
         }
     };
@@ -879,6 +879,25 @@ ko.observable.fn.validate = function (subscribe) {
 
 /**
  * @function
+ * 
+ * @description Devuelve verdadero si el elemento es un observable array
+ * 
+ * @param {object} elem Elemento que se debe verificar si es un observable array
+ * 
+ * @memberOf Extensiones Knockout
+ * 
+ * @returns {bool} Verdadero si el elemento es un observableArray
+ */
+ko.isObservableArray = function(elem) {
+    if (ko.isObservable(elem) && elem.indexOf !== undefined) {
+        return true;
+    }
+    
+    return false;
+};
+
+/**
+ * @function
  *
  * @description Transforma un objeto (ya sea un objeto plano o un objeto observable) en un string JSON
  * 
@@ -1082,39 +1101,63 @@ ko.bindingHandlers.moneyValue = {
 /**
  * @function
  *
- * @description Binding usado para enviar el viewmodel de un componente knockout
- * a una propiedad o metodo del padre.
- * <br/>
- * Se pueden especificar 3 tipos de objetos:
- * <ul>
- *  <li><b>Funcion:</b> Si se especifica una funcion del tipo function(model) se invoca
- *  a la misma pasandole como parametro el view model del componente.</li>
- *  <li><b>Observable:</b> Si se especifica un observable se asigna al mismo
- *  el view model del componente
- *  <li><b>String:</b> Si se especifica un string, este debe ser el nombre 
- *  de una propiedad del objeto padre donde se debe asignar el view model del componente
- * </ul>
- * <br />
+ * @description Binding que carga en las propiedad declaradas como componentes
+ * el viewmodel del elemento en donde se utiliza. Sirve para obtener en el objeto
+ * padre el viewmodel de los componentes hijos y se llama especificando el nombre
+ * de la propiedad declarada dentro de .components como un string.
+ * 
+ * Si se necesita llamar desde un elemento que se encuentra en el contenido de un 
+ * componente se puede invocar especificando un objeto con el formato
+ * { property: 'Nombre de la propiedad', model: Referencia al componente padre }
  * 
  * @example
  * <!-- Se debe invocar desde el contenido de un componente knockout, y puede usarse como 
  * data-bind o como elemento virtual por ejemplo: -->
  *  <componente-knockout>
- *      <!-- ko vm: componenteKnockoutVm --><!-- /ko -->
+ *      <!-- ko vm: 'componenteKnockoutVm' --><!-- /ko -->
  *  </componente-knockout>
- * 
+ *  
+ *  <!-- La propiedad componenteKnockoutVm debe existir en el objeto padre -->
+ *  
+ *  <!-- Otro ejemplo sería: --!>
+ *
+ *  <otro-componente>
+ *      <componente-knockout>
+ *          <!-- ko vm: { property: 'componenteKnockoutVm', model: $parent } --><!-- /ko -->
+ *      </componente-knockout>
+ *  </otro-componente>
+ *  
+ *  <!-- En este caso el viewmodel de componente-knockout se asignara a la propiedad del componente
+ *  padre -->
+   
  * 
  * @memberOf Extensiones Knockout.Bindings
  */
 ko.bindingHandlers.vm = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value;
+        var value;        
         value = ko.unwrap(valueAccessor());
         
-        if (quark.isString(value)) {
+        var property;
+        
+        if (!quark.isString(value)) {
+            if (quark.isObject(value)) {
+                if (quark.isString(value['property'])) {
+                    property = value['property'];
+                }
+                
+                if (quark.isDefined(value['model'])) {
+                    viewModel = value['model'];
+                }
+            }
+        } else {
+            property = value;
+        }
+                
+        if (quark.isString(property)) {
             if (quark.isDefined(viewModel['childs'])) {
-                if (quark.isDefined(viewModel['childs'][value])) {
-                    viewModel['childs'][value]['load'](value, context.child);
+                if (quark.isDefined(viewModel['childs'][property])) {
+                    viewModel['childs'][property]['load'](property, context.$child);
                 } else {
                     throw 'El objeto especificado no tiene una propiedad de nombre ' + value + '. Verifique que el objeto contenga una propiedad definida con el metodo .components a la que apunta este binding vm.';
                 }
@@ -1128,18 +1171,31 @@ ko.bindingHandlers.vm = {
 };
 ko.virtualElements.allowedBindings.vm = true;
 
+ko.bindingHandlers.call = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        value();
+    }
+};
+ko.virtualElements.allowedBindings.call = true;
+
 /**
  * @function 
  * 
  * @description Directiva del preprocesador de knockout que permite utilizar el binding
- * vm en una forma abreviada del tipo:
- * 
- * @param {object} node Nodo que se va a procesar
- * 
+ * vm y el binding call en una forma abreviada del tipo:
+ *  
  * @example
  * <componente-knockout>
  *  <!-- vm: propiedadDelPadre -->
  * </componente-knockout>
+ * 
+ * <componente-knockout>
+ *  <!-- call: esUnaFuncion -->
+ * </componente-knockout>
+ * 
+ * @param {object} node Nodo que se va a procesar
+ *
  * 
  * @memberOf Extensiones Knockout.Bindings
  */
@@ -1156,7 +1212,18 @@ ko.bindingProvider.instance.preprocessNode = function (node) {
 
             // Tell Knockout about the new nodes so that it can apply bindings to them
             return [c1, c2];
-        }        
+        }
+        match = node.nodeValue.match(/^\s*(call\s*:[\s\S]+)/);
+        if (match) {
+            // Create a pair of comments to replace the single comment
+            var c1 = document.createComment("ko " + match[1]),
+                c2 = document.createComment("/ko");
+            node.parentNode.insertBefore(c1, node);
+            node.parentNode.replaceChild(c2, node);
+
+            // Tell Knockout about the new nodes so that it can apply bindings to them
+            return [c1, c2];
+        }
     }
 };
 
@@ -1197,10 +1264,10 @@ ko.virtualElements.allowedBindings.componentShadyDom = true;
  *
  * @description Binding usado por el componente generico (de nombre "componente"). Este binding
  * busca cualquier tag con el binding vm y lo envia al navegador creando un contexto especial
- * al nivel del padre y con un objeto interno llamado child con el view model del componente hijo.
+ * al nivel del padre y con un objeto interno llamado $child con el view model del componente hijo.
  * <br />
  * Este contexto es el utilizado por el binding vm para hallar en el padre la funcion
- * a la que debe enviar el objeto hijo recibido en la propiedad child de dicho contexto.
+ * a la que debe enviar el objeto hijo recibido en la propiedad $child de dicho contexto.
  * <br/>
  * Es utilizado internamente por el componente generico y no deberia, en principio, ser utilizado
  * fuera de este.
@@ -1219,13 +1286,17 @@ ko.bindingHandlers.modelExporter = {
                     if (match) {
                         nodes.push(node);
                     }
+                    match = node.nodeValue.indexOf("call:") > -1;
+                    if (match) {
+                        nodes.push(node);
+                    }
                 }
             }
 
             return { nodes: nodes, if: nodes.length > 0 };
         };
 
-        var newContext = context.$parentContext.$parentContext.extend({ child: context.$parent });
+        var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent });
         return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
@@ -1239,17 +1310,20 @@ ko.bindingHandlers.modelExporter = {
                     if (match) {
                         nodes.push(node);
                     }
+                    match = node.nodeValue.indexOf("call:") > -1;
+                    if (match) {
+                        nodes.push(node);
+                    }
                 }
             }
 
             return { nodes: nodes, if: nodes.length > 0 };
         };
 
-        var newContext = context.$parentContext.$parentContext.extend({ child: context.$parent });
+        var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent });
         return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     }
 };
-
 ko.virtualElements.allowedBindings.modelExporter = true;
 
 /**
