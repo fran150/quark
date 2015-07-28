@@ -309,6 +309,37 @@ ko.bindingHandlers.onBind = {
 };
 
 /**
+ * Codigo del binding formGroupError que asigna el estilo has-error al elemento
+ * si el observable seleccionado contiene error de validacion.
+ * 
+ * @param {type} element Elemento desde donde invoca
+ * @param {type} valueAccessor Accessor de knockout
+ * @param {type} allBindings Otros bindings en el mismo elemento
+ * @param {type} viewModel ViewModel al que se bindea
+ * @param {type} context Contexto del binding
+ */
+function setFormGroupErrorClass(element, valueAccessor, allBindings, viewModel, context) {
+    var value = valueAccessor();
+    var hasError = false;
+
+    if (quark.isArray(value)) {
+        for (var i = 0; i < value.length; i++) {
+            if (!value[i].hasError()) {
+                hasError = true;
+            }
+        }
+    } else {
+        hasError = value.hasError();
+    }
+
+    if (hasError) {
+        $(element).addClass('has-error');
+    } else {
+        $(element).removeClass('has-error');
+    }    
+}
+
+/**
  * @function
  *
  * @description Binding que permite especificar un observable y si el mismo tiene una validacion con error le agrega la clase
@@ -319,44 +350,10 @@ ko.bindingHandlers.onBind = {
  */
 ko.bindingHandlers.formGroupError = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value = valueAccessor();
-        var hasError = false;
-
-        if (quark.isArray(value)) {
-            for (var i = 0; i < value.length; i++) {
-                if (!value[i].hasError()) {
-                    hasError = true;
-                }
-            }
-        } else {
-            hasError = value.hasError();
-        }
-
-        if (hasError) {
-            $(element).addClass('has-error');
-        } else {
-            $(element).removeClass('has-error');
-        }
+        setFormGroupErrorClass(element, valueAccessor, allBindings, viewModel, context);
     },
     update: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value = valueAccessor();
-        var hasError = false;
-
-        if (quark.isArray(value)) {
-            for (var i = 0; i < value.length; i++) {
-                if (value[i].hasError()) {
-                    hasError = true;
-                }
-            }
-        } else {
-            hasError = value.hasError();
-        }
-
-        if (hasError) {
-            $(element).addClass('has-error');
-        } else {
-            $(element).removeClass('has-error');
-        }
+        setFormGroupErrorClass(element, valueAccessor, allBindings, viewModel, context);
     }
 };
 
@@ -545,10 +542,40 @@ ko.bindingHandlers.call = {
 ko.virtualElements.allowedBindings.call = true;
 
 /**
+ * @function
+ * 
+ * @description Binding que permite especificar como parametros un elemento cuyo
+ * contenido se debe injectar en el componente especificado.
+ * Se puede invocar especificando el elemento de datos exclusivamente y en tal caso
+ * se injectará en el componente que lo invoca o se puede especificar un objeto con la forma
+ * { data: objeto con los datos, target: objeto o componente donde se deben injectar los valores }
+ * 
+ * @memberOf Extensiones Knockout.Bindings
+ */
+ko.bindingHandlers.inject = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        
+        var target = context.$child;
+        var data = viewModel;
+        
+        if (quark.isObject(value)) {
+            if (quark.isDefined(value['data']) && quark.isDefined(value['target'])) {
+                target = value.target;
+                data = value.data;
+            }
+        }
+        
+        quark.inject(data, target);        
+    }
+};
+ko.virtualElements.allowedBindings.inject = true;
+
+/**
  * @function 
  * 
  * @description Directiva del preprocesador de knockout que permite utilizar el binding
- * vm y el binding call en una forma abreviada del tipo:
+ * vm, el binding call y el binding inject en una forma abreviada del tipo:
  *  
  * @example
  * <componente-knockout>
@@ -559,38 +586,56 @@ ko.virtualElements.allowedBindings.call = true;
  *  <!-- call: esUnaFuncion -->
  * </componente-knockout>
  * 
+ * <componente-knockout>
+ *  <!-- inject: data -->
+ * </componente-knockout>
+ * 
  * @param {object} node Nodo que se va a procesar
- *
  * 
  * @memberOf Extensiones Knockout.Bindings
  */
 ko.bindingProvider.instance.preprocessNode = function (node) {
+    var testAndReplace = function(regExp) {
+        var match = node.nodeValue.match(regExp);
+        if (match) {
+            // Create a pair of comments to replace the single comment
+            var c1 = document.createComment("ko " + match[1]),
+                c2 = document.createComment("/ko");
+            node.parentNode.insertBefore(c1, node);
+            node.parentNode.replaceChild(c2, node);
+
+            // Tell Knockout about the new nodes so that it can apply bindings to them
+            return [c1, c2];
+        } else {
+            return false;
+        }
+    };
+    
     // Only react if this is a comment node of the form <!-- vm: ... -->
     if (node.nodeType === 8) {
-        var match = node.nodeValue.match(/^\s*(vm\s*:[\s\S]+)/);
-        if (match) {
-            // Create a pair of comments to replace the single comment
-            var c1 = document.createComment("ko " + match[1]),
-                c2 = document.createComment("/ko");
-            node.parentNode.insertBefore(c1, node);
-            node.parentNode.replaceChild(c2, node);
-
-            // Tell Knockout about the new nodes so that it can apply bindings to them
-            return [c1, c2];
-        }
-        match = node.nodeValue.match(/^\s*(call\s*:[\s\S]+)/);
-        if (match) {
-            // Create a pair of comments to replace the single comment
-            var c1 = document.createComment("ko " + match[1]),
-                c2 = document.createComment("/ko");
-            node.parentNode.insertBefore(c1, node);
-            node.parentNode.replaceChild(c2, node);
-
-            // Tell Knockout about the new nodes so that it can apply bindings to them
-            return [c1, c2];
-        }
-    }
+        var nodes;
+        nodes = testAndReplace(/^\s*(vm\s*:[\s\S]+)/);                
+        nodes = !nodes ? testAndReplace(/^\s*(call\s*:[\s\S]+)/) : nodes;
+        nodes = !nodes ? testAndReplace(/^\s*(inject\s*:[\s\S]+)/) : nodes;
+        
+        return nodes;
+    }    
 };
+
+/**
+ * @function
+ * @description Genera un nuevo accessor de knockout utilizando los nodos del contenido del componente.
+ * Se usa dentro del binding componentShadyDom.
+ * @param {context} context Contexto del componente
+ * @returns {accessor} Nuevo accessor con los nodos del contenido del componente
+ */
+function createComponentShadyDomAccesor(context) {
+    var newAccesor = function () {
+        return { nodes: context.$componentTemplateNodes };
+    };
+    
+    return newAccesor;
+}
 
 /**
  * @function
@@ -609,15 +654,11 @@ ko.bindingProvider.instance.preprocessNode = function (node) {
  */
 ko.bindingHandlers.componentShadyDom = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = function () {
-            return { nodes: context.$componentTemplateNodes, afterRender: function() { if ($$.isDefined(context.$parent['init'])) { context.$parent.init(); } } };
-        };
+        var newAccesor = createComponentShadyDomAccesor(context);
         return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, context.$parentContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = function () {
-            return { nodes: context.$componentTemplateNodes };
-        };
+        var newAccesor = createComponentShadyDomAccesor(context);
         return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, context.$parentContext);
     }
 };
@@ -655,6 +696,10 @@ ko.bindingHandlers.modelExporter = {
                     if (match) {
                         nodes.push(node);
                     }
+                    match = node.nodeValue.indexOf("inject:") > -1;
+                    if (match) {
+                        nodes.push(node);
+                    }                                        
                 }
             }
 
@@ -679,6 +724,10 @@ ko.bindingHandlers.modelExporter = {
                     if (match) {
                         nodes.push(node);
                     }
+                    match = node.nodeValue.indexOf("inject:") > -1;
+                    if (match) {
+                        nodes.push(node);
+                    }                                        
                 }
             }
 
