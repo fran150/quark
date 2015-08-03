@@ -552,6 +552,14 @@ function $$() {
     };
     
     this.parameters = function(params, values, object) {
+        if (!self.isDefined(values)) {
+            throw 'Debe especificar el array con los valores enviados como parametros en la llamada al metodo parameters de quark';
+        }
+
+        if (!self.isDefined(object)) {
+            throw 'Debe especificar el array con los valores enviados como parametros en la llamada al metodo parameters de quark';
+        }
+
         for (var name in params) {
             object[name] = params[name];
             
@@ -581,6 +589,14 @@ function $$() {
      * @param {object} to Objeto destino al que se quieren copiar los valores
      */
     this.inject = function (from, to) {
+        if (!self.isDefined(from)) {
+            return;
+        }
+        
+        if (!self.isDefined(to)) {
+            return;
+        }
+        
         for (var name in from) {
             if (self.isDefined(to[name])) {
                 var value;

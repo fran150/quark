@@ -533,14 +533,38 @@ ko.bindingHandlers.vm = {
 };
 ko.virtualElements.allowedBindings.vm = true;
 
+
+function callBinding(valueAccessor) {
+    var value = ko.unwrap(valueAccessor());
+    value();
+};
+
 ko.bindingHandlers.call = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        value();
+        callBinding(valueAccessor);
+    },
+    update: function (element, valueAccessor, allBindings, viewModel, context) {
+        callBinding(valueAccessor);
     }
 };
 ko.virtualElements.allowedBindings.call = true;
 
+
+function injectBinding(valueAccessor, viewModel, context) {
+    var value = ko.unwrap(valueAccessor());
+
+    var target = context.$child;
+    var data = value;
+
+    if (quark.isObject(value)) {
+        if (quark.isDefined(value['data']) && quark.isDefined(value['target'])) {
+            target = value.target;
+            data = value.data;
+        }
+    }
+
+    quark.inject(data, target);        
+}
 /**
  * @function
  * 
@@ -554,19 +578,10 @@ ko.virtualElements.allowedBindings.call = true;
  */
 ko.bindingHandlers.inject = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        
-        var target = context.$child;
-        var data = viewModel;
-        
-        if (quark.isObject(value)) {
-            if (quark.isDefined(value['data']) && quark.isDefined(value['target'])) {
-                target = value.target;
-                data = value.data;
-            }
-        }
-        
-        quark.inject(data, target);        
+        injectBinding(valueAccessor, viewModel, context);
+    },    
+    update: function (element, valueAccessor, allBindings, viewModel, context) {
+        injectBinding(valueAccessor, viewModel, context);
     }
 };
 ko.virtualElements.allowedBindings.inject = true;
@@ -665,6 +680,34 @@ ko.bindingHandlers.componentShadyDom = {
 ko.virtualElements.allowedBindings.componentShadyDom = true;
 
 
+function createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
+    var newAccesor = function () {
+        var nodes = Array();
+
+        for (var i = 0; i < context.$parentContext.$componentTemplateNodes.length; i++) {
+            var node = context.$parentContext.$componentTemplateNodes[i];
+            if (node.nodeType === 8) {
+                var match = node.nodeValue.indexOf("vm:") > -1;
+                if (match) {
+                    nodes.push(node);
+                }
+                match = node.nodeValue.indexOf("call:") > -1;
+                if (match) {
+                    nodes.push(node);
+                }
+                match = node.nodeValue.indexOf("inject:") > -1;
+                if (match) {
+                    nodes.push(node);
+                }                                        
+            }
+        }
+
+        return { nodes: nodes, if: nodes.length > 0 };
+    };    
+    
+    return newAccesor;
+}
+
 /**
  * @function
  *
@@ -682,64 +725,29 @@ ko.virtualElements.allowedBindings.componentShadyDom = true;
  */
 ko.bindingHandlers.modelExporter = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = function () {
-            var nodes = Array();
-
-            for (var i = 0; i < context.$parentContext.$componentTemplateNodes.length; i++) {
-                var node = context.$parentContext.$componentTemplateNodes[i];
-                if (node.nodeType === 8) {
-                    var match = node.nodeValue.indexOf("vm:") > -1;
-                    if (match) {
-                        nodes.push(node);
-                    }
-                    match = node.nodeValue.indexOf("call:") > -1;
-                    if (match) {
-                        nodes.push(node);
-                    }
-                    match = node.nodeValue.indexOf("inject:") > -1;
-                    if (match) {
-                        nodes.push(node);
-                    }                                        
-                }
-            }
-
-            return { nodes: nodes, if: nodes.length > 0 };
-        };
-
+        var newAccesor = createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent });
         return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = function () {
-            var nodes = Array();
-
-            for (var i = 0; i < context.$parentContext.$componentTemplateNodes.length; i++) {
-                var node = context.$parentContext.$componentTemplateNodes[i];
-                if (node.nodeType === 8) {
-                    var match = node.nodeValue.indexOf("vm:") > -1;
-                    if (match) {
-                        nodes.push(node);
-                    }
-                    match = node.nodeValue.indexOf("call:") > -1;
-                    if (match) {
-                        nodes.push(node);
-                    }
-                    match = node.nodeValue.indexOf("inject:") > -1;
-                    if (match) {
-                        nodes.push(node);
-                    }                                        
-                }
-            }
-
-            return { nodes: nodes, if: nodes.length > 0 };
-        };
-
+        var newAccesor = createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent });
         return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     }
 };
 ko.virtualElements.allowedBindings.modelExporter = true;
 
+function createContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
+    var value = ko.unwrap(valueAccessor());
+    var newAccesor = function () {
+        if (!quark.isInt(value)) {
+            return { nodes: $(context.$componentTemplateNodes).filter(value) };
+        } else {
+            return { nodes: context.$componentTemplateNodes.slice(value) };
+        }
+    };
+    return newAccesor;
+}
 /**
  * @function
  *
@@ -774,32 +782,26 @@ ko.virtualElements.allowedBindings.modelExporter = true;
  */
 ko.bindingHandlers.content = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        var newAccesor = function () {
-            if (!quark.isInt(value)) {
-                return { nodes: $(context.$componentTemplateNodes).filter(value) };
-            } else {
-                return { nodes: context.$componentTemplateNodes.slice(value) };
-            }
-        };
-
+        var newAccesor = createContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, context.$parentContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        var newAccesor = function () {
-            if (!quark.isInt(value)) {
-                return { nodes: $(context.$componentTemplateNodes).filter(value) };
-            } else {
-                return { nodes: context.$componentTemplateNodes.slice(value) };
-            }
-        };
+        var newAccesor = createContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, context.$parentContext);
     }
 };
 
 ko.virtualElements.allowedBindings.content = true;
 
+function createHasContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context) {    
+    var value = ko.unwrap(valueAccessor());
+
+    var newAccesor = function () {
+        return $(context.$componentTemplateNodes).filter(value).length > 0;
+    };
+    
+    return newAccesor;
+}
 /**
  * @function
  *
@@ -831,12 +833,7 @@ ko.virtualElements.allowedBindings.content = true;
  */
 ko.bindingHandlers.hasContent = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-
-        var newAccesor = function () {
-            return $(context.$componentTemplateNodes).filter(value).length > 0;
-        };
-
+        var newAccesor = createHasContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         // If va asi por el IE8
         return ko.bindingHandlers['if'].init(element, newAccesor, allBindingsAccessor, context, context);
     }
@@ -874,12 +871,7 @@ ko.virtualElements.allowedBindings.hasContent = true;
  */
 ko.bindingHandlers.hasNotContent = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-
-        var newAccesor = function () {
-            return $(context.$componentTemplateNodes).filter(value).length > 0;
-        };
-
+        var newAccesor = createHasContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         // If va asi por el IE8
         return ko.bindingHandlers['ifnot'].init(element, newAccesor, allBindingsAccessor, context, context);
     }
