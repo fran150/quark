@@ -1,6 +1,6 @@
 {
   "name": "quark",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "dependencies": {
     "requirejs": "~2.1.11",
@@ -19,7 +19,7 @@
     "fran150 <franllopez@yahoo.com.ar>"
   ],
   "description": "Libreria para el desarrollo basado en componentes knockout",
-  "main": "quark.js",
+  "main": "dist/quark.js",
   "moduleType": [
     "amd",
     "globals"
