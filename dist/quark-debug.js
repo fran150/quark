@@ -294,6 +294,44 @@ function $$() {
 
     /**
      * @function
+     *
+     * @description Devuelve verdadero si el parametro especificado es objeto de tipo fecha
+     *
+     * @param {variable} variable Expresion que se desea verificar si es un objeto fecha
+     *
+     * @returns Verdadero si el valor especificado es un objeto fecha
+     */
+    this.isDate = function(variable) {
+        if (variable instanceof Date) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @function
+     *
+     * @description Devuelve verdadero si el parametro especificado es objeto de tipo fecha valido
+     *
+     * @param {variable} variable Expresion que se desea verificar si es un objeto fecha valido
+     *
+     * @returns Verdadero si el valor especificado es un objeto fecha valido
+     */
+    this.isValidDate = function (variable) {
+        if (!self.isDate(variable)) {
+            return false;
+        }
+
+        if (isNaN(variable.getTime())) {
+            return false;
+        }
+
+        return true;
+    };
+
+    /**
+     * @function
      * 
      * @description Crea una cookie y almacena el valor especificado.
      * 
@@ -561,6 +599,37 @@ function $$() {
         }
     };
     
+    this.config = function(config, values, object) {
+        if (!self.isDefined(values)) {
+            throw 'Debe especificar el array con los valores enviados como parametros en la llamada al metodo parameters de quark';
+        }
+
+        if (!self.isDefined(object)) {
+            throw 'Debe especificar el array con los valores enviados como parametros en la llamada al metodo parameters de quark';
+        }
+
+        if (!self.isDefined(object['config'])) {
+            object.config = {};
+        }
+
+        for (var name in config) {
+            object.config[name] = config[name];
+
+            if (ko.isObservable(object.config[name])) {
+                console.warn('Cuidado! La propiedad ' + name + ' del objeto no deberia ser observable ya que el componente no deberia reaccionar si se cambia una vez creado. Para esto puede usar parameters');
+            }
+
+            if (self.isDefined(values[name])) {
+                if (ko.isObservable(values[name])) {
+                    object.config[name] = values[name]();
+                } else {
+                    object.config[name] = values[name];
+                }
+            }
+        }
+    };
+
+
     this.parameters = function(params, values, object) {
         if (!self.isDefined(values)) {
             throw 'Debe especificar el array con los valores enviados como parametros en la llamada al metodo parameters de quark';
@@ -577,7 +646,9 @@ function $$() {
                 //var value;
                 
                 if (ko.isObservable(object[name]) && ko.isObservable(values[name])) {
-                    object[name] = values[name];
+                    if (!ko.isComputed(object[name])) {
+                        object[name] = values[name];
+                    }
                 } else if (ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
                     object[name](values[name]);
                 } else if (!ko.isObservable(object[name]) && ko.isObservable(values[name])) {
@@ -625,6 +696,34 @@ function $$() {
             }
         }
     };
+
+    /**
+     * @function
+     *
+     * @description Genera un objeto fecha con el parametro especificado.
+     * Si el parametro no representa una fecha coherente y no se especifico que devulva null devuelve la fecha de hoy.
+     * Si se especifico que devuelva null y el parametro no representa una fecha coherente devuelve null.
+     *
+     * @param {value} Objeto a partir del cual obtener una fecha
+     * @param {returnNull} Indica si se debe devolver nulo si no se puede transformar el parametro en una fecha valida.
+     *
+     * @returns Objeto fecha generado a partir del parametro especificado
+     */
+    this.makeDate = function (value, returnNull) {
+        if (!self.isDate(value)) {
+            value = new Date(value);
+        }
+
+        if (!self.isValidDate(value)) {
+            if (!returnNull) {
+                value = new Date();
+            } else {
+                return null;
+            }
+        }
+
+        return value;
+    }
 
     /**
      * @function
@@ -915,6 +1014,24 @@ ko.isObservableArray = function(elem) {
 /**
  * @function
  *
+ * @description Devuelve verdadero si el elemento es un computed observable
+ *
+ * @param {object} instance Elemento que se debe verificar si es un computed observable
+ *
+ * @memberOf Extensiones Knockout
+ *
+ * @returns {bool} Verdadero si el elemento es un computed observable
+ */
+ko.isComputed = function (instance) {
+    if ((instance === null) || (instance === undefined) || (instance.__ko_proto__ === undefined)) return false;
+    if (instance.__ko_proto__ === ko.dependentObservable) return true;
+    return ko.isComputed(instance.__ko_proto__); // Walk the prototype chain
+};
+
+
+/**
+ * @function
+ *
  * @description Transforma un objeto (ya sea un objeto plano o un objeto observable) en un string JSON
  * 
  * @param {object} model - Objeto a transformar en JSON
@@ -941,6 +1058,39 @@ ko.getJson = function (model) {
 
     return result;
 };
+
+/**
+* @function
+*
+* @description Crea un observable computado a partir de un parametro con el fin de cambiar el valor al leer o modificar el parametro.
+* Es util cuando se desea modificar el tipo de dato que llega como parametro dentro del componente, o para atachar eventos o comportamiento
+* cuando se modifca el valor.
+* El primer parametro es el parametro del componente con el que se desea trabajar, si el parametro no es un observable lo transforma en uno.
+* El segundo parametro es un objeto con la forma { read: function(param), write: function(param, value) } con las funciones de lectura
+* y escritura del campo. El param es la version observable del parametro el resto se comporta igual que el computed standard de knockout.
+* El tercer parametro es similar al de los observables de knockout y sirve para definir el valor del this.
+*
+* @param {param} Parametro con el que se desea trabajar
+* @param {accessors} Objeto con la forma { read: function(param), write: function(param, value) } con las funciones de lectura
+* y escritura del campo
+* @param {object} Objeto para definir el valor de this
+*
+* @returns Un computedObservable con las funciones accessor
+*/
+ko.computedParameter = function (param, accessors, object) {
+    if (!ko.isObservable(param)) {
+        param = ko.observable(param);
+    }
+
+    return ko.computed({
+        read: function () {
+            return accessors.read(param);
+        },
+        write: function (newValue) {
+            return accessors.write(param, newValue);
+        }
+    }, object);
+}
 
 /**
  * @function

@@ -284,6 +284,44 @@ function $$() {
 
     /**
      * @function
+     *
+     * @description Devuelve verdadero si el parametro especificado es objeto de tipo fecha
+     *
+     * @param {variable} variable Expresion que se desea verificar si es un objeto fecha
+     *
+     * @returns Verdadero si el valor especificado es un objeto fecha
+     */
+    this.isDate = function(variable) {
+        if (variable instanceof Date) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @function
+     *
+     * @description Devuelve verdadero si el parametro especificado es objeto de tipo fecha valido
+     *
+     * @param {variable} variable Expresion que se desea verificar si es un objeto fecha valido
+     *
+     * @returns Verdadero si el valor especificado es un objeto fecha valido
+     */
+    this.isValidDate = function (variable) {
+        if (!self.isDate(variable)) {
+            return false;
+        }
+
+        if (isNaN(variable.getTime())) {
+            return false;
+        }
+
+        return true;
+    };
+
+    /**
+     * @function
      * 
      * @description Crea una cookie y almacena el valor especificado.
      * 
@@ -551,6 +589,37 @@ function $$() {
         }
     };
     
+    this.config = function(config, values, object) {
+        if (!self.isDefined(values)) {
+            throw 'Debe especificar el array con los valores enviados como parametros en la llamada al metodo parameters de quark';
+        }
+
+        if (!self.isDefined(object)) {
+            throw 'Debe especificar el array con los valores enviados como parametros en la llamada al metodo parameters de quark';
+        }
+
+        if (!self.isDefined(object['config'])) {
+            object.config = {};
+        }
+
+        for (var name in config) {
+            object.config[name] = config[name];
+
+            if (ko.isObservable(object.config[name])) {
+                console.warn('Cuidado! La propiedad ' + name + ' del objeto no deberia ser observable ya que el componente no deberia reaccionar si se cambia una vez creado. Para esto puede usar parameters');
+            }
+
+            if (self.isDefined(values[name])) {
+                if (ko.isObservable(values[name])) {
+                    object.config[name] = values[name]();
+                } else {
+                    object.config[name] = values[name];
+                }
+            }
+        }
+    };
+
+
     this.parameters = function(params, values, object) {
         if (!self.isDefined(values)) {
             throw 'Debe especificar el array con los valores enviados como parametros en la llamada al metodo parameters de quark';
@@ -567,7 +636,9 @@ function $$() {
                 //var value;
                 
                 if (ko.isObservable(object[name]) && ko.isObservable(values[name])) {
-                    object[name] = values[name];
+                    if (!ko.isComputed(object[name])) {
+                        object[name] = values[name];
+                    }
                 } else if (ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
                     object[name](values[name]);
                 } else if (!ko.isObservable(object[name]) && ko.isObservable(values[name])) {
@@ -615,6 +686,34 @@ function $$() {
             }
         }
     };
+
+    /**
+     * @function
+     *
+     * @description Genera un objeto fecha con el parametro especificado.
+     * Si el parametro no representa una fecha coherente y no se especifico que devulva null devuelve la fecha de hoy.
+     * Si se especifico que devuelva null y el parametro no representa una fecha coherente devuelve null.
+     *
+     * @param {value} Objeto a partir del cual obtener una fecha
+     * @param {returnNull} Indica si se debe devolver nulo si no se puede transformar el parametro en una fecha valida.
+     *
+     * @returns Objeto fecha generado a partir del parametro especificado
+     */
+    this.makeDate = function (value, returnNull) {
+        if (!self.isDate(value)) {
+            value = new Date(value);
+        }
+
+        if (!self.isValidDate(value)) {
+            if (!returnNull) {
+                value = new Date();
+            } else {
+                return null;
+            }
+        }
+
+        return value;
+    }
 
     /**
      * @function
