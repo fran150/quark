@@ -695,20 +695,20 @@ function $$() {
      * Si se especifico que devuelva null y el parametro no representa una fecha coherente devuelve null.
      *
      * @param {value} Objeto a partir del cual obtener una fecha
-     * @param {returnNull} Indica si se debe devolver nulo si no se puede transformar el parametro en una fecha valida.
+     * @param {returnUndefined} Indica si se debe devolver nulo si no se puede transformar el parametro en una fecha valida.
      *
      * @returns Objeto fecha generado a partir del parametro especificado
      */
-    this.makeDate = function (value, returnNull) {
+    this.makeDate = function (value, returnUndefined) {
         if (!self.isDate(value)) {
             value = new Date(value);
         }
 
         if (!self.isValidDate(value)) {
-            if (!returnNull) {
+            if (!returnUndefined) {
                 value = new Date();
             } else {
-                return null;
+                return undefined;
             }
         }
 
