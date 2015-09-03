@@ -6,6 +6,6 @@ var require = {
         "knockout":             "bower_modules/knockout/dist/knockout",
         "knockout-mapping":     "bower_modules/knockout-mapping/knockout.mapping",
         "blockui":              "bower_modules/blockui/jquery.blockUI",
-        "accounting-js":        "bower_modules/accountingjs/accounting.min"
+        "accounting-js":        "bower_modules/accounting.js/accounting.min"
     }
 };
