@@ -643,8 +643,6 @@ function $$() {
             object[name] = params[name];
             
             if (self.isDefined(values[name])) {
-                //var value;
-                
                 if (ko.isObservable(object[name]) && ko.isObservable(values[name])) {
                     if (!ko.isComputed(object[name])) {
                         object[name] = values[name];
@@ -654,7 +652,15 @@ function $$() {
                 } else if (!ko.isObservable(object[name]) && ko.isObservable(values[name])) {
                     object[name] = values[name]();
                 } else if (!ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
-                    object[name] = values[name];
+                    if (!self.isFunction(object[name])) {
+                        object[name] = values[name];
+                    } else {
+                        if (self.isFunction(values[name])) {
+                            object[name] = values[name];
+                        } else {
+                            console.warn('El parametro ' + name + ' es un callback por lo que debería especificar una funcion');
+                        }
+                    }
                 }
             }            
         }
