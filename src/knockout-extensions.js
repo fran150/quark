@@ -777,12 +777,12 @@ function createModelExporterAccessor(element, valueAccessor, allBindingsAccessor
 ko.bindingHandlers.modelExporter = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent });
+        var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent, $childContext: context });
         return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent });
+        var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent, $childContext: context });
         return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     }
 };
@@ -834,11 +834,13 @@ function createContentAccesor(element, valueAccessor, allBindingsAccessor, viewM
 ko.bindingHandlers.content = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, context.$parentContext);
+        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
+        return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, context.$parentContext);
+        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
+        return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     }
 };
 

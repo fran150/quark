@@ -34,6 +34,36 @@ function $$() {
     */
     this.serverErrorHandlers = {};
 
+    this.behaviours = {};
+
+    this.behaviour = function(name, behaviour) {
+        self.behaviours[name] = behaviour;
+    }
+
+    this.behave = function(object, behaviour) {
+        if (!self.isObject(object)) {
+            throw 'Debe especificar un objeto al que se desea asignar el comportamiento';
+        }
+
+        if (self.isArray(behaviour)) {
+            for (var i = 0; i < behaviour.length; i++) {
+                if (self.behaviours[behaviour[i]]) {
+                    self.behaviours[behaviour[i]](object);
+                } else {
+                    throw 'El comportamiento ' + behaviour[i] + ' no se encuentra registrado.';
+                }
+            }
+        } else if (self.isString(behaviour)) {
+            if (self.behaviours[behaviour]) {
+                self.behaviours[behaviour](object);
+            } else {
+                throw 'El comportamiento ' + behaviour + ' no se encuentra registrado.';
+            }
+        } else {
+            throw 'Debe especificar un string con el nombre del comportamiento o un array de nombres de comportamientos que desea que tenga el objeto';
+        }
+    }
+
     /**
      * @function
      * 
