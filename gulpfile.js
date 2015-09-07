@@ -22,9 +22,7 @@ var requireJsRuntimeConfig = vm.runInNewContext(fs.readFileSync('src/app/require
         out: 'quark.js',
         baseUrl: './src',
         include: [
-            'utils',
-            'knockout-extensions',
-            'knockout-validators'
+            'quark'
         ],
         exclude: [
             'jquery',
@@ -66,11 +64,11 @@ gulp.task('js', function () {
     var target4 = 'define("knockout-validators", function(){});';
     
     return rjs(requireJsOptimizerConfig)
-        .pipe(replace(target, ''))
+        /*.pipe(replace(target, ''))
         .pipe(replace(target2, ''))
         .pipe(replace(target3, ''))
         .pipe(replace(target4, ''))
-        .pipe(uglify({ preserveComments: 'some' }))
+        .pipe(uglify({ preserveComments: 'some' }))*/
         .pipe(gulp.dest('./dist/'));
 });
 
@@ -103,7 +101,7 @@ gulp.task('debug', ['js-debug'], function(callback) {
     console.log('\nPlaced debug files in ' + chalk.blue('dist/\n'));
 });
 
-gulp.task('default', ['component', 'js', 'jsdoc'], function(callback) {
+gulp.task('default', ['component', 'js'], function(callback) {
     callback();
     console.log('\nPlaced optimized files in ' + chalk.magenta('dist/\n'));
 });

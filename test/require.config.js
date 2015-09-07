@@ -3,6 +3,8 @@
   // same behavior that occurs at runtime
   require.baseUrl = '../src/';
   require.shim = [];
+
+  require.paths['quark'] = '../dist/quark'
   
   // It's not obvious, but this is a way of making Jasmine load and run in an AMD environment
   // Credit: http://stackoverflow.com/a/20851265

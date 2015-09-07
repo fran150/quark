@@ -1,4 +1,4 @@
-define(['knockout', 'validation'], function(knockout, ko) {
+define(['knockout', 'modules/validation'], function(knockout, ko) {
 
     // Check if the fields has value
     ko.validators.required = function (observable, config) {

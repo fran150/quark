@@ -1,11 +1,11 @@
-
-    var self = this;
+define(['knockout', 'jquery', 'modules/utils', 'ko-quark'], function(ko, $, utils) {
+    var self = utils;
 
     // Loaded behaviours array
-    this.behaviours = {};
+    utils.behaviours = {};
 
     // Loads a behaviour with the specified name
-    this.behaviour = function(name, behaviour) {
+    utils.behaviour = function(name, behaviour) {
         // Warn if repeated
         if (self.behaviour[name]) {
             console.warn('There was already a behaviour loaded with the name ' + name + '. It will be replaced with the new one.');
@@ -43,7 +43,7 @@
 
     // Applies the behaviour to the object. You can specify a string with the name of a loaded behaviour
     // or an array of behaviour names.
-    this.behave = function(object, behaviour) {
+    utils.behave = function(object, behaviour) {
         // Validates object
         if (!self.isObject(object)) {
             throw 'You must specifify a valid object to apply the behaviour.';
@@ -64,7 +64,7 @@
     }
 
     // Receive configuration params extacting the value if neccesary.
-    this.config = function(config, values, object) {
+    utils.config = function(config, values, object) {
         // Checks the configuration object
         if (!self.isObject(config)) {
             throw 'You must specify a config object';
@@ -112,7 +112,7 @@
     }
 
     // Receive parameters from the component tag and set them into the viewmodel
-    this.parameters = function(params, values, object) {
+    utils.parameters = function(params, values, object) {
         // Checks the parameters configuration object
         if (!self.isObject(params)) {
             throw 'You must specify a parameters config object';
@@ -164,7 +164,7 @@
                         } else {
                             // Err if not's a callback
                             if (self.isDefined(values[name])) {
-                                throw 'The parameter ' + name + ' must be a callback.');
+                                throw 'The parameter ' + name + ' must be a callback.';
                             }
                         }
                     }
@@ -175,7 +175,7 @@
 
     // Define child components, used in conjunction with the vm binding, it obtains the childs viewmodels
     // and waits for them to be fully binded, then it invokes the callback or the object's ready function if defined.
-    this.components = function(childs, object, callback) {
+    utils.components = function(childs, object, callback) {
         // Checks the childs definition object
         if (!self.isObject(childs)) {
             throw 'You must specify a childs config object';
@@ -193,7 +193,7 @@
 
         // Sets the childs array wich tracks the dependencies and state
         object.tracking = {
-            childs: {};
+            childs: {}
         }
 
         // For each expected dependency..
@@ -210,7 +210,7 @@
                 } else {
                     object[propertyName] = vm;
                 }
-                object.tracking.childs.[propertyName]['loaded'] = true;
+                object.tracking.childs[propertyName]['loaded'] = true;
 
                 if (self.isDefined(vm.tracking)) {
                     // If the child has dependencies mark the dependency as not ready and save
@@ -245,7 +245,7 @@
                     }
                 }
 
-                // If this point is reached then all dependencies are loaded and ready.
+                // If utils point is reached then all dependencies are loaded and ready.
                 // So, invoke the callback (if it's defined)
                 if (self.isDefined(callback)) {
                     callback();
@@ -277,7 +277,7 @@
                     }
                 }
 
-                // At this point, all childs are ready, therefore the object itself is ready
+                // At utils point, all childs are ready, therefore the object itself is ready
                 // So, invoke the callback (if it's defined)
                 if (self.isDefined(callback)) {
                     callback();
@@ -303,7 +303,7 @@
 
     // Copies one object into other. If recursively is false or not specified it copies all properties in the "to" object
     // that exists in "from" object, if recursively is true does the same with each property (copying object graphs)
-    this.inject = function (from, to, recursively) {
+    utils.inject = function (from, to, recursively) {
         if (!self.isDefined(from)) {
             return;
         }
@@ -338,4 +338,7 @@
             }
         }
     }
-}
+
+    return utils;
+});
+

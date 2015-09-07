@@ -1,4 +1,4 @@
-define(['knockout', 'jquery', 'utils'], function(ko, $, utls) {
+define(['knockout', 'jquery', 'modules/utils'], function(ko, $, utils) {
 
     // Initialize validators array
     ko.validators = {};

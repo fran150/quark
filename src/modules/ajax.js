@@ -1,4 +1,4 @@
-define(['jquery', 'utils'], function($, utils) {
+define(['jquery', 'modules/utils'], function($, utils) {
 
     // Adds client error handlers repository
     utils.clientErrorHandlers = {};
@@ -43,24 +43,32 @@ define(['jquery', 'utils'], function($, utils) {
             success: onSuccess,
             headers: opts.headers || {},
             error: function (jqXHR, textStatus, errorThrown) {
+                // Check if some handler processed the error.
                 var handled = false;
 
-                // Try to
+                // If there is an error handler defined in the call excute it. If has handled the error it must return true
                 if (utils.isDefined(clbks.onError)) {
                     handled = clbks.onError();
                 }
 
+                // If nobody has handled the error try to use a generic handler
                 if (!handled) {
+                    // If it's a server error
                     if (jqXHR.status >= 500 && jqXHR.status < 600) {
+                        // Call all handlers in registration order until someone handles it (must return true)
                         for (var handlerName in utils.serverErrorHandlers) {
                             if (utils.serverErrorHandlers[handlerName](target, JSON.parse(jqXHR.responseText))) {
+                                // If its handled stop executing handlers
                                 handled = true;
                                 break;
                             }
                         }
                     } else {
+                        // If it's a client error
                         for (handlerName in utils.clientErrorHandlers) {
+                            // Call all handlers in registration order until someone handles it (must return true)
                             if (utils.clientErrorHandlers[handlerName](target, jqXHR, textStatus, errorThrown)) {
+                                // If its handled stop executing handlers
                                 handled = true;
                                 break;
                             }

@@ -1,4 +1,4 @@
-define(['knockout', 'jquery', 'utils', 'blockui'], function(ko, $, utils) {
+define(['knockout', 'jquery', 'modules/utils', 'blockui'], function(ko, $, utils) {
     var self = this;
 
     function Web() {
