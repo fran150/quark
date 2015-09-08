@@ -22,7 +22,7 @@ var requireJsRuntimeConfig = vm.runInNewContext(fs.readFileSync('src/app/require
         out: 'quark.js',
         baseUrl: './src',
         include: [
-            'quark'
+            'core'
         ],
         exclude: [
             'jquery',

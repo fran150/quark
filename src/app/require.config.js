@@ -2,6 +2,7 @@
 var require = {
     baseUrl: ".",
     paths: {
+        "quark":                "core",
         "jquery":               "bower_modules/jquery/dist/jquery",
         "knockout":             "bower_modules/knockout/dist/knockout",
         "knockout-mapping":     "bower_modules/knockout-mapping/knockout.mapping",

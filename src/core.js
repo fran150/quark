@@ -1,5 +1,5 @@
-define(['knockout', 'jquery', 'modules/utils', 'ko-quark'], function(ko, $, utils) {
-    var self = utils;
+define(['knockout', 'jquery', 'modules/utils', 'core-ko'], function(ko, $, utils) {
+
 
     // Loaded behaviours array
     utils.behaviours = {};

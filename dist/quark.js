@@ -1,6 +1,6 @@
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
-    // AMD.
+      // AMD.
     define('quark', ['knockout', 'jquery', 'knockout-mapping', 'accounting-js', 'blockui'], factory);
   } else {
     // Browser globals.
@@ -8,8 +8,6 @@
     root.$$ = factory(root.ko, root.$, root.komapping, root.accounting);
   }
 }(this, function(ko, $, komapping, accounting) {
-
-    define('modules/utils',['jquery', 'knockout-mapping'], function($, komapping) {
 
     function Utils() {
         var self = this;
@@ -132,8 +130,6 @@
         }
     }
 
-    return new Utils();
-});
 
 define('modules/knockout-extensions',['knockout', 'knockout-mapping'], function(ko, komapping) {
 
@@ -193,7 +189,7 @@ define('modules/knockout-extensions',['knockout', 'knockout-mapping'], function(
     return ko;
 });
 
-define('ko-quark',['knockout', 'jquery', 'modules/utils', 'modules/knockout-extensions'], function(ko, $, utils) {
+define('core-ko',['knockout', 'jquery', 'modules/utils', 'modules/knockout-extensions'], function(ko, $, utils) {
 
     ko.bindingProvider.instance.preprocessNode = function (node) {
         var testAndReplace = function(regExp) {
@@ -432,8 +428,11 @@ define('ko-quark',['knockout', 'jquery', 'modules/utils', 'modules/knockout-exte
 
     return ko;
 });
-define('quark',['knockout', 'jquery', 'modules/utils', 'ko-quark'], function(ko, $, utils) {
+
+define('core',['knockout', 'jquery', 'modules/utils', 'core-ko'], function(ko, $, utils) {
     var self = utils;
+
+    debugger;
 
     // Loaded behaviours array
     utils.behaviours = {};
@@ -776,13 +775,7 @@ define('quark',['knockout', 'jquery', 'modules/utils', 'ko-quark'], function(ko,
     return utils;
 });
 
-        if (typeof define === 'function' && define.amd) {
-      define('knockout', function() {
-        return ko;
-      });
-
-    }
-
+    return new Utils();
 }));
 
 
