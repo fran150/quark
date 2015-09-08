@@ -2,7 +2,7 @@ module.exports = function(config) {
   config.set({
 
     // base path that will be used to resolve all patterns (eg. files, exclude)
-    basePath: '',
+    basePath: '.',
 
 
     // frameworks to use
@@ -12,8 +12,6 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      'src/app/require.config.js',
-      'dist/quark.js',
       'test/require.config.js',
       'test/SpecRunner.karma.js',
       { pattern: 'dist/**/*.js', included: false },

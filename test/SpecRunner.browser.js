@@ -1,13 +1,12 @@
 (function() {
-  // Reference your test modules here
-  var testModules = [
-    'modules/isDefined',  
-    'modules/clone'
-  ];
+    // Reference your test modules here
+    var testModules = [
+        'modules/utils-testFunctions'
+    ];
 
-  // After the 'jasmine-boot' module creates the Jasmine environment, load all test modules then run them
-  require(['jasmine-boot'], function () {
-  	var modulesCorrectedPaths = testModules.map(function(m) { return '../test/' + m; });
-    require(modulesCorrectedPaths, window.onload);
-  });
+    // After the 'jasmine-boot' module creates the Jasmine environment, load all test modules then run them
+    require(['jasmine-boot'], function () {
+        var modulesCorrectedPaths = testModules.map(function(m) { return 'test/' + m; });
+        require(modulesCorrectedPaths, window.onload);
+    });
 })();
