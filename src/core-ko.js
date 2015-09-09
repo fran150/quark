@@ -56,14 +56,18 @@ ko.bindingHandlers.vm = {
         }
 
         if ($$.isString(property)) {
-            if ($$.isDefined(viewModel['childs'])) {
-                if ($$.isDefined(viewModel['childs'][property])) {
-                    viewModel['childs'][property]['load'](property, context.$child);
+            if ($$.isDefined(viewModel['tracking'])) {
+                if ($$.isDefined(viewModel.tracking['childs'])) {
+                    if ($$.isDefined(viewModel.tracking.childs[property])) {
+                        viewModel.tracking.childs[property]['load'](property, context.$child);
+                    } else {
+                        throw 'El objeto especificado no tiene una propiedad de nombre ' + value + '. Verifique que el objeto contenga una propiedad definida con el metodo .components a la que apunta este binding vm.';
+                    }
                 } else {
-                    throw 'El objeto especificado no tiene una propiedad de nombre ' + value + '. Verifique que el objeto contenga una propiedad definida con el metodo .components a la que apunta este binding vm.';
+                    throw 'El objeto especificado no tiene la propiedad childs en el tracking. Esto probablemente se deba a que no uso la funcion .components de quark para definir las propiedades en donde el binding vm debe asignar el viewmodel';
                 }
             } else {
-                throw 'El objeto especificado no tiene la propiedad childs. Esto probablemente se deba a que no uso la funcion .components de quark para definir las propiedades en donde el binding vm debe asignar el viewmodel';
+                throw 'El objeto especificado no tiene la propiedad tracking. Esto probablemente se deba a que no uso la funcion .components de quark para definir las propiedades en donde el binding vm debe asignar el viewmodel';
             }
         } else {
             throw 'El valor del binding vm debe ser un string con el nombre de la propiedad del objeto donde se debe cargar el viewmodel del componente anidado';

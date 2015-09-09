@@ -10,7 +10,8 @@
             "knockout":             "src/bower_modules/knockout/dist/knockout",
             "knockout-mapping":     "src/bower_modules/knockout-mapping/knockout.mapping",
             "blockui":              "src/bower_modules/blockui/jquery.blockUI",
-            "accounting-js":        "src/bower_modules/accounting.js/accounting.min"
+            "accounting-js":        "src/bower_modules/accounting.js/accounting.min",
+            "text":                 "src/bower_modules/requirejs-text/text"
         },
 
     }
