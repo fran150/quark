@@ -89,11 +89,7 @@ $$.isValidDate = function (variable) {
 
 // Clone the specified object
 $$.clone = function(source) {
-    if ($$.isObject(source)) {
-        return $.extend(true, {}, source);
-    } else {
-        throw new 'You must specify a valid object to clone';
-    }
+    return $.extend(true, {}, source);
 };
 
 // Clone the specified object to an observable object. An observable object is an object in wich all its properties are
@@ -102,15 +98,50 @@ $$.cloneObservable = function(source) {
     return komapping.fromJS(komapping.toJS(source));
 };
 
+// Clones the specified object to an object even if properties are observables or not.
+$$.cloneMixed = function (source) {
+    var target = new source.constructor();
+
+    for (var name in source) {
+        var value;
+
+        if (ko.isObservable(source[name])) {
+            value = source[name]();
+
+            if ($$.isObject(value)) {
+                target[name] = ko.observable($$.cloneMixed(value));
+            } else {
+                target[name] = ko.observable(value);
+            }
+        } else {
+            value = source[name];
+
+            if ($$.isObject(value)) {
+                target[name] = $$.cloneMixed(value);
+            } else {
+                target[name] = value;
+            }
+        }
+    }
+
+    return target;
+};
+
 // Check if the function (callback) is defined, and if it is calls it with the parameters passed.
 // ie.: call('onClick', 'hello', 'world', 3). will call the function onClick('hello', 'world' 3);
 $$.call = function (callback) {
-    if ($$.isDefined(callback)) {
-        var args = Array.prototype.slice.call(arguments, 1);
-        return callback.apply(args);
+    if (ko.isObservable(callback)) {
+        callback = callback();
     }
 
-    return true;
+    if (ko.isObservable(callback)) {
+        throw 'Callback can not be an observable';
+    }
+
+    if ($$.isFunction(callback)) {
+        var args = Array.prototype.slice.call(arguments, 1);
+        return callback.apply(null, args);
+    }
 }
 
 // Force a value to be a date. If it's not a date try to create one with it, if it results in an invalid
@@ -121,7 +152,7 @@ $$.makeDate = function (value, useToday) {
     }
 
     if (!$$.isValidDate(value)) {
-        if (!useToday) {
+        if (useToday) {
             value = new Date();
         } else {
             return undefined;
@@ -130,6 +161,7 @@ $$.makeDate = function (value, useToday) {
 
     return value;
 }
+
 // Loaded behaviours array
 $$.behaviours = {};
 
@@ -467,6 +499,7 @@ $$.inject = function (from, to, recursively) {
         }
     }
 }
+
 ko.bindingProvider.instance.preprocessNode = function (node) {
     var testAndReplace = function(regExp) {
         var match = node.nodeValue.match(regExp);
@@ -701,6 +734,7 @@ ko.bindingHandlers.hasNotContent = {
     }
 };
 ko.virtualElements.allowedBindings.hasNotContent = true;
+
 // Redirect the browser to the specified url
 $$.redirect = function(url) {
     window.location.href = url;
@@ -832,6 +866,7 @@ $$.getCookie = function (name) {
     return "";
 }
 
+
 // Adds client error handlers repository
 $$.clientErrorHandlers = {};
 // Adds server error handlers repository
@@ -910,6 +945,7 @@ $$.ajax = function (target, method, data, callbacks, options) {
         }
     });
 }
+
 // Check if it's an observable array
 ko.isObservableArray = function(elem) {
     if (ko.isObservable(elem) && elem.indexOf !== undefined) {
