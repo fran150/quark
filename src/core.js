@@ -1,5 +1,5 @@
 // Loaded behaviours array
-$$.behaviours = {};
+var behaviours = {};
 
 // Loads a behaviour with the specified name
 $$.behaviour = function(name, behaviour) {
@@ -19,7 +19,7 @@ $$.behaviour = function(name, behaviour) {
     }
 
     // Adds the new behaviour to the table
-    $$.behaviours[name] = behaviour;
+    behaviours[name] = behaviour;
 }
 
 // Applies a behaviour to the object
@@ -30,9 +30,15 @@ function applyBehaviour(object, behaviourName) {
     }
 
     // Chek if behaviour exists
-    if ($$.behaviours[behaviourName]) {
+    if (behaviours[behaviourName]) {
         // Apply new behaviour
-        $$.behaviours[behaviourName](object);
+        behaviours[behaviourName](object);
+
+        if (!$$.isDefined(object.behaviours)) {
+            object.behaviours = {};
+        }
+
+        object.behaviours[behaviourName] = true;
     } else {
         throw 'The are no behaviours loaded with the name ' + behaviourName + '.';
     }
@@ -58,6 +64,28 @@ $$.behave = function(object, behaviour) {
         // Everything else fails
         throw 'The behaviour name must be an string or an array of strings.';
     }
+}
+
+// Checks if the behaviour has been added to the object
+$$.hasBehaviour = function(object, behaviourName) {
+    // Validates object
+    if (!$$.isObject(object)) {
+        throw 'You must specifify a valid object to check the behaviour.';
+    }
+
+    // Error if behaviour name is not a string
+    if (!$$.isString(behaviourName)) {
+        throw 'The behaviour name must be an string.';
+    }
+
+    // Check if the object has the specified behaviour added
+    if ($$.isDefined(object.behaviours)) {
+        if ($$.isDefined(object.behaviours[behaviourName])) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // Receive configuration params extacting the value if neccesary.

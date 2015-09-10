@@ -163,7 +163,7 @@ $$.makeDate = function (value, useToday) {
 }
 
 // Loaded behaviours array
-$$.behaviours = {};
+var behaviours = {};
 
 // Loads a behaviour with the specified name
 $$.behaviour = function(name, behaviour) {
@@ -183,7 +183,7 @@ $$.behaviour = function(name, behaviour) {
     }
 
     // Adds the new behaviour to the table
-    $$.behaviours[name] = behaviour;
+    behaviours[name] = behaviour;
 }
 
 // Applies a behaviour to the object
@@ -194,9 +194,15 @@ function applyBehaviour(object, behaviourName) {
     }
 
     // Chek if behaviour exists
-    if ($$.behaviours[behaviourName]) {
+    if (behaviours[behaviourName]) {
         // Apply new behaviour
-        $$.behaviours[behaviourName](object);
+        behaviours[behaviourName](object);
+
+        if (!$$.isDefined(object.behaviours)) {
+            object.behaviours = {};
+        }
+
+        object.behaviours[behaviourName] = true;
     } else {
         throw 'The are no behaviours loaded with the name ' + behaviourName + '.';
     }
@@ -222,6 +228,28 @@ $$.behave = function(object, behaviour) {
         // Everything else fails
         throw 'The behaviour name must be an string or an array of strings.';
     }
+}
+
+// Checks if the behaviour has been added to the object
+$$.hasBehaviour = function(object, behaviourName) {
+    // Validates object
+    if (!$$.isObject(object)) {
+        throw 'You must specifify a valid object to check the behaviour.';
+    }
+
+    // Error if behaviour name is not a string
+    if (!$$.isString(behaviourName)) {
+        throw 'The behaviour name must be an string.';
+    }
+
+    // Check if the object has the specified behaviour added
+    if ($$.isDefined(object.behaviours)) {
+        if ($$.isDefined(object.behaviours[behaviourName])) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // Receive configuration params extacting the value if neccesary.
@@ -563,16 +591,16 @@ ko.bindingHandlers.vm = {
                     if ($$.isDefined(viewModel.tracking.childs[property])) {
                         viewModel.tracking.childs[property]['load'](property, context.$child);
                     } else {
-                        throw 'El objeto especificado no tiene una propiedad de nombre ' + value + '. Verifique que el objeto contenga una propiedad definida con el metodo .components a la que apunta este binding vm.';
+                        throw 'The specified object doesn´t have a property named ' + value + '. Verify that the object has a property defined with the .components method with the name defined in the vm binding.';
                     }
                 } else {
-                    throw 'El objeto especificado no tiene la propiedad childs en el tracking. Esto probablemente se deba a que no uso la funcion .components de quark para definir las propiedades en donde el binding vm debe asignar el viewmodel';
+                    throw 'The specified object doesn´t have the tracking property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
                 }
             } else {
-                throw 'El objeto especificado no tiene la propiedad tracking. Esto probablemente se deba a que no uso la funcion .components de quark para definir las propiedades en donde el binding vm debe asignar el viewmodel';
+                throw 'The specified object doesn´t have the tracking.childs property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
             }
         } else {
-            throw 'El valor del binding vm debe ser un string con el nombre de la propiedad del objeto donde se debe cargar el viewmodel del componente anidado';
+            throw 'The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component';
         }
     }
 }
@@ -870,6 +898,11 @@ $$.getCookie = function (name) {
     return "";
 }
 
+// Clears the specified cookie
+$$.clearCookie = function(name) {
+    $$.setCookie(name,"",-1);
+}
+
 
 // Adds client error handlers repository
 $$.clientErrorHandlers = {};
@@ -966,18 +999,24 @@ ko.isComputed = function (instance) {
     return ko.isComputed(instance.__ko_proto__); // Walk the prototype chain
 }
 
-// Transform the model into an observable object using knockout-mapping
-ko.getJson = function (model) {
-    var unmapped = komapping.toJS(model);
-
+function clearFields(unmapped) {
     for (var i in unmapped) {
         if (unmapped[i] === null || unmapped[i] === undefined) {
             delete unmapped[i];
         }
         else if (typeof unmapped[i] === "object") {
-            ko.getJson(unmapped[i]);
+            clearFields(unmapped[i]);
         }
     }
+
+    return unmapped;
+}
+
+// Transform the model into JSON using knockout-mapping, if a field is null or undefined it deletes it.
+ko.getJson = function (model) {
+    var unmapped = komapping.toJS(model);
+
+    unmapped = clearFields(unmapped);
 
     var result = komapping.toJSON(unmapped);
 
@@ -1011,7 +1050,12 @@ ko.bindingHandlers.rowSelect = {
         var options = ko.unwrap(valueAccessor());
 
         var selectedValueAccessor = function () {
-            return { success: options.isSelected(viewModel) };
+            if ($$.isFunction(options.isSelected)) {
+                return { success: options.isSelected(viewModel) };
+            } else {
+                return { success: options.isSelected };
+            }
+
         };
 
         ko.bindingHandlers.css.update(element, selectedValueAccessor, allBindingsAccessor, viewModel, context);
@@ -1065,7 +1109,11 @@ ko.bindingHandlers.moneyValue = {
 
         var interceptor = ko.pureComputed({
             read: function () {
-                return accounting.formatMoney(underlyingObservable(),"$ ", 2, ".", ",");
+                if ($$.isDefined(underlyingObservable())) {
+                    return accounting.formatMoney(underlyingObservable(),"$ ", 2, ".", ",");
+                } else {
+                    return undefined;
+                }
             },
 
             write: function (newValue) {

@@ -5,7 +5,12 @@ ko.bindingHandlers.rowSelect = {
         var options = ko.unwrap(valueAccessor());
 
         var selectedValueAccessor = function () {
-            return { success: options.isSelected(viewModel) };
+            if ($$.isFunction(options.isSelected)) {
+                return { success: options.isSelected(viewModel) };
+            } else {
+                return { success: options.isSelected };
+            }
+
         };
 
         ko.bindingHandlers.css.update(element, selectedValueAccessor, allBindingsAccessor, viewModel, context);
@@ -59,7 +64,11 @@ ko.bindingHandlers.moneyValue = {
 
         var interceptor = ko.pureComputed({
             read: function () {
-                return accounting.formatMoney(underlyingObservable(),"$ ", 2, ".", ",");
+                if ($$.isDefined(underlyingObservable())) {
+                    return accounting.formatMoney(underlyingObservable(),"$ ", 2, ".", ",");
+                } else {
+                    return undefined;
+                }
             },
 
             write: function (newValue) {

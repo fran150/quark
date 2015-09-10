@@ -1,6 +1,6 @@
 define(['knockout', 'quark'], function(ko, $$) {
-    describe('Miscelaneas', function() {
-        describe('Pruebas de call', function() {
+    describe('Utils - Miscelaneous', function() {
+        describe('Call tests', function() {
             var callback = function(param1, param2) {
                 param1 = param1 || '';
                 param2 = param2 || '';
@@ -50,7 +50,7 @@ define(['knockout', 'quark'], function(ko, $$) {
             });
         });
 
-        describe('Pruebas de makeDate', function() {
+        describe('makeDate Tests', function() {
             var date = new Date();
 
             it('Must return a valid date object when called with a valid string', function() {

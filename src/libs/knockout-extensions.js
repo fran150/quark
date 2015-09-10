@@ -14,18 +14,24 @@ ko.isComputed = function (instance) {
     return ko.isComputed(instance.__ko_proto__); // Walk the prototype chain
 }
 
-// Transform the model into an observable object using knockout-mapping
-ko.getJson = function (model) {
-    var unmapped = komapping.toJS(model);
-
+function clearFields(unmapped) {
     for (var i in unmapped) {
         if (unmapped[i] === null || unmapped[i] === undefined) {
             delete unmapped[i];
         }
         else if (typeof unmapped[i] === "object") {
-            ko.getJson(unmapped[i]);
+            clearFields(unmapped[i]);
         }
     }
+
+    return unmapped;
+}
+
+// Transform the model into JSON using knockout-mapping, if a field is null or undefined it deletes it.
+ko.getJson = function (model) {
+    var unmapped = komapping.toJS(model);
+
+    unmapped = clearFields(unmapped);
 
     var result = komapping.toJSON(unmapped);
 

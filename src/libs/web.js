@@ -128,3 +128,8 @@ $$.getCookie = function (name) {
     }
     return "";
 }
+
+// Clears the specified cookie
+$$.clearCookie = function(name) {
+    $$.setCookie(name,"",-1);
+}
