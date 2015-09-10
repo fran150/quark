@@ -12,6 +12,7 @@ module.exports = function(config) {
     files: [
       'test/require.config.js',
       'test/SpecRunner.karma.js',
+      'dist/quark-component.html',
       { pattern: 'dist/**/*.js', included: false },
       { pattern: 'dist/**/*.html', included: false },
       { pattern: 'src/**/*.js', included: false },
@@ -35,7 +36,7 @@ module.exports = function(config) {
     // test results reporter to use
     // possible values: 'dots', 'progress'
     // available reporters: https://npmjs.org/browse/keyword/karma-reporter
-    reporters: ['progress'],
+    reporters: ['progress', 'brackets'],
 
 
     // web server port

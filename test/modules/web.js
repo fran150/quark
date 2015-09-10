@@ -16,6 +16,7 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
 
     var page;
     var body;
+    var test;
 
     describe('Components', function() {
         beforeEach(function(done) {
@@ -27,29 +28,31 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
                 });
             }
 
-            $('<iframe id="testFrame" name="myFrame">').appendTo('body');
-            body = $('iframe').contents().find('body');
+            body = $(document).find('body');
+            $('<div id=\'test\'></div>').appendTo(body);
 
-            body.append('   <test-component>' +
+            test = $(body).find('#test');
+            test.append('   <test-component>' +
                         '       <!-- vm: \'child\' --> ' +
                         '   </test-component>');
 
             page = new Page();
-            ko.applyBindings(page, body[0]);
+            ko.applyBindings(page, test[0]);
         });
 
         afterEach(function() {
-            $('#testFrame').remove();
+            ko.cleanNode(test.get(0));
+            $(test).remove();
         });
 
         it ('Input is bound to observable', function() {
-            expect($(body).find('#prueba').val()).toBe('Prueba');
+            expect($(test).find('#prueba').val()).toBe('Prueba');
         });
 
         it ('Modifying observable affects input', function() {
-            expect($(body).find('#prueba').val()).toBe('Prueba');
+            expect($(test).find('#prueba').val()).toBe('Prueba');
             page.child.name('Tested');
-            expect($(body).find('#prueba').val()).toBe('Tested');
+            expect($(test).find('#prueba').val()).toBe('Tested');
         });
     });
 });
