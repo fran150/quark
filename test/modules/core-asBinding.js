@@ -5,6 +5,11 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
         this.name = ko.observable('Frank');
         this.age = ko.observable(33);
         this.check = true;
+
+        if (params && params.check) {
+            debugger;
+            this.check = false;
+        }
     }
 
     var page;
@@ -13,9 +18,6 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
 
     describe('Core - Inject Binding Test', function() {
         beforeEach(function(done) {
-            ko.components.register('quark-component', {
-                template: { require: 'text!dist/quark-component.html' }
-            });
 
             ko.components.register('test-component', {
                 template: '<quark-component></quark-component>',
@@ -23,11 +25,10 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
             });
 
             function Page() {
-                $$.components({
-                    child: {}
-                }, this, function() {
+                this.ready = function() {
+                    debugger;
                     done();
-                });
+                };
 
                 this.data = {
                     name: 'Pat',
@@ -40,9 +41,14 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
             $('<div id=\'test\'></div>').appendTo(body);
 
             test = $(body).find('#test');
-            test.append('   <test-component>' +
+            test.append('   <test-component data-bind="as: \'child\'" params="name: \'child\'">' +
                         '       <!-- inject: data --> ' +
                         '       <!-- vm: \'child\' --> ' +
+                        '       <h1>BlaBla</h1> ' +
+                        '   </test-component>' +
+                       '   <test-component data-bind="as: \'child2\'" params="check: true">' +
+                        '       <!-- inject: data --> ' +
+                        '       <!-- vm: \'child2\' --> ' +
                         '       <h1>BlaBla</h1> ' +
                         '   </test-component>');
 

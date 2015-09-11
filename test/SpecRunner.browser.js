@@ -1,7 +1,7 @@
 (function() {
     // Reference your test modules here
     var testModules = [
-        'modules/utils-testFunctions',
+        /*'modules/utils-testFunctions',
         'modules/utils-cloning',
         'modules/utils-misc',
         'modules/web',
@@ -12,7 +12,8 @@
         'modules/core-parameters',
         'modules/core-config',
         'modules/core-call',
-        'modules/core-inject'
+        'modules/core-inject'*/
+        'modules/core-asBinding'
     ];
 
     // After the 'jasmine-boot' module creates the Jasmine environment, load all test modules then run them

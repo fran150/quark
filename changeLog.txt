@@ -1,0 +1,3 @@
+[0.7.0]
+
+- It automatically replaces the tag <quark-component> for the virtual component tag, so it isn´t added on the DOM.

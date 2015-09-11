@@ -528,6 +528,112 @@ $$.inject = function (from, to, recursively) {
     }
 }
 
+ko.components.register('quark-component', {
+    template: "<!-- ko componentShadyDom --><!-- /ko --><!-- ko modelExporter --><!-- /ko -->",
+    viewModel: function(params) {
+        debugger;
+    }
+});
+
+
+ko.bindingHandlers.as = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var object = viewModel;
+        var name = valueAccessor();
+
+        // Sets the childs array wich tracks the dependencies and state
+        if (!$$.isObject(object.tracking)) {
+            object.tracking = {
+                childs: {}
+            }
+        }
+
+        // Start tracking the dependency
+        object.tracking.childs[name] = {};
+
+        // Define a function to call when the child finishes loading.
+        // PropertyName contains the child name, and vm the corresponding viewmodel
+        object.tracking.childs[name]['load'] = function(propertyName, vm) {
+            // Sets the child viemodel and marks it as loaded
+            object[propertyName] = vm;
+            object.tracking.childs[propertyName]['loaded'] = true;
+
+            if ($$.isDefined(vm.tracking)) {
+                // If the child has dependencies mark the dependency as not ready and save
+                // the parent data (reference and state)
+                object.tracking.childs[propertyName]['ready'] = false;
+
+                vm.tracking.parent = object;
+                vm.tracking.parentState = object.tracking.childs[propertyName];
+            } else {
+                // If the child hasn't dependencies mark the dependency on parent as ready
+                object.tracking.childs[propertyName]['ready'] = true;
+
+                // If there's a ready function on the child invoke it
+                if ($$.isDefined(vm['ready'])) {
+                    vm['ready']();
+                }
+            }
+
+            // If any property in the child is not loaded then exit
+            // !! OPTIMIZE !! by using a counter and not iterating all array over and over
+            for (var property in object.tracking.childs) {
+                if (!object.tracking.childs[property]['loaded']) {
+                    return;
+                }
+            }
+
+            // If any property in the child is not ready then exit
+            // !! OPTIMIZE !! by using a counter and not iterating all array over and over
+            for (var property in object.tracking.childs) {
+                if (!object.tracking.childs[property]['ready']) {
+                    return;
+                }
+            }
+
+            // And the ready method...
+            if ($$.isFunction(object['ready'])) {
+                object['ready']();
+            }
+
+            // Finally if the object is tracked and has a parent, mark itself as ready on the parent
+            // object and call the function on the parent to reevaluate readiness.
+            if ($$.isDefined(object['tracking']) && $$.isDefined(object.tracking['parent'])) {
+                object.tracking.parentState['ready'] = true;
+                object.tracking.parent.childReady();
+            }
+        }
+
+        // Initialize the tracking of the child component
+        object.tracking.childs[name]['loaded'] = false;
+
+        // Defines a function to call when one of its childs is ready.
+        // It forces the object to reevaluate its readiness
+        object.tracking.childReady = function() {
+            // If there is a child that is not ready then exits
+            for (var property in object.tracking.childs) {
+                if (!object.tracking.childs[property]['ready']) {
+                    return;
+                }
+            }
+
+            // And the ready method...
+            if ($$.isFunction(object['ready'])) {
+                object['ready']();
+            }
+
+            // Finally if the object is tracked and has a parent, mark itself as ready on the parent
+            // object and call the function on the parent to reevaluate readiness.
+            if ($$.isDefined(object['parent'])) {
+                object.traking.parentState['ready'] = true;
+                object.tracking.parent.childReady();
+            }
+        }
+
+        // Import the dependency to the target object
+        object[name] = {};
+    }
+}
 
 // Defines a computed parameter. You must specify the parameter (received in component's constructor), the read and write accessors with the form
 // and the component's viewmodel
@@ -562,6 +668,17 @@ ko.bindingProvider.instance.preprocessNode = function (node) {
             return false;
         }
     };
+
+    if (node.nodeName && node.nodeName === 'QUARK-COMPONENT') {
+        var c1 = document.createComment("ko component: \'quark-component\'");
+        var c2 = document.createComment("/ko");
+        node.parentNode.insertBefore(c1, node);
+        node.parentNode.insertBefore(c2, node.nextSibling);
+        node.parentNode.removeChild(node);
+
+        // Tell Knockout about the new nodes so that it can apply bindings to them
+        return [c1, c2];
+    }
 
     // Only react if this is a comment node of the form <!-- vm: ... -->, <!-- call: ... --> or <!-- inject: ... -->
     if (node.nodeType === 8) {
@@ -711,11 +828,13 @@ function createModelExporterAccessor(element, valueAccessor, allBindingsAccessor
 
 ko.bindingHandlers.modelExporter = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        debugger;
         var newAccesor = createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent, $childContext: context });
         return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        debugger;
         var newAccesor = createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent, $childContext: context });
         return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
