@@ -528,6 +528,24 @@ $$.inject = function (from, to, recursively) {
     }
 }
 
+
+// Defines a computed parameter. You must specify the parameter (received in component's constructor), the read and write accessors with the form
+// and the component's viewmodel
+ko.computedParameter = function (param, accessors, object) {
+    if (!ko.isObservable(param)) {
+        param = ko.observable(param);
+    }
+
+    return ko.computed({
+        read: function () {
+            return accessors.read(param);
+        },
+        write: function (newValue) {
+            return accessors.write(param, newValue);
+        }
+    }, object);
+}
+
 ko.bindingProvider.instance.preprocessNode = function (node) {
     var testAndReplace = function(regExp) {
         var match = node.nodeValue.match(regExp);
@@ -545,7 +563,7 @@ ko.bindingProvider.instance.preprocessNode = function (node) {
         }
     };
 
-    // Only react if this is a comment node of the form <!-- vm: ... -->
+    // Only react if this is a comment node of the form <!-- vm: ... -->, <!-- call: ... --> or <!-- inject: ... -->
     if (node.nodeType === 8) {
         var nodes;
         nodes = testAndReplace(/^\s*(vm\s*:[\s\S]+)/);
@@ -607,17 +625,10 @@ ko.bindingHandlers.vm = {
 ko.virtualElements.allowedBindings.vm = true;
 
 
-function callBinding(valueAccessor) {
-    var value = ko.unwrap(valueAccessor());
-    value();
-}
-
 ko.bindingHandlers.call = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
-        callBinding(valueAccessor);
-    },
-    update: function (element, valueAccessor, allBindings, viewModel, context) {
-        callBinding(valueAccessor);
+        var value = ko.unwrap(valueAccessor());
+        value();
     }
 }
 ko.virtualElements.allowedBindings.call = true;
@@ -1023,23 +1034,6 @@ ko.getJson = function (model) {
     result = result.replace(/\/Date\(\d+\)/g, function (a) { return '\\' + a + '\\'; });
 
     return result;
-}
-
-// Defines a computed parameter. You must specify the parameter (received in component's constructor), the read and write accessors with the form
-// and the component's viewmodel
-ko.computedParameter = function (param, accessors, object) {
-    if (!ko.isObservable(param)) {
-        param = ko.observable(param);
-    }
-
-    return ko.computed({
-        read: function () {
-            return accessors.read(param);
-        },
-        write: function (newValue) {
-            return accessors.write(param, newValue);
-        }
-    }, object);
 }
 
 

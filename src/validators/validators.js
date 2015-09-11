@@ -1,4 +1,4 @@
-define(['knockout', 'modules/validation'], function(knockout, ko) {
+define(['knockout', 'quark'], function(ko, $$) {
 
     // Check if the fields has value
     ko.validators.required = function (observable, config) {
@@ -95,7 +95,7 @@ define(['knockout', 'modules/validation'], function(knockout, ko) {
             observable.validationReset();
 
             // Si no es un numero valido da error
-            if (newValue !== '' && quark.isInt(newValue)) {
+            if (newValue !== '' && $$.isInt(newValue)) {
                 observable.hasError(true);
                 observable.validationMessage((config['message'] || 'El campo {0} debe ser un numero entero valido')
                     .replace('{0}', observable.validatable)

@@ -40,20 +40,3 @@ ko.getJson = function (model) {
     return result;
 }
 
-// Defines a computed parameter. You must specify the parameter (received in component's constructor), the read and write accessors with the form
-// and the component's viewmodel
-ko.computedParameter = function (param, accessors, object) {
-    if (!ko.isObservable(param)) {
-        param = ko.observable(param);
-    }
-
-    return ko.computed({
-        read: function () {
-            return accessors.read(param);
-        },
-        write: function (newValue) {
-            return accessors.write(param, newValue);
-        }
-    }, object);
-}
-
