@@ -15,28 +15,10 @@ ko.computedParameter = function (param, accessors, object) {
     }, object);
 }
 
-
-
 // Registers the quark component
 ko.components.register('quark-component', {
     template: "<!-- ko componentShadyDom --><!-- /ko --><!-- ko modelExporter --><!-- /ko -->"
 });
-
-// Node preproccesor, it replaces the tag quark-component for the virtual component bind version so it doesn't interfere with the
-// DOM.
-ko.bindingProvider.instance.preprocessNode = function (node) {
-    /*
-    if (node.nodeName && node.nodeName === 'QUARK-COMPONENT') {
-        var c1 = document.createComment(" ko component: \'quark-component\' ");
-        var c2 = document.createComment(" /ko ");
-        node.parentNode.insertBefore(c1, node.nextSibling);
-        node.parentNode.insertBefore(c2, c2.nextSibling);
-        node.parentNode.removeChild(node);
-
-        // Tell Knockout about the new nodes so that it can apply bindings to them
-        return [c1, c2];
-    }*/
-}
 
 // Sets the component tracking in the parent and awaits the component to be fully binded then it calls the ready function.
 ko.bindingHandlers.import = {
@@ -291,10 +273,6 @@ ko.bindingHandlers.inject = {
     }
 };
 ko.virtualElements.allowedBindings.inject = true;
-
-
-
-
 
 
 

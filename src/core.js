@@ -135,7 +135,7 @@ $$.component = function(viewModel, view) {
 }
 
 // Receive configuration params extacting the value if neccesary.
-$$.config = function(config, values, object) {
+$$.config = function(config, values, objects) {
     // Checks the configuration object
     if (!$$.isObject(config)) {
         throw 'You must specify a config object';
@@ -146,44 +146,47 @@ $$.config = function(config, values, object) {
         throw 'You must specify the configured values for the component, usually you can obtain it from the parameters array received in the component\'s constructor.';
     }
 
-    if (!$$.isDefined(object)) {
+    if (!$$.isDefined(objects)) {
         throw 'You must specify the viewmodel of the component in wich to load the configuration.';
     }
 
-    // Check object's config object and if not exists creates it.
-    if (!$$.isDefined(object['config'])) {
-        object.config = {};
+    if (!$$.isArray(objects)) {
+        objects = Array(objects);
     }
 
     // Iterates configuration...
     for (var name in config) {
-        // Warn if config exists
-        if (!$$.isDefined(object.config[name])) {
-            console.warn('There is already a config property named ' + name + ' in the target component. The property will be replaced.');
-        }
+        for (var i = 0; i < objects.length; i++) {
+            var object = objects[i];
 
-        // Sets the new config property with the default value to the target component
-        object.config[name] = config[name];
+            // Warn if config exists
+            if (!$$.isDefined(object.config[name])) {
+                console.warn('There is already a config property named ' + name + ' in the target component. The property will be replaced.');
+            }
 
-        // Warn if property is defined as observable
-        if (ko.isObservable(object.config[name])) {
-            console.warn('Property ' + name + ' should not be observable. The configuration parameters should be static, if you want the object to react to parameter changes use the parameters method.');
-        }
+            // Sets the new config property with the default value to the target component
+            object.config[name] = config[name];
 
-        // If there is a value for the configuration then replace it in the configuration property
-        if ($$.isDefined(values[name])) {
-            // if the source value is an observable extract value if not use as is
-            if (ko.isObservable(values[name])) {
-                object.config[name] = values[name]();
-            } else {
-                object.config[name] = values[name];
+            // Warn if property is defined as observable
+            if (ko.isObservable(object.config[name])) {
+                console.warn('Property ' + name + ' should not be observable. The configuration parameters should be static, if you want the object to react to parameter changes use the parameters method.');
+            }
+
+            // If there is a value for the configuration then replace it in the configuration property
+            if ($$.isDefined(values[name])) {
+                // if the source value is an observable extract value if not use as is
+                if (ko.isObservable(values[name])) {
+                    object.config[name] = values[name]();
+                } else {
+                    object.config[name] = values[name];
+                }
             }
         }
     }
 }
 
 // Receive parameters from the component tag and set them into the viewmodel
-$$.parameters = function(params, values, object) {
+$$.parameters = function(params, values, objects) {
     // Checks the parameters configuration object
     if (!$$.isObject(params)) {
         throw 'You must specify a parameters config object';
@@ -194,48 +197,56 @@ $$.parameters = function(params, values, object) {
         throw 'You must specify the configured values for the component, usually you can obtain it from the parameters array received in the component\'s constructor.';
     }
 
-    if (!$$.isDefined(object)) {
+    if (!$$.isDefined(objects)) {
         throw 'You must specify the viewmodel of the component in wich to load the parameters.';
+    }
+
+    if (!$$.isArray(objects)) {
+        objects = Array(objects);
     }
 
     // Iterate the parameters
     for (var name in params) {
-        // Warn if config exists
-        if ($$.isDefined(object[name])) {
-            console.warn('There is already a property named ' + name + ' in the target component. It will be replaced with the specified parameter.');
-        }
+        for (var i = 0; i < objects.length; i++) {
+            var object = objects[i];
 
-        // Create an object property with the parameter
-        object[name] = params[name];
+            // Warn if config exists
+            if ($$.isDefined(object[name])) {
+                console.warn('There is already a property named ' + name + ' in the target component. It will be replaced with the specified parameter.');
+            }
 
-        // If there is a value defined in the component tag for the parameter
-        if ($$.isDefined(values[name])) {
-            // If both target and source params are observable try to overwrite it
-            if (ko.isObservable(object[name]) && ko.isObservable(values[name])) {
-                // If target parameter is a computed do not overwrite it, the computed function MUST use the parameter
-                // directly (see ko.computedParameter)
-                if (!ko.isComputed(object[name])) {
-                    object[name] = values[name];
-                }
-            // If target is observable and source is not, then set the targets content with the source value
-            } else if (ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
-                object[name](values[name]);
-            // If target is not an observable and source is, then set the targets with the source content
-            } else if (!ko.isObservable(object[name]) && ko.isObservable(values[name])) {
-                object[name] = values[name]();
-            // If both are not observables
-            } else if (!ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
-                // Check if the parameter should be a callback, if not set the value
-                if (!$$.isFunction(object[name])) {
-                    object[name] = values[name];
-                } else {
-                    // If the parameter should be a callback and the target is a function then replace it.
-                    if ($$.isFunction(values[name])) {
+            // Create an object property with the parameter
+            object[name] = params[name];
+
+            // If there is a value defined in the component tag for the parameter
+            if ($$.isDefined(values[name])) {
+                // If both target and source params are observable try to overwrite it
+                if (ko.isObservable(object[name]) && ko.isObservable(values[name])) {
+                    // If target parameter is a computed do not overwrite it, the computed function MUST use the parameter
+                    // directly (see ko.computedParameter)
+                    if (!ko.isComputed(object[name])) {
+                        object[name] = values[name];
+                    }
+                // If target is observable and source is not, then set the targets content with the source value
+                } else if (ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
+                    object[name](values[name]);
+                // If target is not an observable and source is, then set the targets with the source content
+                } else if (!ko.isObservable(object[name]) && ko.isObservable(values[name])) {
+                    object[name] = values[name]();
+                // If both are not observables
+                } else if (!ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
+                    // Check if the parameter should be a callback, if not set the value
+                    if (!$$.isFunction(object[name])) {
                         object[name] = values[name];
                     } else {
-                        // Err if not's a callback
-                        if ($$.isDefined(values[name])) {
-                            throw 'The parameter ' + name + ' must be a callback.';
+                        // If the parameter should be a callback and the target is a function then replace it.
+                        if ($$.isFunction(values[name])) {
+                            object[name] = values[name];
+                        } else {
+                            // Err if not's a callback
+                            if ($$.isDefined(values[name])) {
+                                throw 'The parameter ' + name + ' must be a callback.';
+                            }
                         }
                     }
                 }

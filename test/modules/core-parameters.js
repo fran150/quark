@@ -28,13 +28,7 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
                             param(newValue);
                         }
                     }, this)
-                }, params, this);
-
-                $scope.observable = this.observable;
-                $scope.notObservable = this.notObservable;
-                $scope.notReceived = this.notReceived;
-                $scope.computable = this.computable;
-                $scope.computableNotObs = this.computableNotObs;
+                }, params, [this, $scope]);
 
                 this.receivedButNotSet = ko.observable('Model');
 

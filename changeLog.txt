@@ -5,3 +5,4 @@
 - New object factory that enables to have an scope used to bind the view and not visible outside the model.
 - Added loaded callback. When object has other component dependencies you can define a method loaded and quark will call it every time a component finishes loading passing the property name and its viewModel
 - Added readied callback. When object has other component dependencies you can define a method readied and quark will call it every time a component is ready passing the property name and its viewModel
+- Added support for passing more than one object to $$.parameters, so same parameter can be set on the scope and the model.
