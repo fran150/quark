@@ -15,10 +15,6 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
 
     describe('Core - Config Test', function() {
         beforeEach(function(done) {
-            ko.components.register('quark-component', {
-                template: { require: 'text!dist/quark-component.html' }
-            });
-
             ko.components.register('test-component', {
                 template: '<quark-component></quark-component>',
                 viewModel: ViewModel
@@ -27,22 +23,19 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
             function Page() {
                 this.pageObservable = ko.observable('Page');
 
-                $$.components({
-                    child: {}
-                }, this, function() {
+                this.ready = function() {
                     done();
-                });
+                };
             }
 
             body = $(document).find('body');
             $('<div id=\'test\'></div>').appendTo(body);
 
             test = $(body).find('#test');
-            test.append('   <test-component params=\"' +
+            test.append('   <test-component data-bind="import: \'child\'" params=\"' +
                                 'config1: \'5\',' +
                                 'config2: pageObservable(),' +
                             '\">' +
-                        '       <!-- vm: \'child\' --> ' +
                         '   </test-component>');
 
             page = new Page();
@@ -53,7 +46,6 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
             ko.cleanNode(test.get(0));
             $(test).remove();
             ko.components.unregister('test-component');
-            ko.components.unregister('quark-component');
         });
 
         describe('Configurations', function() {

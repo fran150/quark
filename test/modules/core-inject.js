@@ -1,33 +1,31 @@
 define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
-    function ViewModel(params) {
-        var self = this;
-
-        this.name = ko.observable('Frank');
-        this.age = ko.observable(33);
-        this.check = true;
-    }
-
     var page;
     var body;
     var test;
 
     describe('Core - Inject Binding Test', function() {
         beforeEach(function(done) {
-            ko.components.register('quark-component', {
-                template: { require: 'text!dist/quark-component.html' }
-            });
+            ko.components.register('test-component',
+                $$.component(function($scope) {
+                    var self = this;
 
-            ko.components.register('test-component', {
-                template: '<quark-component></quark-component>',
-                viewModel: ViewModel
-            });
+                    this.name = ko.observable('Frank');
+                    this.age = ko.observable(33);
+                    this.check = true;
+
+                    $scope.hola = ko.observable('Hola');
+
+                    this.dispose = function() {
+                        console.log('Im undisposed');
+                    }
+                }, '<!-- ko component: \"quark-component\" --><input type=\"text\" data-bind=\"value: hola\" /><!-- /ko -->')
+           );
 
             function Page() {
-                $$.components({
-                    child: {}
-                }, this, function() {
+                this.ready = function() {
+                    debugger;
                     done();
-                });
+                }
 
                 this.data = {
                     name: 'Pat',
@@ -40,10 +38,7 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
             $('<div id=\'test\'></div>').appendTo(body);
 
             test = $(body).find('#test');
-            test.append('   <test-component>' +
-                        '       <!-- inject: data --> ' +
-                        '       <!-- vm: \'child\' --> ' +
-                        '       <h1>BlaBla</h1> ' +
+            test.append('   <test-component data-bind="import: \'child\'" qk-inject=\"data\">' +
                         '   </test-component>');
 
             page = new Page();
@@ -54,7 +49,6 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
             ko.cleanNode(test.get(0));
             $(test).remove();
             ko.components.unregister('test-component');
-            ko.components.unregister('quark-component');
         });
 
         describe('Inject', function() {

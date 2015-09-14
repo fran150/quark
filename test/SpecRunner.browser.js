@@ -8,12 +8,11 @@
         'modules/behaviours',
         'modules/web',
         'modules/knockout-bindings',
-        'modules/knockout-extensions',
-        'modules/core-parameters',
+        'modules/knockout-extensions',*/
+        'modules/core-parameters',/*
         'modules/core-config',
         'modules/core-call',
         'modules/core-inject'*/
-        'modules/core-asBinding'
     ];
 
     // After the 'jasmine-boot' module creates the Jasmine environment, load all test modules then run them

@@ -1,31 +1,4 @@
 define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
-    function ViewModel(params) {
-        var self = this;
-
-        $$.parameters({
-            observable: ko.observable(),
-            notObservable: '',
-            notReceived: ko.observable('Model'),
-            computable: ko.computedParameter(params.computableObs, {
-                read: function(param) {
-                    return param() + 'added';
-                },
-                write: function(param, newValue) {
-                    param(newValue);
-                }
-            }, this),
-            computableNotObs: ko.computedParameter(params.computableNotObs, {
-                read: function(param) {
-                    return param() + 'added';
-                },
-                write: function(param, newValue) {
-                    param(newValue);
-                }
-            }, this)
-        }, params, this);
-
-        this.receivedButNotSet = ko.observable('Model');
-    }
 
     var page;
     var body;
@@ -33,14 +6,43 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
 
     describe('Core - Parameters Test', function() {
         beforeEach(function(done) {
-            ko.components.register('quark-component', {
-                template: { require: 'text!dist/quark-component.html' }
-            });
+            ko.components.register('test-component', $$.component(function (params, $scope) {
+                var self = this;
+                $$.parameters({
+                    observable: ko.observable(),
+                    notObservable: '',
+                    notReceived: ko.observable('Model'),
+                    computable: ko.computedParameter(params.computableObs, {
+                        read: function(param) {
+                            return param() + 'added';
+                        },
+                        write: function(param, newValue) {
+                            param(newValue);
+                        }
+                    }, this),
+                    computableNotObs: ko.computedParameter(params.computableNotObs, {
+                        read: function(param) {
+                            return param() + 'added';
+                        },
+                        write: function(param, newValue) {
+                            param(newValue);
+                        }
+                    }, this)
+                }, params, this);
 
-            ko.components.register('test-component', {
-                template: '<quark-component></quark-component>',
-                viewModel: ViewModel
-            });
+                $scope.observable = this.observable;
+                $scope.notObservable = this.notObservable;
+                $scope.notReceived = this.notReceived;
+                $scope.computable = this.computable;
+                $scope.computableNotObs = this.computableNotObs;
+
+                this.receivedButNotSet = ko.observable('Model');
+
+                this.dispose = function() {
+                    console.log('test');
+                }
+            },
+            '<quark-component><input type=\"text\" data-bind=\"value: observable\" /></quark-component>'));
 
             function Page() {
                 this.pageObservable = ko.observable('Page');
@@ -48,26 +50,23 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
                 this.pageNotToSet = ko.observable('Page');
                 this.pageToCompute = ko.observable('Page');
 
-                $$.components({
-                    child: {}
-                }, this, function() {
+                this.ready = function() {
                     done();
-                });
+                };
             }
 
             body = $(document).find('body');
             $('<div id=\'test\'></div>').appendTo(body);
 
             test = $(body).find('#test');
-            test.append('   <test-component params=\"' +
+            test.append('<test-component data-bind="import: \'child\'" params=\"' +
                                 'observable: pageObservable,' +
                                 'notObservable: pageNotObservable,' +
                                 'receivedButNotSet: pageNotToSet,' +
                                 'computableObs: pageToCompute,' +
                                 'computableNotObs: \'Page\'' +
                             '\">' +
-                        '       <!-- vm: \'child\' --> ' +
-                        '   </test-component>');
+                        '</test-component>');
 
             page = new Page();
             ko.applyBindings(page, test[0]);
@@ -77,7 +76,6 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
             ko.cleanNode(test.get(0));
             $(test).remove();
             ko.components.unregister('test-component');
-            ko.components.unregister('quark-component');
         });
 
         describe('Parameters', function() {

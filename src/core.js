@@ -88,6 +88,52 @@ $$.hasBehaviour = function(object, behaviourName) {
     return false;
 }
 
+$$.component = function(viewModel, view) {
+    // If only one parameter is specified we assume that is view only component
+    if (!$$.isDefined(view)) {
+        view = viewModel;
+        viewModel = undefined;
+    }
+
+    // Viewmodel constructor function
+    function Model(p) {
+        // Component's model
+        var model;
+        // Creates empty scope
+        var $scope = {};
+
+        // If theres a viewModel defined
+        if (viewModel && !model) {
+            // Creates the model passing parameters and empty scope
+            model = new viewModel(p, $scope);
+        }
+
+        // Creates model and scope getters to allow quark to bind to each part
+        this.getModel = function() { return model; }
+        this.getScope = function() { return $scope; }
+
+        // Dispose the model and scope on objects destruction
+        this.dispose = function() {
+            if (model && model.dispose) {
+                model.dispose();
+            }
+
+            if ($scope && $scope.dispose) {
+                $scope.dispose();
+            }
+
+            model = undefined;
+            $scope = undefined;
+        }
+    }
+
+    if (viewModel) {
+        return { template: view, viewModel: Model }
+    } else {
+        return { template: view }
+    }
+}
+
 // Receive configuration params extacting the value if neccesary.
 $$.config = function(config, values, object) {
     // Checks the configuration object
@@ -155,7 +201,7 @@ $$.parameters = function(params, values, object) {
     // Iterate the parameters
     for (var name in params) {
         // Warn if config exists
-        if (!$$.isDefined(object[name])) {
+        if ($$.isDefined(object[name])) {
             console.warn('There is already a property named ' + name + ' in the target component. It will be replaced with the specified parameter.');
         }
 
@@ -195,134 +241,6 @@ $$.parameters = function(params, values, object) {
                 }
             }
         }
-    }
-}
-
-// Define child components, used in conjunction with the vm binding, it obtains the childs viewmodels
-// and waits for them to be fully binded, then it invokes the callback or the object's ready function if defined.
-$$.components = function(childs, object, callback) {
-    // Checks the childs definition object
-    if (!$$.isObject(childs)) {
-        throw 'You must specify a childs config object';
-    }
-
-    // Checks the target object
-    if (!$$.isDefined(object)) {
-        throw 'You must specify the viewmodel of the component in wich to load the child viewmodels.';
-    }
-
-    // Check if there is a 'childs' property on the component
-    if ($$.isDefined(object['_tracking'])) {
-        console.warn('The object already contains a property _tracking, it will be replaced by the tracking array');
-    }
-
-    // Sets the childs array wich tracks the dependencies and state
-    object.tracking = {
-        childs: {}
-    }
-
-    // For each expected dependency..
-    for (var name in childs) {
-        // Start tracking the dependency
-        object.tracking.childs[name] = {};
-
-        // Define a function to call when the child finishes loading.
-        // PropertyName contains the child name, and vm the corresponding viewmodel
-        object.tracking.childs[name]['load'] = function(propertyName, vm) {
-            // Sets the child viemodel and marks it as loaded
-            if (ko.isObservable(object[propertyName])) {
-                object[propertyName](vm);
-            } else {
-                object[propertyName] = vm;
-            }
-            object.tracking.childs[propertyName]['loaded'] = true;
-
-            if ($$.isDefined(vm.tracking)) {
-                // If the child has dependencies mark the dependency as not ready and save
-                // the parent data (reference and state)
-                object.tracking.childs[propertyName]['ready'] = false;
-
-                vm.tracking.parent = object;
-                vm.tracking.parentState = object.tracking.childs[propertyName];
-            } else {
-                // If the child hasn't dependencies mark the dependency on parent as ready
-                object.tracking.childs[propertyName]['ready'] = true;
-
-                // If there's a ready function on the child invoke it
-                if ($$.isDefined(vm['ready'])) {
-                    vm['ready']();
-                }
-            }
-
-            // If any property in the child is not loaded then exit
-            // !! OPTIMIZE !! by using a counter and not iterating all array over and over
-            for (var property in childs) {
-                if (!object.tracking.childs[property]['loaded']) {
-                    return;
-                }
-            }
-
-            // If any property in the child is not ready then exit
-            // !! OPTIMIZE !! by using a counter and not iterating all array over and over
-            for (var property in childs) {
-                if (!object.tracking.childs[property]['ready']) {
-                    return;
-                }
-            }
-
-            // If this point is reached then all dependencies are loaded and ready.
-            // So, invoke the callback (if it's defined)
-            if ($$.isDefined(callback)) {
-                callback();
-            }
-
-            // And the ready method...
-            if ($$.isFunction(object['ready'])) {
-                object['ready']();
-            }
-
-            // Finally if the object is tracked and has a parent, mark itself as ready on the parent
-            // object and call the function on the parent to reevaluate readiness.
-            if ($$.isDefined(object['tracking']) && $$.isDefined(object.tracking['parent'])) {
-                object.tracking.parentState['ready'] = true;
-                object.tracking.parent.childReady();
-            }
-        }
-
-        // Initialize the tracking of the child component
-        object.tracking.childs[name]['loaded'] = false;
-
-        // Defines a function to call when one of its childs is ready.
-        // It forces the object to reevaluate its readiness
-        object.tracking.childReady = function() {
-            // If there is a child that is not ready the exits
-            for (var property in childs) {
-                if (!object.tracking.childs[property]['ready']) {
-                    return;
-                }
-            }
-
-            // At this point, all childs are ready, therefore the object itself is ready
-            // So, invoke the callback (if it's defined)
-            if ($$.isDefined(callback)) {
-                callback();
-            }
-
-            // And the ready method...
-            if ($$.isFunction(object['ready'])) {
-                object['ready']();
-            }
-
-            // Finally if the object is tracked and has a parent, mark itself as ready on the parent
-            // object and call the function on the parent to reevaluate readiness.
-            if ($$.isDefined(object['parent'])) {
-                object.traking.parentState['ready'] = true;
-                object.tracking.parent.childReady();
-            }
-        }
-
-        // Import the dependency to the target object
-        object[name] = childs[name];
     }
 }
 

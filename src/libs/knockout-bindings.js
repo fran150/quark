@@ -1,3 +1,11 @@
+// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
+ko.bindingHandlers.onBind = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        value(element, viewModel, context);
+    }
+}
+
 // Applies the success style to the element if the specified condition is met. Useful highlight the selected row on a table:
 // <div data-bind="rowSelect: id == $parent.idSeleccionado">
 ko.bindingHandlers.rowSelect = {
