@@ -1,13 +1,13 @@
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD.
-        define(['knockout', 'jquery', 'knockout-mapping', 'accounting-js', 'blockui'], factory);
+        define(['knockout', 'jquery', 'knockout-mapping', 'accounting-js', 'crossroads', 'hasher', 'blockui'], factory);
     } else {
         // Browser globals.
         root.komapping = ko.mapping;
-        root.$$ = factory(root.ko, root.$, root.komapping, root.accounting);
+        root.$$ = factory(root.ko, root.$, root.komapping, root.accounting, root.crossroads, root.hasher);
     }
-}(this, function(ko, $, komapping, accounting) {
+}(this, function(ko, $, komapping, accounting, crossroads, hasher) {
 var $$ = {};
 
 // Check if the specified var is defined
@@ -162,96 +162,6 @@ $$.makeDate = function (value, useToday) {
     return value;
 }
 
-// Loaded behaviours array
-var behaviours = {};
-
-// Loads a behaviour with the specified name
-$$.behaviour = function(name, behaviour) {
-    // Warn if repeated
-    if ($$.behaviour[name]) {
-        console.warn('There was already a behaviour loaded with the name ' + name + '. It will be replaced with the new one.');
-    }
-
-    // Error if behaviour name is not a string
-    if (!$$.isString(name)) {
-        throw 'The behaviour name must be an string.';
-    }
-
-    // Error if behaviour is not a function
-    if (!$$.isFunction(behaviour)) {
-        throw 'The behaviour must be a function that takes an object as a parameter an applies the new functionality to it.';
-    }
-
-    // Adds the new behaviour to the table
-    behaviours[name] = behaviour;
-}
-
-// Applies a behaviour to the object
-function applyBehaviour(object, behaviourName) {
-    // Error if behaviour name is not a string
-    if (!$$.isString(behaviourName)) {
-        throw 'The behaviour name must be an string. If you specified an array check that all elements are valid behaviour names';
-    }
-
-    // Chek if behaviour exists
-    if (behaviours[behaviourName]) {
-        // Apply new behaviour
-        behaviours[behaviourName](object);
-
-        if (!$$.isDefined(object.behaviours)) {
-            object.behaviours = {};
-        }
-
-        object.behaviours[behaviourName] = true;
-    } else {
-        throw 'The are no behaviours loaded with the name ' + behaviourName + '.';
-    }
-}
-
-// Applies the behaviour to the object. You can specify a string with the name of a loaded behaviour
-// or an array of behaviour names.
-$$.behave = function(object, behaviour) {
-    // Validates object
-    if (!$$.isObject(object)) {
-        throw 'You must specifify a valid object to apply the behaviour.';
-    }
-
-    if ($$.isArray(behaviour)) {
-        // If it's an array we iterate it applying each behaviour
-        for (var i = 0; i < behaviour.length; i++) {
-            applyBehaviour(object, behaviour[i]);
-        }
-    } else if ($$.isString(behaviour)) {
-        // If it's a string apply the named behaviour
-        applyBehaviour(object, behaviour);
-    } else {
-        // Everything else fails
-        throw 'The behaviour name must be an string or an array of strings.';
-    }
-}
-
-// Checks if the behaviour has been added to the object
-$$.hasBehaviour = function(object, behaviourName) {
-    // Validates object
-    if (!$$.isObject(object)) {
-        throw 'You must specifify a valid object to check the behaviour.';
-    }
-
-    // Error if behaviour name is not a string
-    if (!$$.isString(behaviourName)) {
-        throw 'The behaviour name must be an string.';
-    }
-
-    // Check if the object has the specified behaviour added
-    if ($$.isDefined(object.behaviours)) {
-        if ($$.isDefined(object.behaviours[behaviourName])) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 $$.component = function(viewModel, view) {
     // If only one parameter is specified we assume that is view only component
     if (!$$.isDefined(view)) {
@@ -323,8 +233,13 @@ $$.config = function(config, values, objects) {
         for (var i = 0; i < objects.length; i++) {
             var object = objects[i];
 
+            // If config object doesnt exists, it creates one
+            if (!$$.isDefined(object.config)) {
+                object.config = {};
+            }
+
             // Warn if config exists
-            if (!$$.isDefined(object.config[name])) {
+            if ($$.isDefined(object.config[name])) {
                 console.warn('There is already a config property named ' + name + ' in the target component. The property will be replaced.');
             }
 
@@ -457,6 +372,96 @@ $$.inject = function (from, to, recursively) {
     }
 }
 
+// Loaded behaviours array
+var behaviours = {};
+
+// Loads a behaviour with the specified name
+$$.behaviour = function(name, behaviour) {
+    // Warn if repeated
+    if ($$.behaviour[name]) {
+        console.warn('There was already a behaviour loaded with the name ' + name + '. It will be replaced with the new one.');
+    }
+
+    // Error if behaviour name is not a string
+    if (!$$.isString(name)) {
+        throw 'The behaviour name must be an string.';
+    }
+
+    // Error if behaviour is not a function
+    if (!$$.isFunction(behaviour)) {
+        throw 'The behaviour must be a function that takes an object as a parameter an applies the new functionality to it.';
+    }
+
+    // Adds the new behaviour to the table
+    behaviours[name] = behaviour;
+}
+
+// Applies a behaviour to the object
+function applyBehaviour(object, behaviourName) {
+    // Error if behaviour name is not a string
+    if (!$$.isString(behaviourName)) {
+        throw 'The behaviour name must be an string. If you specified an array check that all elements are valid behaviour names';
+    }
+
+    // Chek if behaviour exists
+    if (behaviours[behaviourName]) {
+        // Apply new behaviour
+        behaviours[behaviourName](object);
+
+        if (!$$.isDefined(object.behaviours)) {
+            object.behaviours = {};
+        }
+
+        object.behaviours[behaviourName] = true;
+    } else {
+        throw 'The are no behaviours loaded with the name ' + behaviourName + '.';
+    }
+}
+
+// Applies the behaviour to the object. You can specify a string with the name of a loaded behaviour
+// or an array of behaviour names.
+$$.behave = function(object, behaviour) {
+    // Validates object
+    if (!$$.isObject(object)) {
+        throw 'You must specifify a valid object to apply the behaviour.';
+    }
+
+    if ($$.isArray(behaviour)) {
+        // If it's an array we iterate it applying each behaviour
+        for (var i = 0; i < behaviour.length; i++) {
+            applyBehaviour(object, behaviour[i]);
+        }
+    } else if ($$.isString(behaviour)) {
+        // If it's a string apply the named behaviour
+        applyBehaviour(object, behaviour);
+    } else {
+        // Everything else fails
+        throw 'The behaviour name must be an string or an array of strings.';
+    }
+}
+
+// Checks if the behaviour has been added to the object
+$$.hasBehaviour = function(object, behaviourName) {
+    // Validates object
+    if (!$$.isObject(object)) {
+        throw 'You must specifify a valid object to check the behaviour.';
+    }
+
+    // Error if behaviour name is not a string
+    if (!$$.isString(behaviourName)) {
+        throw 'The behaviour name must be an string.';
+    }
+
+    // Check if the object has the specified behaviour added
+    if ($$.isDefined(object.behaviours)) {
+        if ($$.isDefined(object.behaviours[behaviourName])) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // Defines a computed parameter. You must specify the parameter (received in component's constructor), the read and write accessors with the form
 // and the component's viewmodel
 ko.computedParameter = function (param, accessors, object) {
@@ -473,8 +478,6 @@ ko.computedParameter = function (param, accessors, object) {
         }
     }, object);
 }
-
-
 
 // Registers the quark component
 ko.components.register('quark-component', {
@@ -738,10 +741,6 @@ ko.virtualElements.allowedBindings.inject = true;
 
 
 
-
-
-
-
 function createContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
     var value = ko.unwrap(valueAccessor());
     var newAccesor = function () {
@@ -797,6 +796,156 @@ ko.bindingHandlers.hasNotContent = {
 };
 ko.virtualElements.allowedBindings.hasNotContent = true;
 
+function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
+    var name = ko.unwrap(valueAccessor());
+
+    var newAccesor = function () {
+        return {
+            name: ko.pureComputed(function() {
+                var current = $$.routing.route.current();
+                return current.components[name];
+            }),
+            params: $$.routing.route.current
+        }
+    };
+
+    return newAccesor;
+}
+
+ko.bindingHandlers.page = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+        return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
+    },
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+        return ko.bindingHandlers.component.update(element, newAccessor, allBindingsAccessor, viewModel, context);
+    }
+}
+
+//crossroads, hasher
+
+function QuarkRouter() {
+    var self = this;
+
+    var conf = {};
+
+    function RoutingConfig() {
+        var self = this;
+        var currentPage;
+        var currentName;
+
+        this.on = function(page, name) {
+            if (!$$.isString(page)) {
+                throw 'The page must be an string with the name of the page without extension.';
+            }
+
+            if (!$$.isDefined(name)) {
+                throw 'Must define a name for the routes on the page.';
+            }
+
+            conf[page] = {};
+            currentPage = page;
+            currentName = name;
+
+            return self;
+        }
+
+        this.when = function(url, name, config) {
+            // If name and config are not defined we assume that the parameter is the config
+            if (!$$.isDefined(name) && !$$.isDefined(config)) {
+                config = url;
+                name = '';
+                url = 'Any';
+            } else if (!$$.isDefined(config)) {
+                // If only two parameters are defined we assume that are the url and config
+                config = name;
+                name = '';
+            }
+
+            if (!$$.isDefined(url)) {
+                throw 'You must define at least the config.'
+            }
+
+            if (!$$.isDefined(currentPage)) {
+                throw 'You must define the main page using the .on method before calling .when.';
+            }
+
+            config.name = currentName + '/' + name;
+            conf[currentPage][url] = config;
+
+
+            return self;
+        }
+    }
+
+    function Router() {
+        var self = this;
+
+        var file = location.pathname.substring(location.pathname.lastIndexOf("/") + 1, location.pathname.lastIndexOf('.'));
+
+        var started = false;
+        var routes = [];
+
+        this.current = ko.observable();
+
+        function start() {
+            crossroads.normalizeFn = crossroads.NORM_AS_OBJECT;
+
+            for (var url in conf[file]) {
+                if (url != 'Any') {
+                    var config = conf[file][url];
+
+                    function Route() {
+                        var r = this;
+                        this.file = file;
+                        this.url = url;
+                        this.name = config.name;
+                        this.components = ko.utils.extend(config, conf[file]['Any']);
+                        this.pattern = crossroads.addRoute(url, function(requestParams) {
+                            r.params = requestParams;
+                            self.current(r);
+                        });
+                    }
+
+
+                    routes.push(new Route());
+                }
+            }
+
+            started = true;
+        }
+
+        this.parse = function(url) {
+            if (!started) start();
+            return crossroads.parse(url);
+        }
+
+        this.get = function(name) {
+            for (var i = 0; i < routes.length; i++) {
+                var route = routes[i];
+                if (route.name && route.name == name) {
+                    return route;
+                }
+            }
+        }
+    }
+
+    this.config = new RoutingConfig();
+    this.route = new Router();
+
+    this.followLocation = function() {
+        function parseHash(newHash, oldHash) {
+            self.parse(newHash);
+        }
+
+        hasher.initialized.add(parseHash);
+        hasher.changed.add(parseHash);
+        hasher.init();
+    }
+}
+
+$$.routing = new QuarkRouter();
 // Redirect the browser to the specified url
 $$.redirect = function(url) {
     window.location.href = url;

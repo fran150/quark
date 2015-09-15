@@ -1,24 +1,23 @@
 define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
-    function ViewModel(params) {
-        var self = this;
-
-        $$.config({
-            config1: '1',
-            config2: '2',
-            config3: 3
-        }, params, this);
-    }
-
     var page;
     var body;
     var test;
 
     describe('Core - Config Test', function() {
         beforeEach(function(done) {
-            ko.components.register('test-component', {
-                template: '<quark-component></quark-component>',
-                viewModel: ViewModel
-            });
+            ko.components.register('test-component', $$.component(
+                function(params, $scope) {
+                    var self = this;
+
+                    $$.config({
+                        config1: '1',
+                        config2: '2',
+                        config3: 3
+                    }, params, this);
+
+                },
+                '<quark-component></quark-component>')
+            );
 
             function Page() {
                 this.pageObservable = ko.observable('Page');

@@ -331,3 +331,30 @@ ko.bindingHandlers.hasNotContent = {
     }
 };
 ko.virtualElements.allowedBindings.hasNotContent = true;
+
+function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
+    var name = ko.unwrap(valueAccessor());
+
+    var newAccesor = function () {
+        return {
+            name: ko.pureComputed(function() {
+                var current = $$.routing.route.current();
+                return current.components[name];
+            }),
+            params: $$.routing.route.current
+        }
+    };
+
+    return newAccesor;
+}
+
+ko.bindingHandlers.page = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+        return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
+    },
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+        return ko.bindingHandlers.component.update(element, newAccessor, allBindingsAccessor, viewModel, context);
+    }
+}

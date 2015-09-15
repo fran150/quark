@@ -33,7 +33,6 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
                 this.receivedButNotSet = ko.observable('Model');
 
                 this.dispose = function() {
-                    console.log('test');
                 }
             },
             '<quark-component><input type=\"text\" data-bind=\"value: observable\" /></quark-component>'));

@@ -6,7 +6,7 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
     describe('Core - Inject Binding Test', function() {
         beforeEach(function(done) {
             ko.components.register('test-component',
-                $$.component(function($scope) {
+                $$.component(function(params, $scope) {
                     var self = this;
 
                     this.name = ko.observable('Frank');
@@ -16,14 +16,12 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
                     $scope.hola = ko.observable('Hola');
 
                     this.dispose = function() {
-                        console.log('Im undisposed');
                     }
-                }, '<!-- ko component: \"quark-component\" --><input type=\"text\" data-bind=\"value: hola\" /><!-- /ko -->')
+                }, '<quark-component><input type=\"text\" data-bind=\"value: hola\" /></quark-component>')
            );
 
             function Page() {
                 this.ready = function() {
-                    debugger;
                     done();
                 }
 

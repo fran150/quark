@@ -1,21 +1,15 @@
 define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
-    function ViewModel(params) {
-        var self = this;
-
-        this.counter = ko.observable(0);
-
-    }
-
     var page;
     var body;
     var test;
 
     describe('Core - Call Binding Test', function() {
         beforeEach(function(done) {
-            ko.components.register('test-component', {
-                template: '<quark-component></quark-component>',
-                viewModel: ViewModel
-            });
+            ko.components.register('test-component', $$.component(function(params) {
+                var self = this;
+
+                this.counter = ko.observable(0);
+            }, '<quark-component></quark-component>'));
 
             function Page() {
                 this.ready = function() {

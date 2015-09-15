@@ -11,7 +11,10 @@
             "knockout-mapping":     "src/bower_modules/knockout-mapping/knockout.mapping",
             "blockui":              "src/bower_modules/blockui/jquery.blockUI",
             "accounting-js":        "src/bower_modules/accounting.js/accounting.min",
-            "text":                 "src/bower_modules/requirejs-text/text"
+            "text":                 "src/bower_modules/requirejs-text/text",
+            "crossroads":           "src/bower_modules/crossroads/dist/crossroads.min",
+            "hasher":               "src/bower_modules/hasher/dist/js/hasher.min",
+            "signals":              "src/bower_modules/js-signals/dist/signals.min"
         },
 
     }
