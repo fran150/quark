@@ -1,7 +1,11 @@
 define(['quark'], function($$) {
     describe('Core - Behaviours Tests', function() {
         $$.routing.config
-            .on('/test/', 'test')
+            .on('/nomatch/*', 'nomatch')
+                .when('/prueba3/{param1}/{param2}', 'three', {
+                    test: 'Controller3'
+                })
+            .on('/*', 'test')
                 .when({
                     top: 'TopController'
                 })
@@ -17,7 +21,7 @@ define(['quark'], function($$) {
             $$.routing.route.parse('/prueba1/Hola/Mundo');
             var route = $$.routing.route.current();
 
-            expect(route.file).toBe('/test/');
+            expect(route.file).toBe('/*');
             expect($$.isDefined(route.components)).toBe(true);
             expect($$.isDefined(route.components.top)).toBe(true);
             expect($$.isDefined(route.components.test)).toBe(true);
@@ -30,7 +34,7 @@ define(['quark'], function($$) {
             $$.routing.route.parse('/prueba2/Hola/');
             var route = $$.routing.route.current();
 
-            expect(route.file).toBe('/test/');
+            expect(route.file).toBe('/*');
             expect($$.isDefined(route.components)).toBe(true);
             expect($$.isDefined(route.components.top)).toBe(true);
             expect($$.isDefined(route.components.holder1)).toBe(true);

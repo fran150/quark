@@ -57,8 +57,6 @@ function QuarkRouter() {
     function Router() {
         var self = this;
 
-        var file = location.pathname.substring(location.pathname.lastIndexOf("/") + 1, location.pathname.lastIndexOf('.'));
-
         var started = false;
         var routes = [];
 
@@ -67,16 +65,27 @@ function QuarkRouter() {
         function start() {
             crossroads.normalizeFn = crossroads.NORM_AS_OBJECT;
 
-            for (var url in conf[file]) {
+            var matched = {};
+
+            for (var path in conf) {
+                var exp = RegExp(path);
+                if (location.pathname.match(exp)) {
+                    matched = conf[path];
+                    break;
+                }
+            }
+
+
+            for (var url in matched) {
                 if (url != 'Any') {
-                    var config = conf[file][url];
+                    var config = matched[url];
 
                     function Route() {
                         var r = this;
-                        this.file = file;
+                        this.file = path;
                         this.url = url;
                         this.name = config.name;
-                        this.components = ko.utils.extend(config, conf[file]['Any']);
+                        this.components = ko.utils.extend(config, conf[path]['Any']);
                         this.pattern = crossroads.addRoute(url, function(requestParams) {
                             r.params = requestParams;
                             self.current(r);

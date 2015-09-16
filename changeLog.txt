@@ -3,6 +3,8 @@
 - Rework on vm, call and inject bindings and the $$.component call. These are not needed anymore. The vm binding is replaced by the import binding wich acts as the $$.component and can be used directly on the custom component tag. The bindings vm, call and inject used in modelExporter are used now by adding attributes to the element qk-inject and qk-call. The quark parser sees this attributes when binding the modelExporter and executes the same functions as before. 
 - Bind preprocessor are not needed anymore.
 - New object factory that enables to have an scope used to bind the view and not visible outside the model.
-- Added loaded callback. When object has other component dependencies you can define a method loaded and quark will call it every time a component finishes loading passing the property name and its viewModel
-- Added readied callback. When object has other component dependencies you can define a method readied and quark will call it every time a component is ready passing the property name and its viewModel
+- Added loaded callback. When object has other component dependencies you can define a method loaded and quark will call it every time a component finishes loading passing the property name and its viewModel.
+- Added readied callback. When object has other component dependencies you can define a method readied and quark will call it every time a component is ready passing the property name and its viewModel.
 - Added support for passing more than one object to $$.parameters, so same parameter can be set on the scope and the model.
+- Added routing module.
+- Added page binding that reads the route configuration and loads the component on the placeholder.
