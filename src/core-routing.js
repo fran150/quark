@@ -64,7 +64,8 @@ function QuarkRouter() {
             routingConfig.configuration[currentLocationName]['routes'][name] = {
                 url: url,
                 components: components,
-                name: fullName
+                fullName: fullName,
+                name: name
             };
 
             // Returns itself so config methods are chainable.
@@ -72,7 +73,7 @@ function QuarkRouter() {
         }
     }
 
-    function Route(router, name, locationPattern, url, components) {
+    function Route(router, name, fullName, locationPattern, url, components) {
         var routeObject = this;
 
         var csRoute = router.addRoute(url, function(requestParams) {
@@ -84,6 +85,7 @@ function QuarkRouter() {
         });
 
         this.name = name;
+        this.fullName = fullName;
         this.locationPattern = locationPattern;
         this.url = url;
         this.components = components;
@@ -130,7 +132,7 @@ function QuarkRouter() {
                     }
 
                     // Creates the new router
-                    var newRoute = new Route(newRouter, routeConfig.name, locationPattern, routeConfig.url, components);
+                    var newRoute = new Route(newRouter, routeConfig.name, routeConfig.fullName, locationPattern, routeConfig.url, components);
 
                     routeConfig.route = newRoute;
                 }
@@ -188,6 +190,22 @@ function QuarkRouter() {
         if (route) {
             return location + '#' + route.interpolate(config);
         }
+    }
+
+    this.listLocation = function(location) {
+        if (!$$.isDefined(location)) {
+            location = window.location.pathname;
+        }
+
+        for (var locationName in self.configuration) {
+            var locationConfig = self.configuration[locationName];
+
+            var exp = RegExp(locationConfig.pattern);
+            if (location.match(exp)) {
+                return locationConfig.routes;
+            }
+        }
+
     }
 
     this.activateHasher = function() {

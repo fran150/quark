@@ -46,7 +46,7 @@ define(['quark'], function($$) {
 
         it ('Must Get Route 1', function() {
             var route = $$.routing.getRoute('test/one');
-            expect(route.name).toBe('test/one');
+            expect(route.fullName).toBe('test/one');
         });
 
         it ('Must Generate a valid link to route', function() {

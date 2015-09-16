@@ -336,12 +336,13 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
     var name = ko.unwrap(valueAccessor());
 
     var newAccesor = function () {
+        var current = $$.routing.current();
+
         return {
             name: ko.pureComputed(function() {
-                var current = $$.routing.route.current();
-                return current.components[name];
+                return current.route.components[name];
             }),
-            params: $$.routing.route.current
+            params: current
         }
     };
 
