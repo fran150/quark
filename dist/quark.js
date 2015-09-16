@@ -816,10 +816,6 @@ ko.bindingHandlers.page = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
-    },
-    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        return ko.bindingHandlers.component.update(element, newAccessor, allBindingsAccessor, viewModel, context);
     }
 }
 
@@ -888,37 +884,43 @@ function QuarkRouter() {
         this.current = ko.observable();
 
         function start() {
-            crossroads.normalizeFn = crossroads.NORM_AS_OBJECT;
-
-            var matched = {};
-
+            var prev;
+            var cross;
             for (var path in conf) {
-                var exp = RegExp(path);
-                if (location.pathname.match(exp)) {
-                    matched = conf[path];
-                    break;
-                }
-            }
+                prev = cross;
+                cross = crossroads.create();
+                cross.normalizeFn = cross.NORM_AS_OBJECT;
 
+                for (var url in conf[path]) {
+                    if (url != 'Any') {
+                        var config = conf[path][url];
 
-            for (var url in matched) {
-                if (url != 'Any') {
-                    var config = matched[url];
+                        function Route() {
+                            var r = this;
+                            this.file = path;
+                            this.url = url;
+                            this.name = config.name;
+                            this.components = ko.utils.extend(config, conf[path]['Any']);
+                            this.event = cross.addRoute(url, function(requestParams) {
+                                var exp = RegExp(path);
+                                if (location.pathname.match(exp)) {
+                                    r.params = requestParams;
+                                    self.current(r);
+                                }
+                            });
+                            this.interpolate = function(values) {
+                                return r.event.interpolate(values);
+                            }
+                        }
 
-                    function Route() {
-                        var r = this;
-                        this.file = path;
-                        this.url = url;
-                        this.name = config.name;
-                        this.components = ko.utils.extend(config, conf[path]['Any']);
-                        this.pattern = crossroads.addRoute(url, function(requestParams) {
-                            r.params = requestParams;
-                            self.current(r);
-                        });
+                        if (!prev) {
+                            crossroads.pipe(cross);
+                        } else {
+                            prev.pipe(cross);
+                        }
+
+                        routes.push(new Route());
                     }
-
-
-                    routes.push(new Route());
                 }
             }
 
@@ -938,6 +940,15 @@ function QuarkRouter() {
                 }
             }
         }
+
+        this.link = function(name, config) {
+            for (var i = 0; i < routes.length; i++) {
+                var route = routes[i];
+                if (route.name && route.name == name) {
+                    return route.location + '#' + route.interpolate(config);
+                }
+            }
+        }
     }
 
     this.config = new RoutingConfig();
@@ -945,7 +956,7 @@ function QuarkRouter() {
 
     this.followLocation = function() {
         function parseHash(newHash, oldHash) {
-            self.parse(newHash);
+            self.route.parse(newHash);
         }
 
         hasher.initialized.add(parseHash);

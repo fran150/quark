@@ -352,9 +352,5 @@ ko.bindingHandlers.page = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
-    },
-    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        return ko.bindingHandlers.component.update(element, newAccessor, allBindingsAccessor, viewModel, context);
     }
 }
