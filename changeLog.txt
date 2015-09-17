@@ -8,3 +8,10 @@
 - Added support for passing more than one object to $$.parameters, so same parameter can be set on the scope and the model.
 - Added routing module.
 - Added page binding that reads the route configuration and loads the component on the placeholder.
+
+[0.7.1]
+- Reworked routes to support multiple locations routes.
+- Bug fixes.
+
+[0.7.2]
+- Added the ability of passing params to the component in the route configuration

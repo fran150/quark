@@ -802,11 +802,22 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
     var newAccesor = function () {
         var current = $$.routing.current();
 
+        var component;
+        var params;
+
+        if ($$.isArray(current.route.components[name])) {
+            component = current.route.components[name][0];
+            eval("params = {" + current.route.components[name][1] + "}");
+        } else {
+            component = current.route.components[name];
+            params = current;
+        }
+
         return {
             name: ko.pureComputed(function() {
-                return current.route.components[name];
+                return component;
             }),
-            params: current
+            params: params
         }
     };
 
