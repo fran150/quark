@@ -281,7 +281,11 @@ function createContentAccesor(element, valueAccessor, allBindingsAccessor, viewM
     var value = ko.unwrap(valueAccessor());
     var newAccesor = function () {
         if (!$$.isInt(value)) {
-            return { nodes: $(context.$componentTemplateNodes).filter(value) };
+            if ($$.isDefined(value)) {
+                return { nodes: $(context.$componentTemplateNodes).filter(value) };
+            } else {
+                return { nodes: context.$componentTemplateNodes };
+            }
         } else {
             return { nodes: context.$componentTemplateNodes.slice(value) };
         }
@@ -358,6 +362,12 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
     };
 
     return newAccesor;
+}
+
+ko.bindingHandlers.stopBinding = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        return { controlsDescendantBindings: true };
+    }
 }
 
 ko.bindingHandlers.page = {

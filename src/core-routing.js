@@ -39,17 +39,17 @@ function QuarkRouter() {
             return routingConfig;
         }
 
-        // Adds a route to the last location specified with .on. The url is a pattern to match on the hash, the
+        // Adds a route to the last location specified with .on. The hash is a pattern to match on the hash, the
         // name parameter is the name of the route, and the components parameter is an object with each property being the name of a placeholder
         // and it's value the component that must be binded on it.
-        this.when = function(url, name, components) {
+        this.when = function(hash, name, components) {
             // If only one parameter is specified we assume that its the components parameter
             if (!$$.isDefined(name) && !$$.isDefined(components)) {
-                components = url;
+                components = hash;
                 name = '';
-                url = 'Any';
+                hash = 'Any';
             } else if (!$$.isDefined(components) || !$$.isDefined(name)) {
-                throw 'Must define the url, name and components parameters'
+                throw 'Must define the hash, name and components parameters'
             }
 
             // If .on was not called previously
@@ -62,7 +62,7 @@ function QuarkRouter() {
 
             // Loads the configuration
             routingConfig.configuration[currentLocationName]['routes'][name] = {
-                url: url,
+                hash: hash,
                 components: components,
                 fullName: fullName,
                 name: name
@@ -73,10 +73,10 @@ function QuarkRouter() {
         }
     }
 
-    function Route(router, name, fullName, locationPattern, url, components) {
+    function Route(router, name, fullName, locationPattern, hash, components) {
         var routeObject = this;
 
-        var csRoute = router.addRoute(url, function(requestParams) {
+        var csRoute = router.addRoute(hash, function(requestParams) {
             self.current({
                 route: routeObject,
                 location: location.pathname,
@@ -87,11 +87,11 @@ function QuarkRouter() {
         this.name = name;
         this.fullName = fullName;
         this.locationPattern = locationPattern;
-        this.url = url;
+        this.hash = hash;
         this.components = components;
 
-        this.parse = function(url) {
-            router.parse(url);
+        this.parse = function(hash) {
+            router.parse(hash);
         }
 
         this.interpolate = function(values) {
@@ -117,7 +117,7 @@ function QuarkRouter() {
             // Adds the router to the location config
             locationConfig.router = newRouter;
 
-            // For each url configured for this location
+            // For each hash configured for this location
             for (var routeName in locationConfig.routes) {
                 if (routeName !== '') {
                     var components;
@@ -132,7 +132,7 @@ function QuarkRouter() {
                     }
 
                     // Creates the new router
-                    var newRoute = new Route(newRouter, routeConfig.name, routeConfig.fullName, locationPattern, routeConfig.url, components);
+                    var newRoute = new Route(newRouter, routeConfig.name, routeConfig.fullName, locationPattern, routeConfig.hash, components);
 
                     routeConfig.route = newRoute;
                 }
@@ -142,11 +142,11 @@ function QuarkRouter() {
         self.configuration = routingConfig.configuration;
     }
 
-    this.parse = function(location, url) {
+    this.parse = function(location, hash) {
         // If only one parameter is specified we assume that is the hash, and the location must be taken from the
         // window location object.
-        if (!$$.isDefined(url)) {
-            url = location;
+        if (!$$.isDefined(hash)) {
+            hash = location;
             location = window.location.pathname;
         }
 
@@ -155,20 +155,29 @@ function QuarkRouter() {
 
             var exp = RegExp(locationConfig.pattern);
             if (location.match(exp)) {
-                return locationConfig.router.parse(url);
+                return locationConfig.router.parse(hash);
             }
         }
     }
 
     this.getRoute = function(name) {
-        var parts = name.split('/');
+        var location = name.substr(0, name.indexOf('/'));
+        var hash = name.substr(name.indexOf('/') + 1);
 
-        if (parts.length != 2) {
-            throw new 'You must specifiy route name in the form pageName/routeName';
+        if (!hash) {
+            throw new 'You must specifiy route name in the form location/routeName.';
         }
 
-        if (self.configuration[parts[0]] && self.configuration[parts[0]]['routes'][parts[1]]) {
-            return self.configuration[parts[0]]['routes'][parts[1]]['route'];
+        if (!self.configuration[location]) {
+            console.warn('The location specified as ' + name + ' was not found in the routing configuration.');
+        } else {
+            if (!self.configuration[location]['routes'][hash]) {
+                console.warn('The route name specified as ' + name + ' was not found in the routing configuration for the ' + location + ' location.');
+            }
+        }
+
+        if (self.configuration[location] && self.configuration[location]['routes'][hash]) {
+            return self.configuration[location]['routes'][hash]['route'];
         }
     }
 
@@ -183,11 +192,12 @@ function QuarkRouter() {
     this.link = function(name, config, location) {
         var route = self.getRoute(name);
 
-        if (!location) {
-            location = route.locationPattern;
-        }
-
         if (route) {
+
+            if (!location) {
+                location = route.locationPattern;
+            }
+
             return location + '#' + route.interpolate(config);
         }
     }
