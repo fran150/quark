@@ -173,13 +173,16 @@ $$.component = function(viewModel, view) {
     function Model(p) {
         // Component's model
         var model;
+        var self = model;
         // Creates empty scope
-        var $scope = {};
+        var $scope = {
+        };
 
         // If theres a viewModel defined
         if (viewModel && !model) {
             // Creates the model passing parameters and empty scope
             model = new viewModel(p, $scope);
+            $scope.model = model;
         }
 
         // Creates model and scope getters to allow quark to bind to each part
@@ -487,7 +490,7 @@ ko.components.register('quark-component', {
 // Sets the component tracking in the parent and awaits the component to be fully binded then it calls the ready function.
 ko.bindingHandlers.import = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var object = viewModel;
+        var object = viewModel.model;
         var name = valueAccessor();
 
         if (!$$.isString(name)) {
@@ -558,7 +561,7 @@ ko.bindingHandlers.import = {
                     object.tracking.parent.readied(propertyName, vm);
                 }
 
-                object.tracking.parent.childReady();
+                object.tracking.parent.tracking.childReady();
             }
         }
 
@@ -582,9 +585,9 @@ ko.bindingHandlers.import = {
 
             // Finally if the object is tracked and has a parent, mark itself as ready on the parent
             // object and call the function on the parent to reevaluate readiness.
-            if ($$.isDefined(object['parent'])) {
-                object.traking.parentState['ready'] = true;
-                object.tracking.parent.childReady();
+            if ($$.isDefined(object['parent']) && $$.isDefined(object.parent.tracking)) {
+                object.tracking.parentState['ready'] = true;
+                object.tracking.parent.tracking.childReady();
             }
         }
 
@@ -600,6 +603,8 @@ ko.bindingHandlers.export = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
         var value;
         value = ko.unwrap(valueAccessor());
+
+        viewModel = viewModel.model;
 
         var property;
 

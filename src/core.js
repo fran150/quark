@@ -9,13 +9,16 @@ $$.component = function(viewModel, view) {
     function Model(p) {
         // Component's model
         var model;
+        var self = model;
         // Creates empty scope
-        var $scope = {};
+        var $scope = {
+        };
 
         // If theres a viewModel defined
         if (viewModel && !model) {
             // Creates the model passing parameters and empty scope
             model = new viewModel(p, $scope);
+            $scope.model = model;
         }
 
         // Creates model and scope getters to allow quark to bind to each part

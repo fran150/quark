@@ -44,6 +44,7 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
                 this.pageToCompute = ko.observable('Page');
 
                 this.ready = function() {
+                    debugger;
                     done();
                 };
             }
