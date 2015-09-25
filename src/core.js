@@ -1,3 +1,27 @@
+var registerCallback;
+
+$$.registerCounter = 0;
+
+$$.register = function(loaderPath, callback) {
+    var index = loaderPath.lastIndexOf('/');
+    var path = loaderPath.substr(0, index);
+
+    $$.registerCounter++;
+
+    require([loaderPath], function(loader) {
+        loader(path + '/');
+        if ((--$$.registerCounter) == 0) {
+            if (registerCallback) {
+                registerCallback();
+            }
+        }
+    });
+}
+
+$$.register.complete = function(callback) {
+    registerCallback = callback;
+}
+
 $$.component = function(viewModel, view) {
     // If only one parameter is specified we assume that is view only component
     if (!$$.isDefined(view)) {
