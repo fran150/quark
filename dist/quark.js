@@ -1465,6 +1465,80 @@ ko.bindingHandlers.moneyValue = {
 }
 
 
+// Uses accounting js to show a numeric input
+ko.bindingHandlers.numericText = {
+    init: function (element, valueAccessor) {
+        var underlyingObservable = valueAccessor();
+
+        var interceptor = ko.pureComputed({
+            read: function () {
+                if ($$.isDefined(underlyingObservable())) {
+                    return accounting.formatNumber(underlyingObservable(), 2, ".", ",");
+                } else {
+                    return undefined;
+                }
+            },
+
+            write: function (newValue) {
+                var current = underlyingObservable();
+                var valueToWrite = accounting.unformat(newValue, ",");
+
+                if (isNaN(valueToWrite)) {
+                    valueToWrite = newValue;
+                }
+
+                if (valueToWrite !== current) {
+                    underlyingObservable(accounting.toFixed(valueToWrite, 2));
+                } else {
+                    if (newValue !== current.toString())
+                        underlyingObservable.valueHasMutated();
+                }
+            }
+        });
+
+        ko.applyBindingsToNode(element, { text: interceptor });
+    }
+}
+
+ko.bindingHandlers.moneyText = {
+    init: function (element, valueAccessor) {
+        var underlyingObservable = valueAccessor();
+
+        if (!ko.isObservable(underlyingObservable)) {
+            underlyingObservable = ko.observable(underlyingObservable);
+        }
+
+        var interceptor = ko.pureComputed({
+            read: function () {
+                if ($$.isDefined(underlyingObservable())) {
+                    return accounting.formatMoney(underlyingObservable(),"$ ", 2, ".", ",");
+                } else {
+                    return undefined;
+                }
+            },
+
+            write: function (newValue) {
+                var current = underlyingObservable();
+                var valueToWrite = accounting.unformat(newValue, ",");
+
+                if (isNaN(valueToWrite)) {
+                    valueToWrite = newValue;
+                }
+
+                if (valueToWrite !== current) {
+                    underlyingObservable(accounting.toFixed(valueToWrite, 2));
+                } else {
+                    if (newValue !== current.toString())
+                        underlyingObservable.valueHasMutated();
+                }
+            }
+        });
+
+        ko.applyBindingsToNode(element, { text: interceptor });
+    }
+}
+
+
 // Initialize validators array
 ko.validators = {};
 
