@@ -192,13 +192,18 @@ function QuarkRouter() {
     this.link = function(name, config, location) {
         var route = self.getRoute(name);
 
+        if (!location) {
+            location = window.location.pathname;
+        }
+
         if (route) {
+            var exp = RegExp(route.locationPattern);
 
-            if (!location) {
-                location = route.locationPattern;
+            if (location.match(exp)) {
+                return '#' + route.interpolate(config);
+            } else {
+                return location + '#' + route.interpolate(config);
             }
-
-            return location + '#' + route.interpolate(config);
         }
     }
 
