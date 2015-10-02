@@ -40,3 +40,17 @@ ko.getJson = function (model) {
     return result;
 }
 
+ko.extenders.blockable = function(target, message) {
+    target.blocked = ko.observable('');
+
+    target.block = function() {
+        target.blocked(message);
+    }
+
+    target.unblock = function() {
+        target.blocked('');
+    }
+
+    //return the original observable
+    return target;
+};

@@ -6,6 +6,27 @@ ko.bindingHandlers.onBind = {
     }
 }
 
+function block(element, value) {
+    if (value) {
+        $$.block(value, $(element));
+    } else {
+        $$.unblock($(element));
+    }
+}
+
+// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
+ko.bindingHandlers.block = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        block(element, value);
+    },
+    update: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        block(element, value);
+    }
+}
+
+
 // Applies the success style to the element if the specified condition is met. Useful highlight the selected row on a table:
 // <div data-bind="rowSelect: id == $parent.idSeleccionado">
 ko.bindingHandlers.rowSelect = {

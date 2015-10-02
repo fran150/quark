@@ -1064,13 +1064,18 @@ function QuarkRouter() {
     this.link = function(name, config, location) {
         var route = self.getRoute(name);
 
+        if (!location) {
+            location = window.location.pathname;
+        }
+
         if (route) {
+            var exp = RegExp(route.locationPattern);
 
-            if (!location) {
-                location = route.locationPattern;
+            if (location.match(exp)) {
+                return '#' + route.interpolate(config);
+            } else {
+                return location + '#' + route.interpolate(config);
             }
-
-            return location + '#' + route.interpolate(config);
         }
     }
 
@@ -1246,11 +1251,11 @@ $$.clientErrorHandlers = {};
 $$.serverErrorHandlers = {};
 
 // Executes ajax call to the specified url
-$$.ajax = function (target, method, data, callbacks, options) {
+$$.ajax = function (url, method, data, callbacks, auth, options) {
     var opts = options || {};
     var clbks = callbacks || {};
 
-    if (!target) {
+    if (!url) {
         throw 'Must specify the target URL';
     }
 
@@ -1260,10 +1265,8 @@ $$.ajax = function (target, method, data, callbacks, options) {
     }
 
     // If auth is required send the access token saved on session storage
-    if (opts.auth) {
-        opts.headers = {
-            access_token: sessionStorage.getItem('token')
-        };
+    if (auth) {
+        opts.headers['access_token'] = sessionStorage.getItem('token');
     }
 
     var onSuccess;
@@ -1275,8 +1278,8 @@ $$.ajax = function (target, method, data, callbacks, options) {
     }
 
     $.ajax({
-        url: target,
-        type: opts.method || 'GET',
+        url: url,
+        type: method || 'GET',
         cache: opts.cache || false,
         data: data,
         async: opts.async || true,
@@ -1297,7 +1300,7 @@ $$.ajax = function (target, method, data, callbacks, options) {
                 if (jqXHR.status >= 500 && jqXHR.status < 600) {
                     // Call all handlers in registration order until someone handles it (must return true)
                     for (var handlerName in $$.serverErrorHandlers) {
-                        if ($$.serverErrorHandlers[handlerName](target, JSON.parse(jqXHR.responseText))) {
+                        if ($$.serverErrorHandlers[handlerName](url, JSON.parse(jqXHR.responseText))) {
                             // If its handled stop executing handlers
                             handled = true;
                             break;
@@ -1307,7 +1310,7 @@ $$.ajax = function (target, method, data, callbacks, options) {
                     // If it's a client error
                     for (handlerName in $$.clientErrorHandlers) {
                         // Call all handlers in registration order until someone handles it (must return true)
-                        if ($$.clientErrorHandlers[handlerName](target, jqXHR, textStatus, errorThrown)) {
+                        if ($$.clientErrorHandlers[handlerName](url, jqXHR, textStatus, errorThrown)) {
                             // If its handled stop executing handlers
                             handled = true;
                             break;
@@ -1319,6 +1322,33 @@ $$.ajax = function (target, method, data, callbacks, options) {
     });
 }
 
+$$.get = function(url, data, result, callbacks, auth, options) {
+    if ($$.isDefined(result.blocked)) {
+        result.block();
+    }
+
+    $$.ajax(url, 'GET', data, {
+        onSuccess: function(serverData) {
+            if ($$.isDefined(result.blocked)) {
+                result.unblock();
+            }
+
+            result(serverData);
+            if (callbacks) {
+                $$.call(callbacks.onSuccess);
+            }
+        },
+        onError:  function(jqXHR, textStatus, errorThrown) {
+            if ($$.isDefined(result.blocked)) {
+                result.unblock();
+            }
+
+            if (callbacks) {
+                $$.call(callbacks.onError, jqXHR, textStatus, errorThrown);
+            }
+        }
+    }, auth, options);
+}
 // Check if it's an observable array
 ko.isObservableArray = function(elem) {
     if (ko.isObservable(elem) && elem.indexOf !== undefined) {
@@ -1361,7 +1391,20 @@ ko.getJson = function (model) {
     return result;
 }
 
+ko.extenders.blockable = function(target, message) {
+    target.blocked = ko.observable('');
 
+    target.block = function() {
+        target.blocked(message);
+    }
+
+    target.unblock = function() {
+        target.blocked('');
+    }
+
+    //return the original observable
+    return target;
+};
 // Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
 ko.bindingHandlers.onBind = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
@@ -1369,6 +1412,27 @@ ko.bindingHandlers.onBind = {
         value(element, viewModel, context);
     }
 }
+
+function block(element, value) {
+    if (value) {
+        $$.block(value, $(element));
+    } else {
+        $$.unblock($(element));
+    }
+}
+
+// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
+ko.bindingHandlers.block = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        block(element, value);
+    },
+    update: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        block(element, value);
+    }
+}
+
 
 // Applies the success style to the element if the specified condition is met. Useful highlight the selected row on a table:
 // <div data-bind="rowSelect: id == $parent.idSeleccionado">
@@ -1399,6 +1463,10 @@ ko.bindingHandlers.rowSelect = {
 ko.bindingHandlers.numericValue = {
     init: function (element, valueAccessor) {
         var underlyingObservable = valueAccessor();
+
+        if (!ko.isObservable(underlyingObservable)) {
+            underlyingObservable = ko.observable(underlyingObservable);
+        }
 
         var interceptor = ko.pureComputed({
             read: function () {
@@ -1433,6 +1501,10 @@ ko.bindingHandlers.numericValue = {
 ko.bindingHandlers.moneyValue = {
     init: function (element, valueAccessor) {
         var underlyingObservable = valueAccessor();
+
+        if (!ko.isObservable(underlyingObservable)) {
+            underlyingObservable = ko.observable(underlyingObservable);
+        }
 
         var interceptor = ko.pureComputed({
             read: function () {
@@ -1469,6 +1541,10 @@ ko.bindingHandlers.moneyValue = {
 ko.bindingHandlers.numericText = {
     init: function (element, valueAccessor) {
         var underlyingObservable = valueAccessor();
+
+        if (!ko.isObservable(underlyingObservable)) {
+            underlyingObservable = ko.observable(underlyingObservable);
+        }
 
         var interceptor = ko.pureComputed({
             read: function () {

@@ -5,11 +5,11 @@ $$.clientErrorHandlers = {};
 $$.serverErrorHandlers = {};
 
 // Executes ajax call to the specified url
-$$.ajax = function (target, method, data, callbacks, options) {
+$$.ajax = function (url, method, data, callbacks, auth, options) {
     var opts = options || {};
     var clbks = callbacks || {};
 
-    if (!target) {
+    if (!url) {
         throw 'Must specify the target URL';
     }
 
@@ -19,10 +19,8 @@ $$.ajax = function (target, method, data, callbacks, options) {
     }
 
     // If auth is required send the access token saved on session storage
-    if (opts.auth) {
-        opts.headers = {
-            access_token: sessionStorage.getItem('token')
-        };
+    if (auth) {
+        opts.headers['access_token'] = sessionStorage.getItem('token');
     }
 
     var onSuccess;
@@ -34,8 +32,8 @@ $$.ajax = function (target, method, data, callbacks, options) {
     }
 
     $.ajax({
-        url: target,
-        type: opts.method || 'GET',
+        url: url,
+        type: method || 'GET',
         cache: opts.cache || false,
         data: data,
         async: opts.async || true,
@@ -56,7 +54,7 @@ $$.ajax = function (target, method, data, callbacks, options) {
                 if (jqXHR.status >= 500 && jqXHR.status < 600) {
                     // Call all handlers in registration order until someone handles it (must return true)
                     for (var handlerName in $$.serverErrorHandlers) {
-                        if ($$.serverErrorHandlers[handlerName](target, JSON.parse(jqXHR.responseText))) {
+                        if ($$.serverErrorHandlers[handlerName](url, JSON.parse(jqXHR.responseText))) {
                             // If its handled stop executing handlers
                             handled = true;
                             break;
@@ -66,7 +64,7 @@ $$.ajax = function (target, method, data, callbacks, options) {
                     // If it's a client error
                     for (handlerName in $$.clientErrorHandlers) {
                         // Call all handlers in registration order until someone handles it (must return true)
-                        if ($$.clientErrorHandlers[handlerName](target, jqXHR, textStatus, errorThrown)) {
+                        if ($$.clientErrorHandlers[handlerName](url, jqXHR, textStatus, errorThrown)) {
                             // If its handled stop executing handlers
                             handled = true;
                             break;
@@ -76,4 +74,32 @@ $$.ajax = function (target, method, data, callbacks, options) {
             }
         }
     });
+}
+
+$$.get = function(url, data, result, callbacks, auth, options) {
+    if ($$.isDefined(result.blocked)) {
+        result.block();
+    }
+
+    $$.ajax(url, 'GET', data, {
+        onSuccess: function(serverData) {
+            if ($$.isDefined(result.blocked)) {
+                result.unblock();
+            }
+
+            result(serverData);
+            if (callbacks) {
+                $$.call(callbacks.onSuccess);
+            }
+        },
+        onError:  function(jqXHR, textStatus, errorThrown) {
+            if ($$.isDefined(result.blocked)) {
+                result.unblock();
+            }
+
+            if (callbacks) {
+                $$.call(callbacks.onError, jqXHR, textStatus, errorThrown);
+            }
+        }
+    }, auth, options);
 }
