@@ -162,28 +162,28 @@ $$.makeDate = function (value, useToday) {
     return value;
 }
 
-var registerCallback;
+$$.module = function(moduleInfo, config, callback) {
+    var moduleName = moduleInfo.id.substring(0, moduleInfo.id.lastIndexOf('/'));
+    var modulePath = moduleInfo.uri.substring(0, moduleInfo.uri.lastIndexOf('/'));
 
-$$.registerCounter = 0;
-
-$$.register = function(loaderPath, callback) {
-    var index = loaderPath.lastIndexOf('/');
-    var path = loaderPath.substr(0, index);
-
-    $$.registerCounter++;
-
-    require([loaderPath], function(loader) {
-        loader(path + '/');
-        if ((--$$.registerCounter) == 0) {
-            if (registerCallback) {
-                registerCallback();
+    if ($$.isDefined(config.require)) {
+        if (config.require.paths) {
+            for (var pathName in config.require.paths) {
+                config.require.paths[pathName] = modulePath + '/' + config.require.paths[pathName];
             }
         }
-    });
-}
 
-$$.register.complete = function(callback) {
-    registerCallback = callback;
+        require(config.require);
+    }
+
+    for (var componentTagName in config.components) {
+        var tagName = config.prefix + "-" + componentTagName;
+        var path = moduleName + '/' + config.components[componentTagName];
+
+        ko.components.register(tagName, { require: path });
+    }
+
+    callback(moduleName);
 }
 
 $$.component = function(viewModel, view) {
@@ -398,6 +398,7 @@ $$.inject = function (from, to, recursively) {
         }
     }
 }
+
 // Loaded behaviours array
 var behaviours = {};
 
