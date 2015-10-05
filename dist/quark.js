@@ -384,13 +384,13 @@ $$.inject = function (from, to, recursively) {
 
             if (ko.isObservable(to[name])) {
                 if (recursively && $$.isObject(to[name]())) {
-                    $$.inject(to[name](), value);
+                    $$.inject(to[name](), value, true);
                 } else {
                     to[name](value);
                 }
             } else {
                 if (recursively && $$.isObject(to[name])) {
-                    $$.inject(to[name], value);
+                    $$.inject(to[name], value, true);
                 } else {
                     to[name] = value;
                 }
@@ -398,7 +398,6 @@ $$.inject = function (from, to, recursively) {
         }
     }
 }
-
 // Loaded behaviours array
 var behaviours = {};
 
@@ -875,7 +874,7 @@ function QuarkRouter() {
     var self = this;
 
     this.current = ko.observable();
-    this.configuration = [];
+    this.configuration = {};
 
     function RoutingConfig() {
         // Self
@@ -982,12 +981,30 @@ function QuarkRouter() {
             var locationConfig = routingConfig.configuration[locationName];
             var locationPattern = routingConfig.configuration[locationName].pattern;
 
-            // Create a new crossroads router
-            var newRouter = crossroads.create();
-            newRouter.normalizeFn = crossroads.NORM_AS_OBJECT;
+            var dest;
+
+            if (!self.configuration[locationName]) {
+                dest = self.configuration[locationName] = {};
+            } else {
+                dest = self.configuration[locationName];
+            }
+
+            if (!dest.router) {
+                // Create a new crossroads router
+                dest.router = crossroads.create();
+                dest.router.normalizeFn = crossroads.NORM_AS_OBJECT;
+            }
+
+            if (!dest.pattern) {
+                dest.pattern = locationPattern;
+            }
 
             // Adds the router to the location config
-            locationConfig.router = newRouter;
+            locationConfig.router = dest.router;
+
+            if (!dest.routes) {
+                dest.routes = {};
+            }
 
             // For each hash configured for this location
             for (var routeName in locationConfig.routes) {
@@ -1001,17 +1018,19 @@ function QuarkRouter() {
 
                     if ($$.isDefined(locationConfig.routes[''])) {
                         $.extend(components, locationConfig.routes[''].components);
+                    } else if ($$.isDefined(dest.routes[''])) {
+                        $.extend(components, dest.routes[''].components);
                     }
 
-                    // Creates the new router
-                    var newRoute = new Route(newRouter, routeConfig.name, routeConfig.fullName, locationPattern, routeConfig.hash, components);
+                    // Creates the new route
+                    var newRoute = new Route(dest.router, routeConfig.name, routeConfig.fullName, locationPattern, routeConfig.hash, components);
 
                     routeConfig.route = newRoute;
+
+                    dest.routes[routeName] = components;
                 }
             }
         }
-
-        self.configuration = routingConfig.configuration;
     }
 
     this.parse = function(location, hash) {
@@ -1349,6 +1368,7 @@ $$.get = function(url, data, result, callbacks, auth, options) {
         }
     }, auth, options);
 }
+
 // Check if it's an observable array
 ko.isObservableArray = function(elem) {
     if (ko.isObservable(elem) && elem.indexOf !== undefined) {
@@ -1405,6 +1425,7 @@ ko.extenders.blockable = function(target, message) {
     //return the original observable
     return target;
 };
+
 // Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
 ko.bindingHandlers.onBind = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {

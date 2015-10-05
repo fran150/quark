@@ -3,7 +3,7 @@ function QuarkRouter() {
     var self = this;
 
     this.current = ko.observable();
-    this.configuration = [];
+    this.configuration = {};
 
     function RoutingConfig() {
         // Self
@@ -110,12 +110,30 @@ function QuarkRouter() {
             var locationConfig = routingConfig.configuration[locationName];
             var locationPattern = routingConfig.configuration[locationName].pattern;
 
-            // Create a new crossroads router
-            var newRouter = crossroads.create();
-            newRouter.normalizeFn = crossroads.NORM_AS_OBJECT;
+            var dest;
+
+            if (!self.configuration[locationName]) {
+                dest = self.configuration[locationName] = {};
+            } else {
+                dest = self.configuration[locationName];
+            }
+
+            if (!dest.router) {
+                // Create a new crossroads router
+                dest.router = crossroads.create();
+                dest.router.normalizeFn = crossroads.NORM_AS_OBJECT;
+            }
+
+            if (!dest.pattern) {
+                dest.pattern = locationPattern;
+            }
 
             // Adds the router to the location config
-            locationConfig.router = newRouter;
+            locationConfig.router = dest.router;
+
+            if (!dest.routes) {
+                dest.routes = {};
+            }
 
             // For each hash configured for this location
             for (var routeName in locationConfig.routes) {
@@ -129,17 +147,19 @@ function QuarkRouter() {
 
                     if ($$.isDefined(locationConfig.routes[''])) {
                         $.extend(components, locationConfig.routes[''].components);
+                    } else if ($$.isDefined(dest.routes[''])) {
+                        $.extend(components, dest.routes[''].components);
                     }
 
-                    // Creates the new router
-                    var newRoute = new Route(newRouter, routeConfig.name, routeConfig.fullName, locationPattern, routeConfig.hash, components);
+                    // Creates the new route
+                    var newRoute = new Route(dest.router, routeConfig.name, routeConfig.fullName, locationPattern, routeConfig.hash, components);
 
                     routeConfig.route = newRoute;
+
+                    dest.routes[routeName] = components;
                 }
             }
         }
-
-        self.configuration = routingConfig.configuration;
     }
 
     this.parse = function(location, hash) {
