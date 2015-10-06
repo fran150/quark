@@ -1,7 +1,25 @@
+$$.modules = {};
+
 $$.module = function(moduleInfo, config, callback) {
+    // Validate parameters
+    if (!$$.isDefined(moduleInfo)) {
+        throw 'Must specify the module configuration. You can define \'module\' as dependency and pass that value in this parameter';
+    }
+
+    // Get the modules name and path removing all text after the last / (the file name)
     var moduleName = moduleInfo.id.substring(0, moduleInfo.id.lastIndexOf('/'));
     var modulePath = moduleInfo.uri.substring(0, moduleInfo.uri.lastIndexOf('/'));
 
+    if ($$.modules[moduleName]) {
+        return $$.modules[moduleName];
+    }
+
+    // If config is not defined create an empty one
+    if (!config) {
+        config = {};
+    }
+
+    // If there's a require configuration append module's path to the defined paths and apply
     if ($$.isDefined(config.require)) {
         if (config.require.paths) {
             for (var pathName in config.require.paths) {
@@ -12,14 +30,42 @@ $$.module = function(moduleInfo, config, callback) {
         require(config.require);
     }
 
-    for (var componentTagName in config.components) {
-        var tagName = config.prefix + "-" + componentTagName;
-        var path = moduleName + '/' + config.components[componentTagName];
+    // If there's a components configuration add the prefix to the tag name of each component, the module path to the component's path
+    // and register
+    if (config.components) {
+        for (var componentTagName in config.components) {
+            var tagName = config.prefix + "-" + componentTagName;
+            var path = moduleName + '/' + config.components[componentTagName];
 
-        ko.components.register(tagName, { require: path });
+            ko.components.register(tagName, { require: path });
+        }
     }
 
-    callback(moduleName);
+    // If there's a css configuration add links in the header
+    if ($$.isArray(config.css)) {
+        for (var i = 0; i < config.css.length; i++) {
+            var link = document.createElement("link");
+            link.type = "text/css";
+            link.rel = "stylesheet";
+            link.href = modulePath + '/' + config.css[i];
+            document.getElementsByTagName("head")[0].appendChild(link);
+        }
+    }
+
+    // If there's a callback defined invoke it.
+    if (callback) {
+        callback(moduleName);
+    }
+
+    $$.modules[moduleName] = {
+        name: moduleName,
+        path: modulePath,
+        info: moduleInfo,
+        config: config,
+        callback: callback
+    };
+
+    return $$.modules[moduleName];
 }
 
 $$.component = function(viewModel, view) {
