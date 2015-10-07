@@ -162,6 +162,15 @@ $$.makeDate = function (value, useToday) {
     return value;
 }
 
+$$.started = false;
+
+$$.start = function(model) {
+    if (!$$.started) {
+        ko.applyBindings(model);
+        $$.started = true;
+    }
+}
+
 $$.modules = {};
 
 $$.module = function(moduleInfo, config, callback) {
@@ -1161,9 +1170,13 @@ function QuarkRouter() {
 
     }
 
-    this.activateHasher = function() {
+    this.activateHasher = function(callback) {
         function parseHash(newHash, oldHash) {
-            self.parse(newHash);
+            if ($$.isDefined(callback)) {
+                callback(newHash, oldHash);
+            } else {
+                self.parse(newHash);
+            }
         }
 
         hasher.initialized.add(parseHash);

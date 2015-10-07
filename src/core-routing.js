@@ -243,9 +243,13 @@ function QuarkRouter() {
 
     }
 
-    this.activateHasher = function() {
+    this.activateHasher = function(callback) {
         function parseHash(newHash, oldHash) {
-            self.parse(newHash);
+            if ($$.isDefined(callback)) {
+                callback(newHash, oldHash);
+            } else {
+                self.parse(newHash);
+            }
         }
 
         hasher.initialized.add(parseHash);
