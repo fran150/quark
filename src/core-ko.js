@@ -366,15 +366,15 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
     return newAccesor;
 }
 
-ko.bindingHandlers.stopBinding = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        return { controlsDescendantBindings: true };
-    }
-}
-
 ko.bindingHandlers.page = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
+    }
+}
+
+ko.bindingHandlers.stopBinding = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        return { controlsDescendantBindings: true };
     }
 }
