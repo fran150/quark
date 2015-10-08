@@ -1,9 +1,3 @@
-
-// Adds client error handlers repository
-$$.clientErrorHandlers = {};
-// Adds server error handlers repository
-$$.serverErrorHandlers = {};
-
 // Executes ajax call to the specified url
 $$.ajax = function (url, method, data, callbacks, auth, options) {
     var opts = options || {};

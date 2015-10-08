@@ -8,7 +8,19 @@
         root.$$ = factory(root.ko, root.$, root.komapping, root.accounting, root.crossroads, root.hasher);
     }
 }(this, function(ko, $, komapping, accounting, crossroads, hasher) {
+// Quark global
 var $$ = {};
+// Modules List
+$$.modules = {};
+// Quark started
+$$.started = false;
+// Published Components
+$$.publics = {};
+// Client error handlers repository
+$$.clientErrorHandlers = {};
+// Server error handlers repository
+$$.serverErrorHandlers = {};
+
 
 // Check if the specified var is defined
 $$.isDefined = function (variable) {
@@ -162,16 +174,12 @@ $$.makeDate = function (value, useToday) {
     return value;
 }
 
-$$.started = false;
-
 $$.start = function(model) {
     if (!$$.started) {
         ko.applyBindings(model);
         $$.started = true;
     }
 }
-
-$$.modules = {};
 
 $$.module = function(moduleInfo, config, callback) {
     // Validate parameters
@@ -784,7 +792,42 @@ ko.bindingHandlers.modelExporter = {
 ko.virtualElements.allowedBindings.modelExporter = true;
 
 
+ko.bindingHandlers.publish = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = ko.unwrap(valueAccessor);
+        $$.publics[value()] = context.$child;
+    },
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = ko.unwrap(valueAccessor);
+        $$.publics[value()] = context.$child;
+    }
+};
+ko.virtualElements.allowedBindings.publish = true;
 
+function callRouted(name) {
+    for (var pageName in $$.routing.pages) {
+        var model = $$.routing.pages[pageName];
+
+        if (model['routed']) {
+            model.routed(name);
+        }
+
+    }
+}
+
+ko.bindingHandlers.routepage = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        $$.routing.pages[value] = context.$child;
+    },
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        $$.routing.pages[value] = context.$child;
+
+        callRouted(value);
+    }
+};
+ko.virtualElements.allowedBindings.routepage = true;
 
 
 ko.bindingHandlers.call = {
@@ -901,6 +944,8 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
             params = current;
         }
 
+        element.setAttribute('qk-routepage', "\'" + name + "\'");
+
         return {
             name: ko.pureComputed(function() {
                 return component;
@@ -912,16 +957,16 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
     return newAccesor;
 }
 
-ko.bindingHandlers.stopBinding = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        return { controlsDescendantBindings: true };
-    }
-}
-
 ko.bindingHandlers.page = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
         return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
+    }
+}
+
+ko.bindingHandlers.stopBinding = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        return { controlsDescendantBindings: true };
     }
 }
 
@@ -1004,6 +1049,7 @@ function QuarkRouter() {
         var routeObject = this;
 
         var csRoute = router.addRoute(hash, function(requestParams) {
+            $$.routing.pages = {};
             self.current({
                 route: routeObject,
                 location: location.pathname,
@@ -1186,7 +1232,7 @@ function QuarkRouter() {
 }
 
 $$.routing = new QuarkRouter();
-
+$$.routing.pages = {};
 // Redirect the browser to the specified url
 $$.redirect = function(url) {
     window.location.href = url;
@@ -1322,12 +1368,6 @@ $$.getCookie = function (name) {
 $$.clearCookie = function(name) {
     $$.setCookie(name,"",-1);
 }
-
-
-// Adds client error handlers repository
-$$.clientErrorHandlers = {};
-// Adds server error handlers repository
-$$.serverErrorHandlers = {};
 
 // Executes ajax call to the specified url
 $$.ajax = function (url, method, data, callbacks, auth, options) {

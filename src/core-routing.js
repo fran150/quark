@@ -77,6 +77,7 @@ function QuarkRouter() {
         var routeObject = this;
 
         var csRoute = router.addRoute(hash, function(requestParams) {
+            $$.routing.pages = {};
             self.current({
                 route: routeObject,
                 location: location.pathname,
@@ -259,3 +260,4 @@ function QuarkRouter() {
 }
 
 $$.routing = new QuarkRouter();
+$$.routing.pages = {};

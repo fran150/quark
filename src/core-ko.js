@@ -238,7 +238,42 @@ ko.bindingHandlers.modelExporter = {
 ko.virtualElements.allowedBindings.modelExporter = true;
 
 
+ko.bindingHandlers.publish = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = ko.unwrap(valueAccessor);
+        $$.publics[value()] = context.$child;
+    },
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = ko.unwrap(valueAccessor);
+        $$.publics[value()] = context.$child;
+    }
+};
+ko.virtualElements.allowedBindings.publish = true;
 
+function callRouted(name) {
+    for (var pageName in $$.routing.pages) {
+        var model = $$.routing.pages[pageName];
+
+        if (model['routed']) {
+            model.routed(name);
+        }
+
+    }
+}
+
+ko.bindingHandlers.routepage = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        $$.routing.pages[value] = context.$child;
+    },
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        $$.routing.pages[value] = context.$child;
+
+        callRouted(value);
+    }
+};
+ko.virtualElements.allowedBindings.routepage = true;
 
 
 ko.bindingHandlers.call = {
@@ -354,6 +389,8 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
             component = current.route.components[name];
             params = current;
         }
+
+        element.setAttribute('qk-routepage', "\'" + name + "\'");
 
         return {
             name: ko.pureComputed(function() {

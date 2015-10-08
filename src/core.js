@@ -1,13 +1,9 @@
-$$.started = false;
-
 $$.start = function(model) {
     if (!$$.started) {
         ko.applyBindings(model);
         $$.started = true;
     }
 }
-
-$$.modules = {};
 
 $$.module = function(moduleInfo, config, callback) {
     // Validate parameters
