@@ -5,7 +5,7 @@ $$.start = function(model) {
     }
 }
 
-$$.module = function(moduleInfo, config, callback) {
+$$.module = function(moduleInfo, config, mainConstructor) {
     // Validate parameters
     if (!$$.isDefined(moduleInfo)) {
         throw 'Must specify the module configuration. You can define \'module\' as dependency and pass that value in this parameter';
@@ -57,9 +57,15 @@ $$.module = function(moduleInfo, config, callback) {
         }
     }
 
-    // If there's a callback defined invoke it.
-    if (callback) {
-        callback(moduleName);
+    var main = {};
+
+    // If there's a main object defined create it.
+    if (mainConstructor) {
+        main = new mainConstructor(moduleName);
+    }
+
+    if (main['start']) {
+        main.start();
     }
 
     $$.modules[moduleName] = {
@@ -67,7 +73,7 @@ $$.module = function(moduleInfo, config, callback) {
         path: modulePath,
         info: moduleInfo,
         config: config,
-        callback: callback
+        main: main
     };
 
     return $$.modules[moduleName];

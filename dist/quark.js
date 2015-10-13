@@ -1,13 +1,13 @@
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD.
-        define(['knockout', 'jquery', 'knockout-mapping', 'accounting-js', 'crossroads', 'hasher', 'blockui'], factory);
+        define(['knockout', 'jquery', 'knockout-mapping', 'accounting-js', 'crossroads', 'hasher', 'signals', 'blockui'], factory);
     } else {
         // Browser globals.
         root.komapping = ko.mapping;
-        root.$$ = factory(root.ko, root.$, root.komapping, root.accounting, root.crossroads, root.hasher);
+        root.$$ = factory(root.ko, root.$, root.komapping, root.accounting, root.crossroads, root.hasher, root.signals);
     }
-}(this, function(ko, $, komapping, accounting, crossroads, hasher) {
+}(this, function(ko, $, komapping, accounting, crossroads, hasher, signals) {
 // Quark global
 var $$ = {};
 // Modules List
@@ -179,7 +179,7 @@ $$.start = function(model) {
     }
 }
 
-$$.module = function(moduleInfo, config, callback) {
+$$.module = function(moduleInfo, config, mainConstructor) {
     // Validate parameters
     if (!$$.isDefined(moduleInfo)) {
         throw 'Must specify the module configuration. You can define \'module\' as dependency and pass that value in this parameter';
@@ -231,9 +231,15 @@ $$.module = function(moduleInfo, config, callback) {
         }
     }
 
-    // If there's a callback defined invoke it.
-    if (callback) {
-        callback(moduleName);
+    var main = {};
+
+    // If there's a main object defined create it.
+    if (mainConstructor) {
+        main = new mainConstructor(moduleName);
+    }
+
+    if (main['start']) {
+        main.start();
     }
 
     $$.modules[moduleName] = {
@@ -241,7 +247,7 @@ $$.module = function(moduleInfo, config, callback) {
         path: modulePath,
         info: moduleInfo,
         config: config,
-        callback: callback
+        main: main
     };
 
     return $$.modules[moduleName];
@@ -1022,17 +1028,25 @@ function QuarkRouter() {
                         page: $$.isFunction(pageObject) ? new pageObject : pageObject
                     });
 
-                    $$.routing.routed();
+                    self.routed.dispatch();
                 });
             } else {
-                self.current({
-                    route: routeObject,
-                    location: location.pathname,
-                    params: requestParams,
-                    page: page
-                });
+                var loadedCallback = function(pageObject) {
+                    self.current({
+                        route: routeObject,
+                        location: location.pathname,
+                        params: requestParams,
+                        page: pageObject
+                    });
 
-                $$.routing.routed();
+                    self.routed.dispatch();
+                }
+
+                if ($$.isFunction(page)) {
+                    page(loadedCallback);
+                } else {
+                    loadedCallback(page);
+                }
             }
         });
 
@@ -1208,6 +1222,8 @@ function QuarkRouter() {
         hasher.changed.add(parseHash);
         hasher.init();
     }
+
+    this.routed = new signals.Signal();
 }
 
 $$.routing = new QuarkRouter();

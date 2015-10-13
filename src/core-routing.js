@@ -87,17 +87,25 @@ function QuarkRouter() {
                         page: $$.isFunction(pageObject) ? new pageObject : pageObject
                     });
 
-                    $$.routing.routed();
+                    self.routed.dispatch();
                 });
             } else {
-                self.current({
-                    route: routeObject,
-                    location: location.pathname,
-                    params: requestParams,
-                    page: page
-                });
+                var loadedCallback = function(pageObject) {
+                    self.current({
+                        route: routeObject,
+                        location: location.pathname,
+                        params: requestParams,
+                        page: pageObject
+                    });
 
-                $$.routing.routed();
+                    self.routed.dispatch();
+                }
+
+                if ($$.isFunction(page)) {
+                    page(loadedCallback);
+                } else {
+                    loadedCallback(page);
+                }
             }
         });
 
@@ -273,6 +281,8 @@ function QuarkRouter() {
         hasher.changed.add(parseHash);
         hasher.init();
     }
+
+    this.routed = new signals.Signal();
 }
 
 $$.routing = new QuarkRouter();
