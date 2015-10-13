@@ -14,8 +14,6 @@ var $$ = {};
 $$.modules = {};
 // Quark started
 $$.started = false;
-// Published Components
-$$.publics = {};
 // Client error handlers repository
 $$.clientErrorHandlers = {};
 // Server error handlers repository
@@ -791,45 +789,6 @@ ko.bindingHandlers.modelExporter = {
 };
 ko.virtualElements.allowedBindings.modelExporter = true;
 
-
-ko.bindingHandlers.publish = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor);
-        $$.publics[value()] = context.$child;
-    },
-    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor);
-        $$.publics[value()] = context.$child;
-    }
-};
-ko.virtualElements.allowedBindings.publish = true;
-
-function callRouted(name) {
-    for (var pageName in $$.routing.pages) {
-        var model = $$.routing.pages[pageName];
-
-        if (model['routed']) {
-            model.routed(name);
-        }
-
-    }
-}
-
-ko.bindingHandlers.routepage = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        $$.routing.pages[value] = context.$child;
-    },
-    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        $$.routing.pages[value] = context.$child;
-
-        callRouted(value);
-    }
-};
-ko.virtualElements.allowedBindings.routepage = true;
-
-
 ko.bindingHandlers.call = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
         var value = ko.unwrap(valueAccessor());
@@ -944,8 +903,6 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
             params = current;
         }
 
-        element.setAttribute('qk-routepage', "\'" + name + "\'");
-
         return {
             name: ko.pureComputed(function() {
                 return component;
@@ -960,6 +917,12 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
 ko.bindingHandlers.page = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+
+        var current = $$.routing.current();
+        if ($$.isObject(current.page)) {
+            context = context.createChildContext(current.page);
+        }
+
         return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
     }
 }
@@ -1014,7 +977,7 @@ function QuarkRouter() {
         // Adds a route to the last location specified with .on. The hash is a pattern to match on the hash, the
         // name parameter is the name of the route, and the components parameter is an object with each property being the name of a placeholder
         // and it's value the component that must be binded on it.
-        this.when = function(hash, name, components) {
+        this.when = function(hash, name, components, page) {
             // If only one parameter is specified we assume that its the components parameter
             if (!$$.isDefined(name) && !$$.isDefined(components)) {
                 components = hash;
@@ -1037,7 +1000,8 @@ function QuarkRouter() {
                 hash: hash,
                 components: components,
                 fullName: fullName,
-                name: name
+                name: name,
+                page: page
             };
 
             // Returns itself so config methods are chainable.
@@ -1045,16 +1009,31 @@ function QuarkRouter() {
         }
     }
 
-    function Route(router, name, fullName, locationPattern, hash, components) {
+    function Route(router, name, fullName, locationPattern, hash, components, page) {
         var routeObject = this;
 
         var csRoute = router.addRoute(hash, function(requestParams) {
-            $$.routing.pages = {};
-            self.current({
-                route: routeObject,
-                location: location.pathname,
-                params: requestParams
-            });
+            if ($$.isString(page)) {
+                require([page], function(pageObject) {
+                    self.current({
+                        route: routeObject,
+                        location: location.pathname,
+                        params: requestParams,
+                        page: $$.isFunction(pageObject) ? new pageObject : pageObject
+                    });
+
+                    $$.routing.routed();
+                });
+            } else {
+                self.current({
+                    route: routeObject,
+                    location: location.pathname,
+                    params: requestParams,
+                    page: page
+                });
+
+                $$.routing.routed();
+            }
         });
 
         this.name = name;
@@ -1077,7 +1056,7 @@ function QuarkRouter() {
     }
 
     this.configure = function(routingConfig) {
-        // For each location configurated
+        // For each location configured
         for (var locationName in routingConfig.configuration) {
             // Get this location config and the pattern
             var locationConfig = routingConfig.configuration[locationName];
@@ -1125,7 +1104,7 @@ function QuarkRouter() {
                     }
 
                     // Creates the new route
-                    var newRoute = new Route(dest.router, routeConfig.name, routeConfig.fullName, locationPattern, routeConfig.hash, components);
+                    var newRoute = new Route(dest.router, routeConfig.name, routeConfig.fullName, locationPattern, routeConfig.hash, components, routeConfig.page);
 
                     routeConfig.route = newRoute;
 
@@ -1232,7 +1211,7 @@ function QuarkRouter() {
 }
 
 $$.routing = new QuarkRouter();
-$$.routing.pages = {};
+
 // Redirect the browser to the specified url
 $$.redirect = function(url) {
     window.location.href = url;

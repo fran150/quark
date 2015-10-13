@@ -237,45 +237,6 @@ ko.bindingHandlers.modelExporter = {
 };
 ko.virtualElements.allowedBindings.modelExporter = true;
 
-
-ko.bindingHandlers.publish = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor);
-        $$.publics[value()] = context.$child;
-    },
-    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor);
-        $$.publics[value()] = context.$child;
-    }
-};
-ko.virtualElements.allowedBindings.publish = true;
-
-function callRouted(name) {
-    for (var pageName in $$.routing.pages) {
-        var model = $$.routing.pages[pageName];
-
-        if (model['routed']) {
-            model.routed(name);
-        }
-
-    }
-}
-
-ko.bindingHandlers.routepage = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        $$.routing.pages[value] = context.$child;
-    },
-    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        $$.routing.pages[value] = context.$child;
-
-        callRouted(value);
-    }
-};
-ko.virtualElements.allowedBindings.routepage = true;
-
-
 ko.bindingHandlers.call = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
         var value = ko.unwrap(valueAccessor());
@@ -390,8 +351,6 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
             params = current;
         }
 
-        element.setAttribute('qk-routepage', "\'" + name + "\'");
-
         return {
             name: ko.pureComputed(function() {
                 return component;
@@ -406,6 +365,12 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
 ko.bindingHandlers.page = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+
+        var current = $$.routing.current();
+        if ($$.isObject(current.page)) {
+            context = context.createChildContext(current.page);
+        }
+
         return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
     }
 }
