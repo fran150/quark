@@ -10,8 +10,6 @@
 }(this, function(ko, $, komapping, accounting, crossroads, hasher, signals) {
 // Quark global
 var $$ = {};
-// Modules List
-$$.modules = {};
 // Quark started
 $$.started = false;
 // Client error handlers repository
@@ -189,8 +187,8 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     var moduleName = moduleInfo.id.substring(0, moduleInfo.id.lastIndexOf('/'));
     var modulePath = moduleInfo.uri.substring(0, moduleInfo.uri.lastIndexOf('/'));
 
-    if ($$.modules[moduleName]) {
-        return $$.modules[moduleName];
+    if ($$.modules.get(moduleName)) {
+        return $$.modules.get(moduleName);
     }
 
     // If config is not defined create an empty one
@@ -242,15 +240,15 @@ $$.module = function(moduleInfo, config, mainConstructor) {
         main.start();
     }
 
-    $$.modules[moduleName] = {
+    $$.modules.add(moduleName, {
         name: moduleName,
         path: modulePath,
         info: moduleInfo,
         config: config,
         main: main
-    };
+    });
 
-    return $$.modules[moduleName];
+    return $$.modules.get(moduleName);
 }
 
 $$.component = function(viewModel, view) {
@@ -555,6 +553,85 @@ $$.hasBehaviour = function(object, behaviourName) {
 
     return false;
 }
+
+ko.associativeObservable = function (initialValue) {
+    function associative() {
+        if (arguments.length > 0) {
+            // Write
+            associative.underlying(arguments[0]);
+            return this;
+        }
+        else {
+            return associative.underlying();
+        }
+    }
+
+    associative.underlying = ko.observable(initialValue);
+
+    associative.add = function(key, item) {
+        var object = associative.underlying();
+
+        if (!object) {
+            object = {};
+        }
+
+        object[key] = item;
+
+        associative.underlying(object);
+    }
+
+    associative.get = function(key) {
+        var object = associative.underlying();
+
+        if (object) {
+            return object[key];
+        }
+    }
+
+    associative.remove = function(key) {
+        var object = associative.underlying();
+
+        if (object && $$.isDefined(object[key])) {
+            delete object[key];
+        }
+
+        associative.underlying(object);
+    }
+
+    associative.array = ko.pureComputed(function() {
+        var object = associative.underlying();
+        var result = [];
+
+        if (object) {
+            for (var key in object) {
+                var value = object[key];
+                result.push(value);
+            }
+        }
+
+        return result;
+    });
+
+    associative.each = function(callback) {
+        var object = associative.underlying();
+
+        if (object) {
+            for (var key in object) {
+                callback(key, object[key]);
+            }
+        }
+    }
+
+    associative.subscribe = function(callback) {
+        return associative.underlying.subscribe(callback);
+    }
+
+
+    return associative
+}
+
+// Modules List
+$$.modules = ko.associativeObservable({});
 
 // Defines a computed parameter. You must specify the parameter (received in component's constructor), the read and write accessors with the form
 // and the component's viewmodel

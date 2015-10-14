@@ -15,8 +15,8 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     var moduleName = moduleInfo.id.substring(0, moduleInfo.id.lastIndexOf('/'));
     var modulePath = moduleInfo.uri.substring(0, moduleInfo.uri.lastIndexOf('/'));
 
-    if ($$.modules[moduleName]) {
-        return $$.modules[moduleName];
+    if ($$.modules.get(moduleName)) {
+        return $$.modules.get(moduleName);
     }
 
     // If config is not defined create an empty one
@@ -68,15 +68,15 @@ $$.module = function(moduleInfo, config, mainConstructor) {
         main.start();
     }
 
-    $$.modules[moduleName] = {
+    $$.modules.add(moduleName, {
         name: moduleName,
         path: modulePath,
         info: moduleInfo,
         config: config,
         main: main
-    };
+    });
 
-    return $$.modules[moduleName];
+    return $$.modules.get(moduleName);
 }
 
 $$.component = function(viewModel, view) {
