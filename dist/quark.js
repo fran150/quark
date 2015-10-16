@@ -170,6 +170,16 @@ $$.makeDate = function (value, useToday) {
     return value;
 }
 
+$$.clear = function(object) {
+    $.each(object, function(key, property) {
+        if (ko.isObservable(property)) {
+            property(undefined);
+        } else {
+            property = undefined;
+        }
+    });
+}
+
 $$.start = function(model) {
     if (!$$.started) {
         ko.applyBindings(model);
@@ -1016,6 +1026,18 @@ ko.bindingHandlers.stopBinding = {
     }
 }
 
+ko.bindingHandlers.upContext = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
+        return ko.bindingHandlers.template.init(element, valueAccessor, allBindingsAccessor, context.$parent, newContext);
+    },
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
+        return ko.bindingHandlers.template.update(element, valueAccessor, allBindingsAccessor, context.$parent, newContext);
+    }
+};
+
+ko.virtualElements.allowedBindings.upContext = true;
 //crossroads, hasher
 function QuarkRouter() {
     var self = this;
@@ -1107,7 +1129,7 @@ function QuarkRouter() {
                         controller: routeController
                     });
 
-                    if (routeController.show) {
+                    if (routeController && routeController.show) {
                         routeController.show();
                     }
 
@@ -1122,7 +1144,7 @@ function QuarkRouter() {
                         controller: controllerObject
                     });
 
-                    if (controllerObject.show) {
+                    if (controllerObject && controllerObject.show) {
                         controllerObject.show();
                     }
 

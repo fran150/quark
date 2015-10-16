@@ -89,7 +89,7 @@ function QuarkRouter() {
                         controller: routeController
                     });
 
-                    if (routeController.show) {
+                    if (routeController && routeController.show) {
                         routeController.show();
                     }
 
@@ -104,7 +104,7 @@ function QuarkRouter() {
                         controller: controllerObject
                     });
 
-                    if (controllerObject.show) {
+                    if (controllerObject && controllerObject.show) {
                         controllerObject.show();
                     }
 

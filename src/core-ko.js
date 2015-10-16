@@ -459,3 +459,16 @@ ko.bindingHandlers.stopBinding = {
         return { controlsDescendantBindings: true };
     }
 }
+
+ko.bindingHandlers.upContext = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
+        return ko.bindingHandlers.template.init(element, valueAccessor, allBindingsAccessor, context.$parent, newContext);
+    },
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
+        return ko.bindingHandlers.template.update(element, valueAccessor, allBindingsAccessor, context.$parent, newContext);
+    }
+};
+
+ko.virtualElements.allowedBindings.upContext = true;

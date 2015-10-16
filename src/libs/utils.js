@@ -149,3 +149,13 @@ $$.makeDate = function (value, useToday) {
 
     return value;
 }
+
+$$.clear = function(object) {
+    $.each(object, function(key, property) {
+        if (ko.isObservable(property)) {
+            property(undefined);
+        } else {
+            property = undefined;
+        }
+    });
+}
