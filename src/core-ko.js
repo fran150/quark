@@ -446,8 +446,8 @@ ko.bindingHandlers.page = {
         var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
 
         var current = $$.routing.current();
-        if ($$.isObject(current.page)) {
-            context = context.createChildContext(current.page);
+        if ($$.isObject(current.controller)) {
+            context = context.createChildContext(current.controller);
         }
 
         return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);

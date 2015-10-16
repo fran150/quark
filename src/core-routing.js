@@ -42,7 +42,7 @@ function QuarkRouter() {
         // Adds a route to the last location specified with .on. The hash is a pattern to match on the hash, the
         // name parameter is the name of the route, and the components parameter is an object with each property being the name of a placeholder
         // and it's value the component that must be binded on it.
-        this.when = function(hash, name, components, page) {
+        this.when = function(hash, name, components, controller) {
             // If only one parameter is specified we assume that its the components parameter
             if (!$$.isDefined(name) && !$$.isDefined(components)) {
                 components = hash;
@@ -66,7 +66,7 @@ function QuarkRouter() {
                 components: components,
                 fullName: fullName,
                 name: name,
-                page: page
+                controller: controller
             };
 
             // Returns itself so config methods are chainable.
@@ -74,37 +74,47 @@ function QuarkRouter() {
         }
     }
 
-    function Route(router, name, fullName, locationPattern, hash, components, page) {
+    function Route(router, name, fullName, locationPattern, hash, components, controller) {
         var routeObject = this;
 
         var csRoute = router.addRoute(hash, function(requestParams) {
-            if ($$.isString(page)) {
-                require([page], function(pageObject) {
+            if ($$.isString(controller)) {
+                require([controller], function(controllerObject) {
+                    var routeController = $$.isFunction(controllerObject) ? new controllerObject : controllerObject;
+
                     self.current({
                         route: routeObject,
                         location: location.pathname,
                         params: requestParams,
-                        page: $$.isFunction(pageObject) ? new pageObject : pageObject
+                        controller: routeController
                     });
+
+                    if (routeController.show) {
+                        routeController.show();
+                    }
 
                     self.routed.dispatch();
                 });
             } else {
-                var loadedCallback = function(pageObject) {
+                var loadedCallback = function(controllerObject) {
                     self.current({
                         route: routeObject,
                         location: location.pathname,
                         params: requestParams,
-                        page: pageObject
+                        controller: controllerObject
                     });
+
+                    if (controllerObject.show) {
+                        controllerObject.show();
+                    }
 
                     self.routed.dispatch();
                 }
 
-                if ($$.isFunction(page)) {
-                    page(loadedCallback);
+                if ($$.isFunction(controller)) {
+                    controller(loadedCallback);
                 } else {
-                    loadedCallback(page);
+                    loadedCallback(controller);
                 }
             }
         });
@@ -177,11 +187,9 @@ function QuarkRouter() {
                     }
 
                     // Creates the new route
-                    var newRoute = new Route(dest.router, routeConfig.name, routeConfig.fullName, locationPattern, routeConfig.hash, components, routeConfig.page);
+                    var newRoute = new Route(dest.router, routeConfig.name, routeConfig.fullName, locationPattern, routeConfig.hash, components, routeConfig.controller);
 
-                    routeConfig.route = newRoute;
-
-                    dest.routes[routeName] = components;
+                    dest.routes[routeName] = newRoute;
                 }
             }
         }
@@ -207,22 +215,22 @@ function QuarkRouter() {
 
     this.getRoute = function(name) {
         var location = name.substr(0, name.indexOf('/'));
-        var hash = name.substr(name.indexOf('/') + 1);
+        var routeName = name.substr(name.indexOf('/') + 1);
 
-        if (!hash) {
+        if (!routeName) {
             throw new 'You must specifiy route name in the form location/routeName.';
         }
 
         if (!self.configuration[location]) {
             console.warn('The location specified as ' + name + ' was not found in the routing configuration.');
         } else {
-            if (!self.configuration[location]['routes'][hash]) {
+            if (!self.configuration[location]['routes'][routeName]) {
                 console.warn('The route name specified as ' + name + ' was not found in the routing configuration for the ' + location + ' location.');
             }
         }
 
-        if (self.configuration[location] && self.configuration[location]['routes'][hash]) {
-            return self.configuration[location]['routes'][hash]['route'];
+        if (self.configuration[location] && self.configuration[location]['routes'][routeName]) {
+            return self.configuration[location]['routes'][routeName];
         }
     }
 
