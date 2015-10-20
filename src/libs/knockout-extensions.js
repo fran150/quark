@@ -14,43 +14,22 @@ ko.isComputed = function (instance) {
     return ko.isComputed(instance.__ko_proto__); // Walk the prototype chain
 }
 
-function clearFields(unmapped) {
-    for (var i in unmapped) {
-        if (unmapped[i] === null || unmapped[i] === undefined) {
-            delete unmapped[i];
-        }
-        else if (typeof unmapped[i] === "object") {
-            clearFields(unmapped[i]);
-        }
-    }
-
-    return unmapped;
+ko.mapToJS = function(observable) {
+    return komapping.toJS(komapping.fromJS(observable));
 }
 
-// Transform the model into JSON using knockout-mapping, if a field is null or undefined it deletes it.
-ko.getJson = function (model) {
-    var unmapped = komapping.toJS(model);
-
-    unmapped = clearFields(unmapped);
-
-    var result = komapping.toJSON(unmapped);
-
-    result = result.replace(/\/Date\(\d+\)/g, function (a) { return '\\' + a + '\\'; });
-
-    return result;
+ko.mapFromJS = function(observable) {
+    return komapping.fromJS(komapping.toJS(observable));
 }
 
-ko.extenders.blockable = function(target, message) {
-    target.blocked = ko.observable('');
-
-    target.block = function() {
-        target.blocked(message);
+ko.tryBlock = function(observable, message) {
+    if (observable.block) {
+        observable.block(message);
     }
+}
 
-    target.unblock = function() {
-        target.blocked('');
+ko.tryUnblock = function(observable) {
+    if (observable.unblock) {
+        observable.unblock();
     }
-
-    //return the original observable
-    return target;
-};
+}

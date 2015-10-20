@@ -900,7 +900,11 @@ function injectBinding(valueAccessor, viewModel, context) {
     if ($$.isObject(value)) {
         if ($$.isDefined(value['data']) && $$.isDefined(value['target'])) {
             target = value.target;
-            data = value.data;
+            if (ko.isObservable(value.data)) {
+                data = value.data();
+            } else {
+                data = value.data;
+            }
         }
     }
 
@@ -1038,6 +1042,7 @@ ko.bindingHandlers.upContext = {
 };
 
 ko.virtualElements.allowedBindings.upContext = true;
+
 //crossroads, hasher
 function QuarkRouter() {
     var self = this;
@@ -1506,6 +1511,11 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
         async: opts.async || true,
         success: onSuccess,
         headers: opts.headers || {},
+        complete: function() {
+            if ($$.isDefined(clbks.onComplete)) {
+                clbks.onComplete();
+            }
+        },
         error: function (jqXHR, textStatus, errorThrown) {
             // Check if some handler processed the error.
             var handled = false;
@@ -1543,34 +1553,6 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
     });
 }
 
-$$.get = function(url, data, result, callbacks, auth, options) {
-    if ($$.isDefined(result.blocked)) {
-        result.block();
-    }
-
-    $$.ajax(url, 'GET', data, {
-        onSuccess: function(serverData) {
-            if ($$.isDefined(result.blocked)) {
-                result.unblock();
-            }
-
-            result(serverData);
-            if (callbacks) {
-                $$.call(callbacks.onSuccess);
-            }
-        },
-        onError:  function(jqXHR, textStatus, errorThrown) {
-            if ($$.isDefined(result.blocked)) {
-                result.unblock();
-            }
-
-            if (callbacks) {
-                $$.call(callbacks.onError, jqXHR, textStatus, errorThrown);
-            }
-        }
-    }, auth, options);
-}
-
 // Check if it's an observable array
 ko.isObservableArray = function(elem) {
     if (ko.isObservable(elem) && elem.indexOf !== undefined) {
@@ -1587,37 +1569,31 @@ ko.isComputed = function (instance) {
     return ko.isComputed(instance.__ko_proto__); // Walk the prototype chain
 }
 
-function clearFields(unmapped) {
-    for (var i in unmapped) {
-        if (unmapped[i] === null || unmapped[i] === undefined) {
-            delete unmapped[i];
-        }
-        else if (typeof unmapped[i] === "object") {
-            clearFields(unmapped[i]);
-        }
+ko.mapToJS = function(observable) {
+    return komapping.toJS(komapping.fromJS(observable));
+}
+
+ko.mapFromJS = function(observable) {
+    return komapping.fromJS(komapping.toJS(observable));
+}
+
+ko.tryBlock = function(observable, message) {
+    if (observable.block) {
+        observable.block(message);
     }
-
-    return unmapped;
 }
 
-// Transform the model into JSON using knockout-mapping, if a field is null or undefined it deletes it.
-ko.getJson = function (model) {
-    var unmapped = komapping.toJS(model);
-
-    unmapped = clearFields(unmapped);
-
-    var result = komapping.toJSON(unmapped);
-
-    result = result.replace(/\/Date\(\d+\)/g, function (a) { return '\\' + a + '\\'; });
-
-    return result;
+ko.tryUnblock = function(observable) {
+    if (observable.unblock) {
+        observable.unblock();
+    }
 }
-
-ko.extenders.blockable = function(target, message) {
+ko.extenders.blockable = function(target, defaultMessage) {
     target.blocked = ko.observable('');
 
-    target.block = function() {
-        target.blocked(message);
+    target.block = function(message) {
+        var msg = message || defaultMessage;
+        target.blocked(msg);
     }
 
     target.unblock = function() {

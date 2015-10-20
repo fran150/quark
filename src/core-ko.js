@@ -334,7 +334,11 @@ function injectBinding(valueAccessor, viewModel, context) {
     if ($$.isObject(value)) {
         if ($$.isDefined(value['data']) && $$.isDefined(value['target'])) {
             target = value.target;
-            data = value.data;
+            if (ko.isObservable(value.data)) {
+                data = value.data();
+            } else {
+                data = value.data;
+            }
         }
     }
 

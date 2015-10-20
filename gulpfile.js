@@ -43,6 +43,7 @@ gulp.task('js', function () {
         './src/libs/web.js',
         './src/libs/ajax.js',
         './src/libs/knockout-extensions.js',
+        './src/libs/knockout-extenders.js',
         './src/libs/knockout-bindings.js',
         './src/libs/validation.js',
         './src/wrap.end'

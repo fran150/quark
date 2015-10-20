@@ -33,6 +33,11 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
         async: opts.async || true,
         success: onSuccess,
         headers: opts.headers || {},
+        complete: function() {
+            if ($$.isDefined(clbks.onComplete)) {
+                clbks.onComplete();
+            }
+        },
         error: function (jqXHR, textStatus, errorThrown) {
             // Check if some handler processed the error.
             var handled = false;
@@ -68,32 +73,4 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
             }
         }
     });
-}
-
-$$.get = function(url, data, result, callbacks, auth, options) {
-    if ($$.isDefined(result.blocked)) {
-        result.block();
-    }
-
-    $$.ajax(url, 'GET', data, {
-        onSuccess: function(serverData) {
-            if ($$.isDefined(result.blocked)) {
-                result.unblock();
-            }
-
-            result(serverData);
-            if (callbacks) {
-                $$.call(callbacks.onSuccess);
-            }
-        },
-        onError:  function(jqXHR, textStatus, errorThrown) {
-            if ($$.isDefined(result.blocked)) {
-                result.unblock();
-            }
-
-            if (callbacks) {
-                $$.call(callbacks.onError, jqXHR, textStatus, errorThrown);
-            }
-        }
-    }, auth, options);
 }
