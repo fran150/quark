@@ -100,6 +100,7 @@ $$.component = function(viewModel, view) {
             // Creates the model passing parameters and empty scope
             model = new viewModel(p, $scope);
             $scope.model = model;
+            $scope.controller = $$.controller;
         }
 
         // Creates model and scope getters to allow quark to bind to each part

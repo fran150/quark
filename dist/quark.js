@@ -180,6 +180,21 @@ $$.clear = function(object) {
     });
 }
 
+$$.undefine = function(object) {
+    if (ko.isObservable(object)) {
+        object(undefined);
+    } else {
+        object = undefined;
+    }
+}
+
+$$.signal = function() {
+    return new signals.Signal();
+}
+
+$$.signalClear = function(signal) {
+    signal.removeAll();
+}
 $$.start = function(model) {
     if (!$$.started) {
         ko.applyBindings(model);
@@ -282,6 +297,7 @@ $$.component = function(viewModel, view) {
             // Creates the model passing parameters and empty scope
             model = new viewModel(p, $scope);
             $scope.model = model;
+            $scope.controller = $$.controller;
         }
 
         // Creates model and scope getters to allow quark to bind to each part
@@ -1123,6 +1139,12 @@ function QuarkRouter() {
         var routeObject = this;
 
         var csRoute = router.addRoute(hash, function(requestParams) {
+            if (self.current() && self.current().controller && self.current().controller.leaving) {
+                if (!self.current().controller.leaving()) {
+                    return;
+                }
+            }
+
             if ($$.isString(controller)) {
                 require([controller], function(controllerObject) {
                     var routeController = $$.isFunction(controllerObject) ? new controllerObject : controllerObject;
@@ -1339,6 +1361,16 @@ function QuarkRouter() {
 }
 
 $$.routing = new QuarkRouter();
+
+$$.controller = {};
+
+var controllerUpdater = ko.computed(function() {
+    var current = $$.routing.current();
+
+    if (current && current.controller) {
+        $$.controller = current.controller;
+    }
+});
 
 // Redirect the browser to the specified url
 $$.redirect = function(url) {
@@ -1588,6 +1620,7 @@ ko.tryUnblock = function(observable) {
         observable.unblock();
     }
 }
+
 ko.extenders.blockable = function(target, defaultMessage) {
     target.blocked = ko.observable('');
 

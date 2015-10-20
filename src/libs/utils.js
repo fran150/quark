@@ -159,3 +159,19 @@ $$.clear = function(object) {
         }
     });
 }
+
+$$.undefine = function(object) {
+    if (ko.isObservable(object)) {
+        object(undefined);
+    } else {
+        object = undefined;
+    }
+}
+
+$$.signal = function() {
+    return new signals.Signal();
+}
+
+$$.signalClear = function(signal) {
+    signal.removeAll();
+}

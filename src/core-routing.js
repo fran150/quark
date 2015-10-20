@@ -78,6 +78,12 @@ function QuarkRouter() {
         var routeObject = this;
 
         var csRoute = router.addRoute(hash, function(requestParams) {
+            if (self.current() && self.current().controller && self.current().controller.leaving) {
+                if (!self.current().controller.leaving()) {
+                    return;
+                }
+            }
+
             if ($$.isString(controller)) {
                 require([controller], function(controllerObject) {
                     var routeController = $$.isFunction(controllerObject) ? new controllerObject : controllerObject;
@@ -294,3 +300,13 @@ function QuarkRouter() {
 }
 
 $$.routing = new QuarkRouter();
+
+$$.controller = {};
+
+var controllerUpdater = ko.computed(function() {
+    var current = $$.routing.current();
+
+    if (current && current.controller) {
+        $$.controller = current.controller;
+    }
+});
