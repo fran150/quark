@@ -195,6 +195,7 @@ $$.signal = function() {
 $$.signalClear = function(signal) {
     signal.removeAll();
 }
+
 $$.start = function(model) {
     if (!$$.started) {
         ko.applyBindings(model);
@@ -1140,7 +1141,7 @@ function QuarkRouter() {
 
         var csRoute = router.addRoute(hash, function(requestParams) {
             if (self.current() && self.current().controller && self.current().controller.leaving) {
-                if (!self.current().controller.leaving()) {
+                if (self.current().controller.leaving() === false) {
                     return;
                 }
             }
@@ -1376,6 +1377,18 @@ var controllerUpdater = ko.computed(function() {
 $$.redirect = function(url) {
     window.location.href = url;
     return true;
+}
+
+// Redirect the browser to the specified route
+$$.redirectRoute = function(name, config, location) {
+    var link = $$.routing.link(name, config, location);
+    $$.redirect(link);
+}
+
+// Redirect the browser to the specified hash
+$$.redirectHash = function(name, config) {
+    var hash = $$.routing.hash(name, config);
+    $$.redirect('#' + hash);
 }
 
 // Gets value of the parameter from the URL

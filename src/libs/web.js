@@ -4,6 +4,18 @@ $$.redirect = function(url) {
     return true;
 }
 
+// Redirect the browser to the specified route
+$$.redirectRoute = function(name, config, location) {
+    var link = $$.routing.link(name, config, location);
+    $$.redirect(link);
+}
+
+// Redirect the browser to the specified hash
+$$.redirectHash = function(name, config) {
+    var hash = $$.routing.hash(name, config);
+    $$.redirect('#' + hash);
+}
+
 // Gets value of the parameter from the URL
 $$.getParam = function (parameterName) {
     var result = undefined;

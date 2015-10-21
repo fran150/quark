@@ -79,7 +79,7 @@ function QuarkRouter() {
 
         var csRoute = router.addRoute(hash, function(requestParams) {
             if (self.current() && self.current().controller && self.current().controller.leaving) {
-                if (!self.current().controller.leaving()) {
+                if (self.current().controller.leaving() === false) {
                     return;
                 }
             }
