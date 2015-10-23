@@ -1598,6 +1598,13 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
     });
 }
 
+// Clears and refill the observable with the original value to force notify update.
+ko.observable.fn.refresh = function() {
+    var value = this();
+    $$.undefine(this);
+    this(value);
+}
+
 // Check if it's an observable array
 ko.isObservableArray = function(elem) {
     if (ko.isObservable(elem) && elem.indexOf !== undefined) {
