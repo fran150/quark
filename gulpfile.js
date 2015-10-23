@@ -14,7 +14,6 @@ var gulp = require('gulp'),
         replace = require('gulp-replace'), 
         uglify = require('gulp-uglify'), 
         htmlreplace = require('gulp-html-replace'),
-        jsdoc = require('gulp-jsdoc'),
         gulpCopy = require('gulp-copy');
 
 // Copies the component object
