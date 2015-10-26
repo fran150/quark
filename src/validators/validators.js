@@ -4,7 +4,7 @@ define(['knockout', 'quark'], function(ko, $$) {
     ko.validators.required = function (observable, config) {
         var self = this;
 
-        // Funcion de validacion
+        // Validate
         this.validate = function (newValue) {
             observable.validationReset();
 
@@ -31,10 +31,10 @@ define(['knockout', 'quark'], function(ko, $$) {
 
             var length = 0;
 
-            // Si tiene un valor valido obtengo el largo del campo
+            // If it has a valid value get the fields length
             if (newValue) length = newValue.length;
 
-            // Si se configuro un minimo y el largo es menor da error
+            // If theres a min configured and length is less
             if (config['min'] && length < config.min) {
                 observable.hasError(true);
                 observable.validationMessage((config['message'] || 'El campo {0} debe tener al menos {1} caracteres')
@@ -46,7 +46,7 @@ define(['knockout', 'quark'], function(ko, $$) {
                 return false;
             }
 
-            // Si se configuro un maximo y el largo es mayor da error
+            // If theres a max configured and length is larger
             if (config['max'] && length > config.max) {
                 observable.hasError(true);
                 observable.validationMessage((config['message'] || 'El campo {0} debe tener como maximo {2} caracteres')
@@ -71,7 +71,7 @@ define(['knockout', 'quark'], function(ko, $$) {
         this.validate = function (newValue) {
             observable.validationReset();
 
-            // Si no es un numero valido da error
+            // If its not a number show error
             if (newValue !== '' && isNaN(newValue)) {
                 observable.hasError(true);
                 observable.validationMessage((config['message'] || 'El campo {0} debe ser un numero valido')
@@ -94,7 +94,7 @@ define(['knockout', 'quark'], function(ko, $$) {
         this.validate = function (newValue) {
             observable.validationReset();
 
-            // Si no es un numero valido da error
+            // If its not an integer show error
             if (newValue !== '' && $$.isInt(newValue)) {
                 observable.hasError(true);
                 observable.validationMessage((config['message'] || 'El campo {0} debe ser un numero entero valido')
@@ -119,7 +119,7 @@ define(['knockout', 'quark'], function(ko, $$) {
 
             var pattern = /^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/;
 
-            // Si no es una fecha valida da error
+            // If its not a valid date show error
             if (newValue !== '' && !pattern.test(newValue)) {
                 observable.hasError(true);
                 observable.validationMessage((config['message'] || 'El campo {0} debe ser una fecha valida')

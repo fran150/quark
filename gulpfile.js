@@ -25,7 +25,7 @@ gulp.task('component', function () {
 // Copies the default validators
 gulp.task('validators', function () {
     return gulp.src('./src/validators/validators.js')
-        .pipe(rename('quark.validators.js'))
+        .pipe(rename('quark-validators.js'))
         .pipe(gulp.dest('./dist/'));
 });
 

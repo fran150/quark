@@ -1955,25 +1955,29 @@ ko.observable.fn.validationReset = function () {
 }
 
 // Performs the actual validation on the observable. Its on a separate function
-function validateValue(newValue) {
+function validateValue(newValue, target) {
+    if (!target) {
+        target = this;
+    }
+
     // Resetea las validaciones del observable
-    this.validationReset();
+    target.validationReset();
 
     // Recorro las configuraciones de validacion del observable
-    for (var name in this.validationConfig) {
+    for (var name in target.validationConfig) {
         // Obtengo la configuracion del validador
-        var config = this.validationConfig[name];
+        var config = target.validationConfig[name];
 
         // Si hay un validador configurado con el nombre especificado
         if (ko.validators[name]) {
             // Obtengo el validador ;) pasandole el observable y la configuracion
-            var validator = ko.validators[name](this, config);
+            var validator = ko.validators[name](target, config);
 
             // Valido utilizando el valor obtenido y el valor pasado a la funcion
             if (!validator.validate(newValue)) {
                 // Si se produjo un error de validacion lo cargo en el summary
-                if (this['parent']) {
-                    this.parent.validationSummary.push({ name: this.validatable, message: this.validationMessage() });
+                if (target.parent && target.parent.validationSummary) {
+                    target.parent.validationSummary.push({ name: target.validatable, message: target.validationMessage() });
                 }
                 return false;
             }
@@ -1991,7 +1995,7 @@ ko.observable.fn.validate = function (subscribe) {
         this.subscription = this.subscribe(validateValue, this);
     }
 
-    return validateValue(this());
+    return validateValue(this(), this);
 }
 
 // Sets the form group error class if the specified observable or array of observables has error.
@@ -2026,6 +2030,29 @@ ko.bindingHandlers.formGroupError = {
         setFormGroupErrorClass(element, valueAccessor, allBindings, viewModel, context);
     }
 };
+
+ko.bindingHandlers.fieldError = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var textAccessor = function() {
+            return valueAccessor().validationMessage;
+        }
+
+        ko.bindingHandlers.text.init(element, textAccessor, allBindings, viewModel, context);
+    },
+    update: function (element, valueAccessor, allBindings, viewModel, context) {
+        var visibleAccessor = function() {
+            return valueAccessor().hasError;
+        }
+
+        var textAccessor = function() {
+            return valueAccessor().validationMessage;
+        }
+
+        ko.bindingHandlers.visible.update(element, visibleAccessor, allBindings, viewModel, context);
+        ko.bindingHandlers.text.update(element, textAccessor, allBindings, viewModel, context);
+    }
+}
+
 
 if (typeof define === 'function' && define.amd) {
     define('knockout', function() {
