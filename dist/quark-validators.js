@@ -95,7 +95,7 @@ define(['knockout', 'quark'], function(ko, $$) {
             observable.validationReset();
 
             // If its not an integer show error
-            if (newValue !== '' && $$.isInt(newValue)) {
+            if (newValue !== '' && !$$.isInt(newValue)) {
                 observable.hasError(true);
                 observable.validationMessage((config['message'] || 'El campo {0} debe ser un numero entero valido')
                     .replace('{0}', observable.validatable)

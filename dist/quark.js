@@ -38,7 +38,7 @@ $$.isString = function (variable) {
 
 // Check if the sepcified var is an integer
 $$.isInt = function (variable) {
-    return Number(variable) === variable && variable % 1 === 0;
+    return Number(variable) == variable && variable % 1 === 0;
 };
 
 $$.isNumeric = function (variable) {
