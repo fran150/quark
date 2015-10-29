@@ -495,7 +495,7 @@ $$.inject = function (from, to, recursively) {
 var behaviours = {};
 
 // Loads a behaviour with the specified name
-$$.behaviour = function(name, behaviour) {
+$$.behaviour = function(name, behaviour, dispose) {
     // Warn if repeated
     if ($$.behaviour[name]) {
         console.warn('There was already a behaviour loaded with the name ' + name + '. It will be replaced with the new one.');
@@ -510,6 +510,14 @@ $$.behaviour = function(name, behaviour) {
     if (!$$.isFunction(behaviour)) {
         throw 'The behaviour must be a function that takes an object as a parameter an applies the new functionality to it.';
     }
+
+    // Error if behaviour dispose is defined but not a function
+    if ($$.isDefined(dispose) && !$$.isFunction(dispose)) {
+        throw 'The behaviour dispose must be a function that performs cleanup of the behaviour when disposing.';
+    }
+
+    // Define the disposal of the behaviour
+    behaviour.dispose = dispose;
 
     // Adds the new behaviour to the table
     behaviours[name] = behaviour;
@@ -579,6 +587,24 @@ $$.hasBehaviour = function(object, behaviourName) {
     }
 
     return false;
+}
+
+// Disposes object behaviours
+$$.disposeBehaviours = function(object) {
+ // Validates object
+    if (!$$.isObject(object)) {
+        throw 'You must specifify a valid object to apply the behaviour.';
+    }
+
+    if ($$.isDefined(object.behaviours)) {
+        for (var name in object.behaviours) {
+            var behaviour = object.behaviours[name];
+
+            if (behaviour.dispose) {
+                behaviour.dispose(object);
+            }
+        }
+    }
 }
 
 ko.associativeObservable = function (initialValue) {
@@ -1890,6 +1916,22 @@ ko.validate = function(object, subscribe) {
     return result;
 }
 
+ko.unsubscribeValidation = function(object) {
+    for (var propertyName in object) {
+        var property = object[propertyName];
+
+        if (ko.isObservable(property)) {
+            if (property['validatable']) {
+                // Valida el observable pasandole si debe subscribir
+                if (property.validationSubscription) {
+                    property.validationSubscription.dispose();
+                    delete property.validationSubscription;
+                }
+            }
+        }
+    }
+}
+
 // Resets error on all the observables of the object
 ko.validationReset = function(object) {
     for (var propertyName in object) {
@@ -1991,8 +2033,8 @@ function validateValue(newValue, target) {
 // to reevaluate on change.
 ko.observable.fn.validate = function (subscribe) {
     // Si se debe subscribir y no hay una subscripcion previa
-    if (subscribe && !this['subscription']) {
-        this.subscription = this.subscribe(validateValue, this);
+    if (subscribe && !this['validationSubscription']) {
+        this.validationSubscription = this.subscribe(validateValue, this);
     }
 
     return validateValue(this(), this);

@@ -21,6 +21,22 @@ ko.validate = function(object, subscribe) {
     return result;
 }
 
+ko.unsubscribeValidation = function(object) {
+    for (var propertyName in object) {
+        var property = object[propertyName];
+
+        if (ko.isObservable(property)) {
+            if (property['validatable']) {
+                // Valida el observable pasandole si debe subscribir
+                if (property.validationSubscription) {
+                    property.validationSubscription.dispose();
+                    delete property.validationSubscription;
+                }
+            }
+        }
+    }
+}
+
 // Resets error on all the observables of the object
 ko.validationReset = function(object) {
     for (var propertyName in object) {
@@ -122,8 +138,8 @@ function validateValue(newValue, target) {
 // to reevaluate on change.
 ko.observable.fn.validate = function (subscribe) {
     // Si se debe subscribir y no hay una subscripcion previa
-    if (subscribe && !this['subscription']) {
-        this.subscription = this.subscribe(validateValue, this);
+    if (subscribe && !this['validationSubscription']) {
+        this.validationSubscription = this.subscribe(validateValue, this);
     }
 
     return validateValue(this(), this);
