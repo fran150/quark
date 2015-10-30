@@ -1066,6 +1066,32 @@ ko.bindingHandlers.page = {
         return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
     }
 }
+ko.virtualElements.allowedBindings.page = true;
+
+function createHasPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
+    var name = ko.unwrap(valueAccessor());
+
+    var newAccesor = function () {
+        var current = $$.routing.current();
+
+        if ($$.isDefined(current.route.components[name])) {
+            return true;
+        }
+
+        return false;
+    };
+
+    return newAccesor;
+}
+
+ko.bindingHandlers.hasPage = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newAccessor = createHasPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+
+        return ko.bindingHandlers['if'].init(element, newAccessor, allBindingsAccessor, viewModel, context);
+    }
+}
+ko.virtualElements.allowedBindings.hasPage = true;
 
 ko.bindingHandlers.stopBinding = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
@@ -1279,6 +1305,7 @@ function QuarkRouter() {
                 // Create a new crossroads router
                 dest.router = crossroads.create();
                 dest.router.normalizeFn = crossroads.NORM_AS_OBJECT;
+                dest.router.ignoreState = true;
             }
 
             // Adds the router to the location
@@ -1336,12 +1363,17 @@ function QuarkRouter() {
             location = undefined;
         }
 
+        var found = false;
+
         for (var index in self.locationFinders) {
             var finder = self.locationFinders[index];
 
             finder(location, function(locationConfig) {
+                found = true;
                 locationConfig.router.parse(hash);
             });
+
+            if (found) return;
         }
     }
 

@@ -191,6 +191,7 @@ function QuarkRouter() {
                 // Create a new crossroads router
                 dest.router = crossroads.create();
                 dest.router.normalizeFn = crossroads.NORM_AS_OBJECT;
+                dest.router.ignoreState = true;
             }
 
             // Adds the router to the location
@@ -248,12 +249,17 @@ function QuarkRouter() {
             location = undefined;
         }
 
+        var found = false;
+
         for (var index in self.locationFinders) {
             var finder = self.locationFinders[index];
 
             finder(location, function(locationConfig) {
+                found = true;
                 locationConfig.router.parse(hash);
             });
+
+            if (found) return;
         }
     }
 

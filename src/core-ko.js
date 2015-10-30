@@ -457,6 +457,32 @@ ko.bindingHandlers.page = {
         return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
     }
 }
+ko.virtualElements.allowedBindings.page = true;
+
+function createHasPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
+    var name = ko.unwrap(valueAccessor());
+
+    var newAccesor = function () {
+        var current = $$.routing.current();
+
+        if ($$.isDefined(current.route.components[name])) {
+            return true;
+        }
+
+        return false;
+    };
+
+    return newAccesor;
+}
+
+ko.bindingHandlers.hasPage = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newAccessor = createHasPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+
+        return ko.bindingHandlers['if'].init(element, newAccessor, allBindingsAccessor, viewModel, context);
+    }
+}
+ko.virtualElements.allowedBindings.hasPage = true;
 
 ko.bindingHandlers.stopBinding = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
