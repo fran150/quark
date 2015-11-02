@@ -42,11 +42,15 @@ function applyBehaviour(object, behaviourName) {
         // Apply new behaviour
         behaviours[behaviourName](object);
 
-        if (!$$.isDefined(object.behaviours)) {
-            object.behaviours = {};
+        if (!$$.isDefined(object.$support)) {
+            object.$support = {};
         }
 
-        object.behaviours[behaviourName] = true;
+        if (!$$.isDefined(object.$support.behaviours)) {
+            object.$support.behaviours = {};
+        }
+
+        object.$support.behaviours[behaviourName] = true;
     } else {
         throw 'The are no behaviours loaded with the name ' + behaviourName + '.';
     }
@@ -87,8 +91,8 @@ $$.hasBehaviour = function(object, behaviourName) {
     }
 
     // Check if the object has the specified behaviour added
-    if ($$.isDefined(object.behaviours)) {
-        if ($$.isDefined(object.behaviours[behaviourName])) {
+    if ($$.isDefined(object.$support) && $$.isDefined(object.$support.behaviours)) {
+        if ($$.isDefined(object.$support.behaviours[behaviourName])) {
             return true;
         }
     }
@@ -103,9 +107,9 @@ $$.disposeBehaviours = function(object) {
         throw 'You must specifify a valid object to apply the behaviour.';
     }
 
-    if ($$.isDefined(object.behaviours)) {
-        for (var name in object.behaviours) {
-            var behaviour = object.behaviours[name];
+    if ($$.isDefined(object.$support) && $$.isDefined(object.$support.behaviours)) {
+        for (var name in object.$support.behaviours) {
+            var behaviour = object.$support.behaviours[name];
 
             if (behaviour.dispose) {
                 behaviour.dispose(object);

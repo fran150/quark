@@ -109,37 +109,41 @@ ko.bindingHandlers.import = {
             throw 'The import value must be an string with the name of the property to create on the parent object';
         }
 
+        if (!$$.isObject(object.$support)) {
+            object.$support = {};
+        }
+
         // Sets the childs array wich tracks the dependencies and state
-        if (!$$.isObject(object.tracking)) {
-            object.tracking = {
+        if (!$$.isObject(object.$support.tracking)) {
+            object.$support.tracking = {
                 childs: {}
             }
         }
 
         // Start tracking the dependency
-        object.tracking.childs[name] = {};
+        object.$support.tracking.childs[name] = {};
 
         // Define a function to call when the child finishes loading.
         // PropertyName contains the child name, and vm the corresponding viewmodel
-        object.tracking.childs[name]['load'] = function(propertyName, vm) {
+        object.$support.tracking.childs[name]['load'] = function(propertyName, vm) {
             // Sets the child viemodel and marks it as loaded
             object[propertyName] = vm;
-            object.tracking.childs[propertyName]['loaded'] = true;
+            object.$support.tracking.childs[propertyName]['loaded'] = true;
 
             if ($$.isDefined(object['loaded'])) {
                 object.loaded(propertyName, vm);
             }
 
-            if ($$.isDefined(vm.tracking)) {
+            if ($$.isDefined(vm.$support) && $$.isDefined(vm.$support.tracking)) {
                 // If the child has dependencies mark the dependency as not ready and save
                 // the parent data (reference and state)
-                object.tracking.childs[propertyName]['ready'] = false;
+                object.$support.tracking.childs[propertyName]['ready'] = false;
 
-                vm.tracking.parent = object;
-                vm.tracking.parentState = object.tracking.childs[propertyName];
+                vm.$support.tracking.parent = object;
+                vm.$support.tracking.parentState = object.$support.tracking.childs[propertyName];
             } else {
                 // If the child hasn't dependencies mark the dependency on parent as ready
-                object.tracking.childs[propertyName]['ready'] = true;
+                object.$support.tracking.childs[propertyName]['ready'] = true;
 
                 if ($$.isDefined(object['readied'])) {
                     object.readied(propertyName, vm);
@@ -153,8 +157,8 @@ ko.bindingHandlers.import = {
 
             // If any property in the child is not loaded or ready then exit
             // !! OPTIMIZE !! by using a counter and not iterating all array over and over
-            for (var property in object.tracking.childs) {
-                if (!object.tracking.childs[property]['loaded'] || !object.tracking.childs[property]['ready']) {
+            for (var property in object.$support.tracking.childs) {
+                if (!object.$support.tracking.childs[property]['loaded'] || !object.$support.tracking.childs[property]['ready']) {
                     return;
                 }
             }
@@ -166,26 +170,26 @@ ko.bindingHandlers.import = {
 
             // Finally if the object is tracked and has a parent, mark itself as ready on the parent
             // object and call the function on the parent to reevaluate readiness.
-            if ($$.isDefined(object['tracking']) && $$.isDefined(object.tracking['parent'])) {
-                object.tracking.parentState['ready'] = true;
+            if ($$.isDefined(object.$support) && $$.isDefined(object.$support.tracking) && $$.isDefined(object.$support.tracking.parent)) {
+                object.$support.tracking.parentState['ready'] = true;
 
-                if ($$.isDefined(object.tracking.parent['readied'])) {
-                    object.tracking.parent.readied(propertyName, vm);
+                if ($$.isDefined(object.$support.tracking.parent['readied'])) {
+                    object.$support.tracking.parent.readied(propertyName, vm);
                 }
 
-                object.tracking.parent.tracking.childReady();
+                object.$support.tracking.parent.$support.tracking.childReady();
             }
         }
 
         // Initialize the tracking of the child component
-        object.tracking.childs[name]['loaded'] = false;
+        object.$support.tracking.childs[name]['loaded'] = false;
 
         // Defines a function to call when one of its childs is ready.
         // It forces the object to reevaluate its readiness
-        object.tracking.childReady = function() {
+        object.$support.tracking.childReady = function() {
             // !! OPTIMIZE !! By using a counter. If there is a child that is not ready then exits
-            for (var property in object.tracking.childs) {
-                if (!object.tracking.childs[property]['ready']) {
+            for (var property in object.$support.tracking.childs) {
+                if (!object.$support.tracking.childs[property]['ready']) {
                     return;
                 }
             }
@@ -197,9 +201,9 @@ ko.bindingHandlers.import = {
 
             // Finally if the object is tracked and has a parent, mark itself as ready on the parent
             // object and call the function on the parent to reevaluate readiness.
-            if ($$.isDefined(object['parent']) && $$.isDefined(object.parent.tracking)) {
-                object.tracking.parentState['ready'] = true;
-                object.tracking.parent.tracking.childReady();
+            if ($$.isDefined(object['parent']) && $$.isDefined(object.parent.$support.tracking)) {
+                object.$support.tracking.parentState['ready'] = true;
+                object.$support.tracking.parent.$support.tracking.childReady();
             }
         }
 
@@ -235,10 +239,10 @@ ko.bindingHandlers.export = {
         }
 
         if ($$.isString(property)) {
-            if ($$.isDefined(viewModel['tracking'])) {
-                if ($$.isDefined(viewModel.tracking['childs'])) {
-                    if ($$.isDefined(viewModel.tracking.childs[property])) {
-                        viewModel.tracking.childs[property]['load'](property, context.$child);
+            if ($$.isDefined(viewModel.$support) && $$.isDefined(viewModel.$support.tracking)) {
+                if ($$.isDefined(viewModel.$support.tracking['childs'])) {
+                    if ($$.isDefined(viewModel.$support.tracking.childs[property])) {
+                        viewModel.$support.tracking.childs[property]['load'](property, context.$child);
                     } else {
                         throw 'The specified object doesn´t have a property named ' + value + '. Verify that the object has a property defined with the .components method with the name defined in the vm binding.';
                     }
