@@ -26,6 +26,41 @@ ko.bindingHandlers.block = {
     }
 }
 
+function blockOnError(element, value) {
+    if (value.length) {
+        $(element).block({
+            message: 'Se ha producido un error en este elemento',
+            css: {
+                border: 'none',
+                padding: '5px',
+                backgroundColor: '#d9534f',
+                '-webkit-border-radius': '5px',
+                '-moz-border-radius': '5px',
+                opacity: .7,
+                color: '#fff'
+            },
+            baseZ: 5000
+        });
+    } else {
+        $(element).unblock();
+    }
+}
+
+// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
+ko.bindingHandlers.blockOnError = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        if ($$.isArray(value)) {
+            blockOnError(element, value);
+        }
+    },
+    update: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        if ($$.isArray(value)) {
+            blockOnError(element, value);
+        }
+    }
+}
 
 // Applies the success style to the element if the specified condition is met. Useful highlight the selected row on a table:
 // <div data-bind="rowSelect: id == $parent.idSeleccionado">

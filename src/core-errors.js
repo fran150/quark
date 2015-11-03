@@ -18,34 +18,36 @@ function ComponentErrors(repository) {
 
     this.keys = 0;
 
-    this.repository = repository;
+    this.setRepository = function(newRepository) {
+        repository = newRepository;
+    }
 
     this.add = function(type, text, data) {
         var key = self.keys++;
         var error = new ComponentError(key, type, text, data);
 
-        self.repository.push(error);
+        repository.push(error);
 
         return key;
     }
 
     this.throw = function(type, text, data) {
         var key = self.add(type, text, data);
-        throw self.repository()[key];
+        throw repository()[key];
     }
 
     this.resolve = function(key) {
-        var error = self.repository()[key]
+        var error = repository()[key]
 
         if (error) {
-            delete self.repository.remove(error);
+            delete repository.remove(error);
         }
     }
 
     this.getBy = function(condition) {
         return ko.pureComputed(function() {
             var res = [];
-            var errors = self.repository();
+            var errors = repository();
 
             $.each(errors, function(index, error) {
                 if (condition(error)) {
@@ -58,7 +60,7 @@ function ComponentErrors(repository) {
     }
 
     this.getByKey = function(key) {
-        var errors = self.repository();
+        var errors = repository();
 
         $.each(errors, function(index, error) {
             if (error.key == key) {
@@ -70,7 +72,7 @@ function ComponentErrors(repository) {
     this.getByType = function(type) {
         return ko.pureComputed(function() {
             var res = [];
-            var errors = self.repository();
+            var errors = repository();
 
             $.each(errors, function(index, error) {
                 if (error.type == type) {
@@ -79,6 +81,12 @@ function ComponentErrors(repository) {
             });
 
             return res;
+        });
+    }
+
+    this.get = function() {
+        return ko.pureComputed(function() {
+            return repository;
         });
     }
 }

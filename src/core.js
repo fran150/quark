@@ -95,10 +95,12 @@ $$.component = function(viewModel, view) {
         var $scope = {
         };
 
-        // Get the error repository or init one
+        // Get the error repository from the parameters, if not found try the controller, finally if not found init one
         var repository;
         if (p.errors) {
             repository = p.errors;
+        } else if ($$.controller && $$.controller.errors) {
+            repository = $$.controller.errors;
         } else {
             repository = ko.observableArray();
         }

@@ -216,34 +216,36 @@ function ComponentErrors(repository) {
 
     this.keys = 0;
 
-    this.repository = repository;
+    this.setRepository = function(newRepository) {
+        repository = newRepository;
+    }
 
     this.add = function(type, text, data) {
         var key = self.keys++;
         var error = new ComponentError(key, type, text, data);
 
-        self.repository.push(error);
+        repository.push(error);
 
         return key;
     }
 
     this.throw = function(type, text, data) {
         var key = self.add(type, text, data);
-        throw self.repository()[key];
+        throw repository()[key];
     }
 
     this.resolve = function(key) {
-        var error = self.repository()[key]
+        var error = repository()[key]
 
         if (error) {
-            delete self.repository.remove(error);
+            delete repository.remove(error);
         }
     }
 
     this.getBy = function(condition) {
         return ko.pureComputed(function() {
             var res = [];
-            var errors = self.repository();
+            var errors = repository();
 
             $.each(errors, function(index, error) {
                 if (condition(error)) {
@@ -256,7 +258,7 @@ function ComponentErrors(repository) {
     }
 
     this.getByKey = function(key) {
-        var errors = self.repository();
+        var errors = repository();
 
         $.each(errors, function(index, error) {
             if (error.key == key) {
@@ -268,7 +270,7 @@ function ComponentErrors(repository) {
     this.getByType = function(type) {
         return ko.pureComputed(function() {
             var res = [];
-            var errors = self.repository();
+            var errors = repository();
 
             $.each(errors, function(index, error) {
                 if (error.type == type) {
@@ -279,7 +281,14 @@ function ComponentErrors(repository) {
             return res;
         });
     }
+
+    this.get = function() {
+        return ko.pureComputed(function() {
+            return repository;
+        });
+    }
 }
+
 $$.start = function(model) {
     if (!$$.started) {
         ko.applyBindings(model);
@@ -377,10 +386,12 @@ $$.component = function(viewModel, view) {
         var $scope = {
         };
 
-        // Get the error repository or init one
+        // Get the error repository from the parameters, if not found try the controller, finally if not found init one
         var repository;
         if (p.errors) {
             repository = p.errors;
+        } else if ($$.controller && $$.controller.errors) {
+            repository = $$.controller.errors;
         } else {
             repository = ko.observableArray();
         }
@@ -1867,6 +1878,41 @@ ko.bindingHandlers.block = {
     }
 }
 
+function blockOnError(element, value) {
+    if (value.length) {
+        $(element).block({
+            message: 'Se ha producido un error en este elemento',
+            css: {
+                border: 'none',
+                padding: '5px',
+                backgroundColor: '#d9534f',
+                '-webkit-border-radius': '5px',
+                '-moz-border-radius': '5px',
+                opacity: .7,
+                color: '#fff'
+            },
+            baseZ: 5000
+        });
+    } else {
+        $(element).unblock();
+    }
+}
+
+// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
+ko.bindingHandlers.blockOnError = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        if ($$.isArray(value)) {
+            blockOnError(element, value);
+        }
+    },
+    update: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        if ($$.isArray(value)) {
+            blockOnError(element, value);
+        }
+    }
+}
 
 // Applies the success style to the element if the specified condition is met. Useful highlight the selected row on a table:
 // <div data-bind="rowSelect: id == $parent.idSeleccionado">
