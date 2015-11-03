@@ -35,6 +35,7 @@ gulp.task('js', function () {
         './src/wrap.start',
         './src/init.js',
         './src/libs/utils.js',
+        './src/core-errors.js',
         './src/core.js',
         './src/core-behaviours.js',
         './src/core-ko.js',

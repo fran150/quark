@@ -196,6 +196,90 @@ $$.signalClear = function(signal) {
     signal.removeAll();
 }
 
+function ComponentError(key, type, text, data) {
+    this.key = key;
+    this.type = type;
+    this.text = text;
+    this.data = data;
+}
+
+function ComponentErrors(repository) {
+    var self = this;
+
+    if (!$$.isDefined(repository)) {
+        repository = ko.observableArray();
+    }
+
+    if (!ko.isObservableArray(repository)) {
+        throw 'The error repository must be an observable array.';
+    }
+
+    this.keys = 0;
+
+    this.repository = repository;
+
+    this.add = function(type, text, data) {
+        var key = self.keys++;
+        var error = new ComponentError(key, type, text, data);
+
+        self.repository.push(error);
+
+        return key;
+    }
+
+    this.throw = function(type, text, data) {
+        var key = self.add(type, text, data);
+        throw self.repository()[key];
+    }
+
+    this.resolve = function(key) {
+        var error = self.repository()[key]
+
+        if (error) {
+            delete self.repository.remove(error);
+        }
+    }
+
+    this.getBy = function(condition) {
+        return ko.pureComputed(function() {
+            var res = [];
+            var errors = self.repository();
+
+            $.each(errors, function(index, error) {
+                if (condition(error)) {
+                    res.push(error);
+                }
+            });
+
+            return res;
+        });
+    }
+
+    this.getByKey = function(key) {
+        var errors = self.repository();
+
+        $.each(errors, function(index, error) {
+            if (error.key == key) {
+                return error;
+            }
+        });
+    }
+
+    this.getByType = function(type) {
+        return ko.pureComputed(function() {
+            var res = [];
+            var errors = self.repository();
+
+            $.each(errors, function(index, error) {
+                if (error.type == type) {
+                    res.push(error);
+                }
+            });
+
+            return res;
+        });
+    }
+}
 $$.start = function(model) {
     if (!$$.started) {
         ko.applyBindings(model);
@@ -293,17 +377,30 @@ $$.component = function(viewModel, view) {
         var $scope = {
         };
 
+        // Get the error repository or init one
+        var repository;
+        if (p.errors) {
+            repository = p.errors;
+        } else {
+            repository = ko.observableArray();
+        }
+
+        // Creates an error handler
+        var $errors = new ComponentErrors(repository);
+
         // If theres a viewModel defined
         if (viewModel && !model) {
             // Creates the model passing parameters and empty scope
-            model = new viewModel(p, $scope);
+            model = new viewModel(p, $scope, $errors);
             $scope.model = model;
+            $scope.errors = $errors;
             $scope.controller = $$.controller;
         }
 
         // Creates model and scope getters to allow quark to bind to each part
         this.getModel = function() { return model; }
         this.getScope = function() { return $scope; }
+        this.getErrors = function() { return $errors; }
 
         // Dispose the model and scope on objects destruction
         this.dispose = function() {
@@ -317,6 +414,7 @@ $$.component = function(viewModel, view) {
 
             model = undefined;
             $scope = undefined;
+            $errors = undefined;
         }
     }
 
