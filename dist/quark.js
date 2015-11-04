@@ -196,49 +196,41 @@ $$.signalClear = function(signal) {
     signal.removeAll();
 }
 
-function ComponentError(key, type, text, data) {
+function ComponentError(key, text, data) {
     this.key = key;
-    this.type = type;
     this.text = text;
     this.data = data;
+
+    this.level = data && data.level ? data.level : 0;
+    this.type = data && data.type ? data.type : '';
 }
 
-function ComponentErrors(repository) {
+function ComponentErrors() {
     var self = this;
 
-    if (!$$.isDefined(repository)) {
-        repository = ko.observableArray();
-    }
+    var repository = ko.observableArray();
 
-    if (!ko.isObservableArray(repository)) {
-        throw 'The error repository must be an observable array.';
-    }
+    this.keys = 1;
 
-    this.keys = 0;
-
-    this.setRepository = function(newRepository) {
-        repository = newRepository;
-    }
-
-    this.add = function(type, text, data) {
+    this.add = function(text, data) {
         var key = self.keys++;
-        var error = new ComponentError(key, type, text, data);
+        var error = new ComponentError(key, text, data);
 
         repository.push(error);
 
         return key;
     }
 
-    this.throw = function(type, text, data) {
-        var key = self.add(type, text, data);
+    this.throw = function(text, data) {
+        var key = self.add(text, data);
         throw repository()[key];
     }
 
     this.resolve = function(key) {
-        var error = repository()[key]
+        var error = self.getByKey(key);
 
         if (error) {
-            delete repository.remove(error);
+            repository.remove(error);
         }
     }
 
@@ -260,11 +252,13 @@ function ComponentErrors(repository) {
     this.getByKey = function(key) {
         var errors = repository();
 
-        $.each(errors, function(index, error) {
+        for (var index in errors) {
+            var error = errors[index];
+
             if (error.key == key) {
                 return error;
             }
-        });
+        }
     }
 
     this.getByType = function(type) {
@@ -282,6 +276,21 @@ function ComponentErrors(repository) {
         });
     }
 
+    this.getByLevel = function(min, max) {
+        return ko.pureComputed(function() {
+            var res = [];
+            var errors = repository();
+
+            $.each(errors, function(index, error) {
+                if (error.level >= min && error.level <= max) {
+                    res.push(error);
+                }
+            });
+
+            return res;
+        });
+    }
+
     this.get = function() {
         return ko.pureComputed(function() {
             return repository;
@@ -289,6 +298,9 @@ function ComponentErrors(repository) {
     }
 }
 
+$$.errorHandler = function() {
+    return new ComponentErrors();
+}
 $$.start = function(model) {
     if (!$$.started) {
         ko.applyBindings(model);
@@ -386,32 +398,31 @@ $$.component = function(viewModel, view) {
         var $scope = {
         };
 
-        // Get the error repository from the parameters, if not found try the controller, finally if not found init one
-        var repository;
-        if (p.errors) {
-            repository = p.errors;
-        } else if ($$.controller && $$.controller.errors) {
-            repository = $$.controller.errors;
+        // Get the error handler from the parameters, if not found try the controller, finally if not found init one
+        var errorHandler;
+        if (p.errorHandler) {
+            errorHandler = p.errorHandler;
+        } else if ($$.controller && $$.controller.errorHandler) {
+            errorHandler = $$.controller.errorHandler;
         } else {
-            repository = ko.observableArray();
+            errorHandler = new ComponentErrors();
         }
 
-        // Creates an error handler
-        var $errors = new ComponentErrors(repository);
+        var $errorHandler = errorHandler;
 
         // If theres a viewModel defined
         if (viewModel && !model) {
             // Creates the model passing parameters and empty scope
-            model = new viewModel(p, $scope, $errors);
+            model = new viewModel(p, $scope, $errorHandler);
             $scope.model = model;
-            $scope.errors = $errors;
+            $scope.errorHandler = $errorHandler;
             $scope.controller = $$.controller;
         }
 
         // Creates model and scope getters to allow quark to bind to each part
         this.getModel = function() { return model; }
         this.getScope = function() { return $scope; }
-        this.getErrors = function() { return $errors; }
+        this.getErrorHandler = function() { return $errorHandler; }
 
         // Dispose the model and scope on objects destruction
         this.dispose = function() {
@@ -1881,17 +1892,21 @@ ko.bindingHandlers.block = {
 function blockOnError(element, value) {
     if (value.length) {
         $(element).block({
-            message: 'Se ha producido un error en este elemento',
+            message: null,
+            overlayCSS: {
+                backgroundColor: '#A51600',
+                opacity: 0.5,
+            },
             css: {
                 border: 'none',
                 padding: '5px',
-                backgroundColor: '#d9534f',
+                backgroundColor: '#000',
                 '-webkit-border-radius': '5px',
                 '-moz-border-radius': '5px',
-                opacity: .7,
+                opacity: 1,
                 color: '#fff'
             },
-            baseZ: 5000
+            baseZ: 900
         });
     } else {
         $(element).unblock();
@@ -2149,10 +2164,9 @@ ko.validationReset = function(object) {
 }
 
 // Adds the validation function to the observables. Calling this function will activate validation on the observable.
-// Name is the field name to show on error messages. Validation config is an object with the configuration of validations to enfoce, parent
-// is the parent object in wich the observable resides, if specified it creates a property 'validationSummary' with an array showing the
-// list of validation errors in the object.
-ko.observable.fn.validation = function(name, validationConfig, parent) {
+// Name is the field name to show on error messages. Validation config is an object with the configuration of validations to enfoce,
+// if theres an error handler specified every validation error is added to the handler
+ko.observable.fn.validation = function(name, validationConfig, errorHandler) {
     // Indica que el campo es validable, y el nombre con el cual debe aparecer en los mensajes
     this.validatable = name;
 
@@ -2165,22 +2179,16 @@ ko.observable.fn.validation = function(name, validationConfig, parent) {
     this.hasError = ko.observable();
     this.validationMessage = ko.observable();
 
-    // Si se especifico un objeto padre crea una propiedad para guardarlo
-    if (parent) {
-        this.parent = parent;
-
-        // Si el objeto padre no tiene un sumario de validaciones crea uno que es un
-        // array observable que un elemento por cada error de validacion
-        if (!parent['validationSummary']) {
-            parent.validationSummary = ko.observableArray();
-        }
+    // Si se especifico un errorHandler
+    if (errorHandler) {
+        this.errorHandler = errorHandler;
     }
 
     // Devuelve el propio observable, permitiendo encadenar la llamada en la misma llamada a ko.observable
     return this;
 }
 
-// Resets validation errors on the observable and clears itself from the objects validation summary
+// Resets validation errors on the observable and clears itself from the objects errorHandler
 ko.observable.fn.validationReset = function () {
     var me = this;
     // Si se configuraron validaciones sobre este observable
@@ -2189,16 +2197,14 @@ ko.observable.fn.validationReset = function () {
         this.hasError(false);
         this.validationMessage('');
 
-        // Si ademas se definio el objeto padre elimina el error del sumario de errores
-        if (this['parent']) {
-            this.parent.validationSummary.remove(function (item) {
-                return item.name === me.validatable;
-            });
+        // Si ademas se definio un errorHandler y se cargo un error lo resuelvo utilizando la clave almacenada
+        if (this.errorHandler && this.errorKey) {
+            this.errorHandler.resolve(this.errorKey);
         }
     }
 }
 
-// Performs the actual validation on the observable. Its on a separate function
+// Performs the actual validation on the observable. Its on a separate function to allow subscription
 function validateValue(newValue, target) {
     if (!target) {
         target = this;
@@ -2219,10 +2225,10 @@ function validateValue(newValue, target) {
 
             // Valido utilizando el valor obtenido y el valor pasado a la funcion
             if (!validator.validate(newValue)) {
-                // Si se produjo un error de validacion lo cargo en el summary
-                if (target.parent && target.parent.validationSummary) {
-                    target.parent.validationSummary.push({ name: target.validatable, message: target.validationMessage() });
+                if (target.errorHandler) {
+                    target.errorKey = target.errorHandler.add(target.validationMessage(), { level: 100, type: 'validation' });
                 }
+
                 return false;
             }
         }

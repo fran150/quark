@@ -1,46 +1,38 @@
-function ComponentError(key, type, text, data) {
+function ComponentError(key, text, data) {
     this.key = key;
-    this.type = type;
     this.text = text;
     this.data = data;
+
+    this.level = data && data.level ? data.level : 0;
+    this.type = data && data.type ? data.type : '';
 }
 
-function ComponentErrors(repository) {
+function ComponentErrors() {
     var self = this;
 
-    if (!$$.isDefined(repository)) {
-        repository = ko.observableArray();
-    }
+    var repository = ko.observableArray();
 
-    if (!ko.isObservableArray(repository)) {
-        throw 'The error repository must be an observable array.';
-    }
+    this.keys = 1;
 
-    this.keys = 0;
-
-    this.setRepository = function(newRepository) {
-        repository = newRepository;
-    }
-
-    this.add = function(type, text, data) {
+    this.add = function(text, data) {
         var key = self.keys++;
-        var error = new ComponentError(key, type, text, data);
+        var error = new ComponentError(key, text, data);
 
         repository.push(error);
 
         return key;
     }
 
-    this.throw = function(type, text, data) {
-        var key = self.add(type, text, data);
+    this.throw = function(text, data) {
+        var key = self.add(text, data);
         throw repository()[key];
     }
 
     this.resolve = function(key) {
-        var error = repository()[key]
+        var error = self.getByKey(key);
 
         if (error) {
-            delete repository.remove(error);
+            repository.remove(error);
         }
     }
 
@@ -62,11 +54,13 @@ function ComponentErrors(repository) {
     this.getByKey = function(key) {
         var errors = repository();
 
-        $.each(errors, function(index, error) {
+        for (var index in errors) {
+            var error = errors[index];
+
             if (error.key == key) {
                 return error;
             }
-        });
+        }
     }
 
     this.getByType = function(type) {
@@ -84,9 +78,28 @@ function ComponentErrors(repository) {
         });
     }
 
+    this.getByLevel = function(min, max) {
+        return ko.pureComputed(function() {
+            var res = [];
+            var errors = repository();
+
+            $.each(errors, function(index, error) {
+                if (error.level >= min && error.level <= max) {
+                    res.push(error);
+                }
+            });
+
+            return res;
+        });
+    }
+
     this.get = function() {
         return ko.pureComputed(function() {
             return repository;
         });
     }
+}
+
+$$.errorHandler = function() {
+    return new ComponentErrors();
 }

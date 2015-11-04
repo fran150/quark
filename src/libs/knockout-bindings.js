@@ -29,17 +29,21 @@ ko.bindingHandlers.block = {
 function blockOnError(element, value) {
     if (value.length) {
         $(element).block({
-            message: 'Se ha producido un error en este elemento',
+            message: null,
+            overlayCSS: {
+                backgroundColor: '#A51600',
+                opacity: 0.5,
+            },
             css: {
                 border: 'none',
                 padding: '5px',
-                backgroundColor: '#d9534f',
+                backgroundColor: '#000',
                 '-webkit-border-radius': '5px',
                 '-moz-border-radius': '5px',
-                opacity: .7,
+                opacity: 1,
                 color: '#fff'
             },
-            baseZ: 5000
+            baseZ: 900
         });
     } else {
         $(element).unblock();

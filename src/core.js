@@ -95,32 +95,31 @@ $$.component = function(viewModel, view) {
         var $scope = {
         };
 
-        // Get the error repository from the parameters, if not found try the controller, finally if not found init one
-        var repository;
-        if (p.errors) {
-            repository = p.errors;
-        } else if ($$.controller && $$.controller.errors) {
-            repository = $$.controller.errors;
+        // Get the error handler from the parameters, if not found try the controller, finally if not found init one
+        var errorHandler;
+        if (p.errorHandler) {
+            errorHandler = p.errorHandler;
+        } else if ($$.controller && $$.controller.errorHandler) {
+            errorHandler = $$.controller.errorHandler;
         } else {
-            repository = ko.observableArray();
+            errorHandler = new ComponentErrors();
         }
 
-        // Creates an error handler
-        var $errors = new ComponentErrors(repository);
+        var $errorHandler = errorHandler;
 
         // If theres a viewModel defined
         if (viewModel && !model) {
             // Creates the model passing parameters and empty scope
-            model = new viewModel(p, $scope, $errors);
+            model = new viewModel(p, $scope, $errorHandler);
             $scope.model = model;
-            $scope.errors = $errors;
+            $scope.errorHandler = $errorHandler;
             $scope.controller = $$.controller;
         }
 
         // Creates model and scope getters to allow quark to bind to each part
         this.getModel = function() { return model; }
         this.getScope = function() { return $scope; }
-        this.getErrors = function() { return $errors; }
+        this.getErrorHandler = function() { return $errorHandler; }
 
         // Dispose the model and scope on objects destruction
         this.dispose = function() {

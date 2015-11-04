@@ -52,10 +52,9 @@ ko.validationReset = function(object) {
 }
 
 // Adds the validation function to the observables. Calling this function will activate validation on the observable.
-// Name is the field name to show on error messages. Validation config is an object with the configuration of validations to enfoce, parent
-// is the parent object in wich the observable resides, if specified it creates a property 'validationSummary' with an array showing the
-// list of validation errors in the object.
-ko.observable.fn.validation = function(name, validationConfig, parent) {
+// Name is the field name to show on error messages. Validation config is an object with the configuration of validations to enfoce,
+// if theres an error handler specified every validation error is added to the handler
+ko.observable.fn.validation = function(name, validationConfig, errorHandler) {
     // Indica que el campo es validable, y el nombre con el cual debe aparecer en los mensajes
     this.validatable = name;
 
@@ -68,22 +67,16 @@ ko.observable.fn.validation = function(name, validationConfig, parent) {
     this.hasError = ko.observable();
     this.validationMessage = ko.observable();
 
-    // Si se especifico un objeto padre crea una propiedad para guardarlo
-    if (parent) {
-        this.parent = parent;
-
-        // Si el objeto padre no tiene un sumario de validaciones crea uno que es un
-        // array observable que un elemento por cada error de validacion
-        if (!parent['validationSummary']) {
-            parent.validationSummary = ko.observableArray();
-        }
+    // Si se especifico un errorHandler
+    if (errorHandler) {
+        this.errorHandler = errorHandler;
     }
 
     // Devuelve el propio observable, permitiendo encadenar la llamada en la misma llamada a ko.observable
     return this;
 }
 
-// Resets validation errors on the observable and clears itself from the objects validation summary
+// Resets validation errors on the observable and clears itself from the objects errorHandler
 ko.observable.fn.validationReset = function () {
     var me = this;
     // Si se configuraron validaciones sobre este observable
@@ -92,16 +85,14 @@ ko.observable.fn.validationReset = function () {
         this.hasError(false);
         this.validationMessage('');
 
-        // Si ademas se definio el objeto padre elimina el error del sumario de errores
-        if (this['parent']) {
-            this.parent.validationSummary.remove(function (item) {
-                return item.name === me.validatable;
-            });
+        // Si ademas se definio un errorHandler y se cargo un error lo resuelvo utilizando la clave almacenada
+        if (this.errorHandler && this.errorKey) {
+            this.errorHandler.resolve(this.errorKey);
         }
     }
 }
 
-// Performs the actual validation on the observable. Its on a separate function
+// Performs the actual validation on the observable. Its on a separate function to allow subscription
 function validateValue(newValue, target) {
     if (!target) {
         target = this;
@@ -122,10 +113,10 @@ function validateValue(newValue, target) {
 
             // Valido utilizando el valor obtenido y el valor pasado a la funcion
             if (!validator.validate(newValue)) {
-                // Si se produjo un error de validacion lo cargo en el summary
-                if (target.parent && target.parent.validationSummary) {
-                    target.parent.validationSummary.push({ name: target.validatable, message: target.validationMessage() });
+                if (target.errorHandler) {
+                    target.errorKey = target.errorHandler.add(target.validationMessage(), { level: 100, type: 'validation' });
                 }
+
                 return false;
             }
         }
