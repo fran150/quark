@@ -26,12 +26,12 @@ ko.bindingHandlers.block = {
     }
 }
 
-function blockOnError(element, value) {
+function blockWithError(element, value, style) {
     if (value.length) {
         $(element).block({
-            message: null,
+            message: 'Error',
             overlayCSS: {
-                backgroundColor: '#A51600',
+                backgroundColor: '#A94442',
                 opacity: 0.5,
             },
             css: {
@@ -40,8 +40,34 @@ function blockOnError(element, value) {
                 backgroundColor: '#000',
                 '-webkit-border-radius': '5px',
                 '-moz-border-radius': '5px',
+                backgroundColor: '#A94442',
                 opacity: 1,
                 color: '#fff'
+            },
+            baseZ: 900
+        });
+    } else {
+        $(element).unblock();
+    }
+}
+
+function blockWithWarning(element, value, style) {
+    if (value.length) {
+        $(element).block({
+            message: 'Hay problemas con este elemento.',
+            overlayCSS: {
+                backgroundColor: '#FCF8E3',
+                opacity: 0.4,
+            },
+            css: {
+                border: 'none',
+                padding: '5px',
+                backgroundColor: '#000',
+                '-webkit-border-radius': '5px',
+                '-moz-border-radius': '5px',
+                backgroundColor: '#FCF8E3',
+                opacity: 1,
+                color: '#000'
             },
             baseZ: 900
         });
@@ -53,16 +79,59 @@ function blockOnError(element, value) {
 // Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
 ko.bindingHandlers.blockOnError = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        if ($$.isArray(value)) {
-            blockOnError(element, value);
+        var handler = viewModel.errorHandler;
+        var value = handler.getByLevel(2000, 9999);
+
+        function validate(value) {
+            if ($$.isArray(value)) {
+                blockWithError(element, value);
+            }
         }
-    },
-    update: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        if ($$.isArray(value)) {
-            blockOnError(element, value);
+
+        var subscription = value.subscribe(validate);
+
+        validate(value());
+
+        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
+            subscription.dispose();
+        });
+    }
+}
+
+// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
+ko.bindingHandlers.blockOnWarning = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var handler = viewModel.errorHandler;
+        var value = handler.getByLevel(1000, 9999);
+
+        function validate(value) {
+            if ($$.isArray(value)) {
+                var hasWarning = false;
+
+                for (var index in value) {
+                    var error = value[index];
+
+                    if (error.level > 2000) {
+                        blockWithError(element, value);
+                        return;
+                    }
+
+                    if (error.level >= 1000 && error.level < 2000) {
+                        hasWarning = true;
+                    }
+                }
+
+                blockWithWarning(element, value);
+            }
         }
+
+        var subscription = value.subscribe(validate);
+
+        validate(value());
+
+        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
+            subscription.dispose();
+        });
     }
 }
 
@@ -90,6 +159,29 @@ ko.bindingHandlers.rowSelect = {
         ko.bindingHandlers.click.init(element, clickValueAccessor, allBindingsAccessor, viewModel, context);
     }
 };
+
+// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
+ko.bindingHandlers.blockOnErrorCondition = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var condition = ko.unwrap(valueAccessor);
+        var handler = viewModel.errorHandler;
+        var value = handler.getBy(condition);
+
+        function validate(value) {
+            if ($$.isArray(value)) {
+                blockWithError(element, value);
+            }
+        }
+
+        var subscription = value.subscribe(validate);
+
+        validate(value());
+
+        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
+            subscription.dispose();
+        });
+    }
+}
 
 // Uses accounting js to show a numeric input
 ko.bindingHandlers.numericValue = {
