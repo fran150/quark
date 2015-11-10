@@ -1766,6 +1766,9 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
                 clbks.onComplete();
             }
         },
+        xhrFields: {
+            withCredentials: true
+        },
         error: function (jqXHR, textStatus, errorThrown) {
             // Check if some handler processed the error.
             var handled = false;
