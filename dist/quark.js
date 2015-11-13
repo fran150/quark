@@ -1753,7 +1753,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
         onSuccess = clbks.onSuccess;
     }
 
-    $.ajax({
+    var ajaxOptions = {
         url: url,
         type: method || 'GET',
         cache: opts.cache || false,
@@ -1766,6 +1766,8 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
                 clbks.onComplete();
             }
         },
+        contentType: 'application/json',
+        dataType : 'json',
         xhrFields: {
             withCredentials: true
         },
@@ -1803,7 +1805,9 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
                 }
             }
         }
-    });
+    }
+
+    $.ajax(ajaxOptions);
 }
 
 // Clears and refill the observable with the original value to force notify update.
