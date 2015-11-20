@@ -16,7 +16,8 @@ $$.started = false;
 $$.clientErrorHandlers = {};
 // Server error handlers repository
 $$.serverErrorHandlers = {};
-
+// Formatters
+$$.formatters = {};
 
 // Check if the specified var is defined
 $$.isDefined = function (variable) {
@@ -2171,6 +2172,45 @@ ko.bindingHandlers.numericText = {
     }
 }
 
+// Uses accounting js to show a numeric input
+ko.bindingHandlers.numericText = {
+    init: function (element, valueAccessor) {
+        var underlyingObservable = valueAccessor();
+
+        if (!ko.isObservable(underlyingObservable)) {
+            underlyingObservable = ko.observable(underlyingObservable);
+        }
+
+        var interceptor = ko.pureComputed({
+            read: function () {
+                if ($$.isDefined(underlyingObservable())) {
+                    return accounting.formatNumber(underlyingObservable(), 2, ".", ",");
+                } else {
+                    return undefined;
+                }
+            },
+
+            write: function (newValue) {
+                var current = underlyingObservable();
+                var valueToWrite = accounting.unformat(newValue, ",");
+
+                if (isNaN(valueToWrite)) {
+                    valueToWrite = newValue;
+                }
+
+                if (valueToWrite !== current) {
+                    underlyingObservable(accounting.toFixed(valueToWrite, 2));
+                } else {
+                    if (newValue !== current.toString())
+                        underlyingObservable.valueHasMutated();
+                }
+            }
+        });
+
+        ko.applyBindingsToNode(element, { text: interceptor });
+    }
+}
+
 ko.bindingHandlers.moneyText = {
     init: function (element, valueAccessor) {
         var underlyingObservable = valueAccessor();
@@ -2209,7 +2249,70 @@ ko.bindingHandlers.moneyText = {
     }
 }
 
+// Uses accounting js to show a numeric input
+ko.bindingHandlers.numericText = {
+    init: function (element, valueAccessor) {
+        var underlyingObservable = valueAccessor();
 
+        if (!ko.isObservable(underlyingObservable)) {
+            underlyingObservable = ko.observable(underlyingObservable);
+        }
+
+        var interceptor = ko.pureComputed({
+            read: function () {
+                if ($$.isDefined(underlyingObservable())) {
+                    return accounting.formatNumber(underlyingObservable(), 2, ".", ",");
+                } else {
+                    return undefined;
+                }
+            },
+
+            write: function (newValue) {
+                var current = underlyingObservable();
+                var valueToWrite = accounting.unformat(newValue, ",");
+
+                if (isNaN(valueToWrite)) {
+                    valueToWrite = newValue;
+                }
+
+                if (valueToWrite !== current) {
+                    underlyingObservable(accounting.toFixed(valueToWrite, 2));
+                } else {
+                    if (newValue !== current.toString())
+                        underlyingObservable.valueHasMutated();
+                }
+            }
+        });
+
+        ko.applyBindingsToNode(element, { text: interceptor });
+    }
+}
+
+ko.bindingHandlers.format = {
+    init: function (element, valueAccessor) {
+        var config = valueAccessor();
+
+        if (!$$.isDefined(config.value) || !$$.isString(config.formatter)) {
+            throw 'Must specify format configuration in the form { value: observableValue, formatter: formatterName }';
+        }
+
+        if (!ko.isObservable(config.value)) {
+            config.value = ko.observable(config.value);
+        }
+
+        var interceptor = ko.pureComputed({
+            read: function () {
+                if ($$.isDefined(config.value()) && $$.isDefined(config.formatter())) {
+                    return $$.formatters[config.formatter](config.value());
+                } else {
+                    return config.value();
+                }
+            }
+        });
+
+        ko.applyBindingsToNode(element, { text: interceptor });
+    }
+}
 // Initialize validators array
 ko.validators = {};
 

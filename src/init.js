@@ -6,4 +6,5 @@ $$.started = false;
 $$.clientErrorHandlers = {};
 // Server error handlers repository
 $$.serverErrorHandlers = {};
-
+// Formatters
+$$.formatters = {};
