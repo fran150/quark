@@ -430,7 +430,7 @@ ko.bindingHandlers.format = {
 
         var interceptor = ko.pureComputed({
             read: function () {
-                if ($$.isDefined(config.value()) && $$.isDefined(config.formatter())) {
+                if ($$.isDefined(config.value()) && $$.isDefined(config.formatter)) {
                     return $$.formatters[config.formatter](config.value());
                 } else {
                     return config.value();
