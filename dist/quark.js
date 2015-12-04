@@ -1727,6 +1727,29 @@ $$.clearCookie = function(name) {
     $$.setCookie(name,"",-1);
 }
 
+var authorizing = false;
+
+$$.ajaxConfig = {
+    contentType: 'application/json',
+    dataType : 'json',
+    xhrFields: {
+        withCredentials: true
+    },
+    async: true,
+    cache: false,
+    authorization: {
+        has: function() {
+            return true;
+        },
+        configAuthorization: function(opts) {
+            return opts;
+        },
+        authorize: function(opts, callback) {
+            callback();
+        }
+    }
+}
+
 // Executes ajax call to the specified url
 $$.ajax = function (url, method, data, callbacks, auth, options) {
     var opts = options || {};
@@ -1734,16 +1757,6 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
 
     if (!url) {
         throw 'Must specify the target URL';
-    }
-
-    // If headers not defined send empty
-    if (!$$.isDefined(opts.headers)) {
-        opts.headers = {};
-    }
-
-    // If auth is required send the access token saved on session storage
-    if (auth) {
-        opts.headers['access_token'] = sessionStorage.getItem('token');
     }
 
     var onSuccess;
@@ -1757,20 +1770,12 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
     var ajaxOptions = {
         url: url,
         type: method || 'GET',
-        cache: opts.cache || false,
         data: data,
-        async: opts.async || true,
         success: onSuccess,
-        headers: opts.headers || {},
         complete: function() {
             if ($$.isDefined(clbks.onComplete)) {
                 clbks.onComplete();
             }
-        },
-        contentType: 'application/json',
-        dataType : 'json',
-        xhrFields: {
-            withCredentials: true
         },
         error: function (jqXHR, textStatus, errorThrown) {
             // Check if some handler processed the error.
@@ -1808,7 +1813,40 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
         }
     }
 
-    $.ajax(ajaxOptions);
+    ajaxOptions = $.extend(ajaxOptions, $$.ajaxConfig);
+    ajaxOptions = $.extend(ajaxOptions, opts);
+
+    // If we aren´t authorizing must do the authorization flow
+    // If we must authorize we must do the authorization flow otherwise call the service directly
+    if (!authorizing || !auth) {
+        // Invoke service
+        function invoke() {
+            // Configure authorization on ajax request
+            ajaxOptions = ajaxOptions.authorization.configAuthorization(ajaxOptions);
+
+            // AJAX call
+            $.ajax(ajaxOptions);
+        }
+
+        // If don´t have authorization we must authorize
+        if (!ajaxOptions.authorization.has()) {
+            // Set the flag to true so any ajax call during authorization does not trigger the authorization flow
+            authorizing = true;
+
+            // Call the function to authorize and wait for callback
+            ajaxOptions.authorization.authorize(opts, function() {
+                // When authorization is obtained invoke
+                authorizing = false;
+                invoke();
+            });
+        } else {
+            // If already have an authorization invoke
+            invoke();
+        }
+    } else {
+        // If its authorizing do the ajax call directly (not doing the authorization flow again)
+        $.ajax(ajaxOptions);
+    }
 }
 
 // Clears and refill the observable with the original value to force notify update.
