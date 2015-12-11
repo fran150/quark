@@ -3,9 +3,6 @@ var authorizing = false;
 $$.ajaxConfig = {
     contentType: 'application/json',
     dataType : 'json',
-    xhrFields: {
-        withCredentials: true
-    },
     async: true,
     cache: false,
     authorization: {
@@ -16,7 +13,7 @@ $$.ajaxConfig = {
             return opts;
         },
         authorize: function(opts, callback) {
-            callback();
+            callback(true);
         }
     }
 }
@@ -89,7 +86,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
 
     // If we aren´t authorizing must do the authorization flow
     // If we must authorize we must do the authorization flow otherwise call the service directly
-    if (!authorizing || !auth) {
+    if (!authorizing && auth) {
         // Invoke service
         function invoke() {
             // Configure authorization on ajax request
@@ -105,10 +102,12 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
             authorizing = true;
 
             // Call the function to authorize and wait for callback
-            ajaxOptions.authorization.authorize(opts, function() {
+            ajaxOptions.authorization.authorize(opts, function(authorized) {
                 // When authorization is obtained invoke
                 authorizing = false;
-                invoke();
+                if (authorized) {
+                    invoke();
+                }
             });
         } else {
             // If already have an authorization invoke

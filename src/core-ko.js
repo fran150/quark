@@ -381,12 +381,12 @@ function createContentAccesor(element, valueAccessor, allBindingsAccessor, viewM
 ko.bindingHandlers.content = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
+        var newContext = context.$parentContext.extend({ $child: viewModel.model, $childContext: context });
         return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
+        var newContext = context.$parentContext.extend({ $child: viewModel.model, $childContext: context });
         return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     }
 };

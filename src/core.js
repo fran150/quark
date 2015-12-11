@@ -293,13 +293,13 @@ $$.inject = function (from, to, recursively) {
 
             if (ko.isObservable(to[name])) {
                 if (recursively && $$.isObject(to[name]())) {
-                    $$.inject(to[name](), value, true);
+                    $$.inject(value, to[name](), true);
                 } else {
                     to[name](value);
                 }
             } else {
                 if (recursively && $$.isObject(to[name])) {
-                    $$.inject(to[name], value, true);
+                    $$.inject(value, to[name], true);
                 } else {
                     to[name] = value;
                 }
