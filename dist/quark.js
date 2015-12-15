@@ -197,10 +197,11 @@ $$.signalClear = function(signal) {
     signal.removeAll();
 }
 
-function ComponentError(key, text, data) {
+function ComponentError(key, source, text, data) {
     this.key = key;
     this.text = text;
     this.data = data;
+    this.source = source;
 
     this.level = data && data.level ? data.level : 0;
     this.type = data && data.type ? data.type : '';
@@ -213,17 +214,17 @@ function ComponentErrors() {
 
     this.keys = 1;
 
-    this.add = function(text, data) {
+    this.add = function(source, text, data) {
         var key = self.keys++;
-        var error = new ComponentError(key, text, data);
+        var error = new ComponentError(key, source, text, data);
 
         repository.push(error);
 
         return key;
     }
 
-    this.throw = function(text, data) {
-        var key = self.add(text, data);
+    this.throw = function(source, text, data) {
+        var key = self.add(source, text, data);
         throw repository()[key];
     }
 
@@ -242,6 +243,37 @@ function ComponentErrors() {
 
             $.each(errors, function(index, error) {
                 if (condition(error)) {
+                    res.push(error);
+                }
+            });
+
+            return res;
+        });
+    }
+
+    this.getBySources = function(sources) {
+        return ko.pureComputed(function() {
+            var res = [];
+            var errors = repository();
+
+            $.each(errors, function(index, error) {
+                if (sources.indexOf(error.source) !== -1) {
+                    res.push(error);
+                }
+            });
+
+            return res;
+        });
+    }
+
+    this.getBySource = function(regExp) {
+        return ko.pureComputed(function() {
+            var res = [];
+            var errors = repository();
+            var exp = new RegExp(regExp);
+
+            $.each(errors, function(index, error) {
+                if (exp.test(error.source)) {
                     res.push(error);
                 }
             });
@@ -1351,6 +1383,11 @@ function QuarkRouter() {
 
             // Changes route setting the specified controller
             function changeCurrent(routeController) {
+                if (!routeController.errorHandler) {
+                    // Create the default controller level error handler
+                    routeController.errorHandler = $$.errorHandler();
+                }
+
                 // Change the current route
                 self.current({
                     route: routeObject,
@@ -1789,7 +1826,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
                 if (jqXHR.status >= 500 && jqXHR.status < 600) {
                     // Call all handlers in registration order until someone handles it (must return true)
                     for (var handlerName in $$.serverErrorHandlers) {
-                        if ($$.serverErrorHandlers[handlerName](url, JSON.parse(jqXHR.responseText))) {
+                        if ($$.serverErrorHandlers[handlerName](url, opts.source, jqXHR.responseText)) {
                             // If its handled stop executing handlers
                             handled = true;
                             break;
@@ -1799,7 +1836,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
                     // If it's a client error
                     for (handlerName in $$.clientErrorHandlers) {
                         // Call all handlers in registration order until someone handles it (must return true)
-                        if ($$.clientErrorHandlers[handlerName](url, jqXHR, textStatus, errorThrown)) {
+                        if ($$.clientErrorHandlers[handlerName](url, opts.source, jqXHR, textStatus, errorThrown)) {
                             // If its handled stop executing handlers
                             handled = true;
                             break;
@@ -2044,6 +2081,51 @@ ko.bindingHandlers.blockOnWarning = {
     }
 }
 
+ko.bindingHandlers.blockOnErrorSource = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var source = ko.unwrap(valueAccessor());
+        var handler = viewModel.errorHandler;
+        var value = handler.getBySource(source);
+
+        function validate(value) {
+            if ($$.isArray(value)) {
+                blockWithError(element, value);
+            }
+        }
+
+        var subscription = value.subscribe(validate);
+
+        validate(value());
+
+        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
+            subscription.dispose();
+        });
+    }
+}
+
+// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
+ko.bindingHandlers.blockOnErrorCondition = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var condition = ko.unwrap(valueAccessor);
+        var handler = viewModel.errorHandler;
+        var value = handler.getBy(condition);
+
+        function validate(value) {
+            if ($$.isArray(value)) {
+                blockWithError(element, value);
+            }
+        }
+
+        var subscription = value.subscribe(validate);
+
+        validate(value());
+
+        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
+            subscription.dispose();
+        });
+    }
+}
+
 // Applies the success style to the element if the specified condition is met. Useful highlight the selected row on a table:
 // <div data-bind="rowSelect: id == $parent.idSeleccionado">
 ko.bindingHandlers.rowSelect = {
@@ -2068,29 +2150,6 @@ ko.bindingHandlers.rowSelect = {
         ko.bindingHandlers.click.init(element, clickValueAccessor, allBindingsAccessor, viewModel, context);
     }
 };
-
-// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
-ko.bindingHandlers.blockOnErrorCondition = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var condition = ko.unwrap(valueAccessor);
-        var handler = viewModel.errorHandler;
-        var value = handler.getBy(condition);
-
-        function validate(value) {
-            if ($$.isArray(value)) {
-                blockWithError(element, value);
-            }
-        }
-
-        var subscription = value.subscribe(validate);
-
-        validate(value());
-
-        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
-            subscription.dispose();
-        });
-    }
-}
 
 // Uses accounting js to show a numeric input
 ko.bindingHandlers.numericValue = {

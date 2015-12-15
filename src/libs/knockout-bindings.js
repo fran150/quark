@@ -135,6 +135,51 @@ ko.bindingHandlers.blockOnWarning = {
     }
 }
 
+ko.bindingHandlers.blockOnErrorSource = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var source = ko.unwrap(valueAccessor());
+        var handler = viewModel.errorHandler;
+        var value = handler.getBySource(source);
+
+        function validate(value) {
+            if ($$.isArray(value)) {
+                blockWithError(element, value);
+            }
+        }
+
+        var subscription = value.subscribe(validate);
+
+        validate(value());
+
+        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
+            subscription.dispose();
+        });
+    }
+}
+
+// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
+ko.bindingHandlers.blockOnErrorCondition = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var condition = ko.unwrap(valueAccessor);
+        var handler = viewModel.errorHandler;
+        var value = handler.getBy(condition);
+
+        function validate(value) {
+            if ($$.isArray(value)) {
+                blockWithError(element, value);
+            }
+        }
+
+        var subscription = value.subscribe(validate);
+
+        validate(value());
+
+        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
+            subscription.dispose();
+        });
+    }
+}
+
 // Applies the success style to the element if the specified condition is met. Useful highlight the selected row on a table:
 // <div data-bind="rowSelect: id == $parent.idSeleccionado">
 ko.bindingHandlers.rowSelect = {
@@ -159,29 +204,6 @@ ko.bindingHandlers.rowSelect = {
         ko.bindingHandlers.click.init(element, clickValueAccessor, allBindingsAccessor, viewModel, context);
     }
 };
-
-// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
-ko.bindingHandlers.blockOnErrorCondition = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var condition = ko.unwrap(valueAccessor);
-        var handler = viewModel.errorHandler;
-        var value = handler.getBy(condition);
-
-        function validate(value) {
-            if ($$.isArray(value)) {
-                blockWithError(element, value);
-            }
-        }
-
-        var subscription = value.subscribe(validate);
-
-        validate(value());
-
-        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
-            subscription.dispose();
-        });
-    }
-}
 
 // Uses accounting js to show a numeric input
 ko.bindingHandlers.numericValue = {
