@@ -102,7 +102,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
             authorizing = true;
 
             // Call the function to authorize and wait for callback
-            ajaxOptions.authorization.authorize(opts, function(authorized) {
+            ajaxOptions.authorization.authorize(function(authorized) {
                 // When authorization is obtained invoke
                 authorizing = false;
                 if (authorized) {

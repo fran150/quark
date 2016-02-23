@@ -197,6 +197,27 @@ $$.signalClear = function(signal) {
     signal.removeAll();
 }
 
+function escapeRegExp(str) {
+    return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+}
+
+function replaceAll(str, find, replace) {
+    return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
+}
+
+// First, checks if it isn't implemented yet.
+$$.formatString = function() {
+    var args = Array.prototype.slice.call(arguments);
+    var str = args[0]
+
+    for (var i = 1; i < args.length; i++) {
+        str = replaceAll(str, '{' + (i - 1) + '}', args[i]);
+    }
+
+    return str;
+};
+
+
 function ComponentError(key, source, text, data) {
     this.key = key;
     this.text = text;
@@ -1383,7 +1404,7 @@ function QuarkRouter() {
 
             // Changes route setting the specified controller
             function changeCurrent(routeController) {
-                if (!routeController.errorHandler) {
+                if (routeController && !routeController.errorHandler) {
                     // Create the default controller level error handler
                     routeController.errorHandler = $$.errorHandler();
                 }
@@ -1868,7 +1889,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
             authorizing = true;
 
             // Call the function to authorize and wait for callback
-            ajaxOptions.authorization.authorize(opts, function(authorized) {
+            ajaxOptions.authorization.authorize(function(authorized) {
                 // When authorization is obtained invoke
                 authorizing = false;
                 if (authorized) {

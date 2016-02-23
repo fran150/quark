@@ -107,7 +107,7 @@ function QuarkRouter() {
 
             // Changes route setting the specified controller
             function changeCurrent(routeController) {
-                if (!routeController.errorHandler) {
+                if (routeController && !routeController.errorHandler) {
                     // Create the default controller level error handler
                     routeController.errorHandler = $$.errorHandler();
                 }

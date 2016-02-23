@@ -175,3 +175,24 @@ $$.signal = function() {
 $$.signalClear = function(signal) {
     signal.removeAll();
 }
+
+function escapeRegExp(str) {
+    return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+}
+
+function replaceAll(str, find, replace) {
+    return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
+}
+
+// First, checks if it isn't implemented yet.
+$$.formatString = function() {
+    var args = Array.prototype.slice.call(arguments);
+    var str = args[0]
+
+    for (var i = 1; i < args.length; i++) {
+        str = replaceAll(str, '{' + (i - 1) + '}', args[i]);
+    }
+
+    return str;
+};
+
