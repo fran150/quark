@@ -29,6 +29,12 @@ gulp.task('validators', function () {
         .pipe(gulp.dest('./dist/'));
 });
 
+// Copies the require configurator
+gulp.task('require.configurator', function () {
+    return gulp.src('./src/require.configurator.js')
+        .pipe(gulp.dest('./dist/'));
+});
+
 // Concatenates together all required .js files, minifies them generating the normal lib and minified lib
 gulp.task('js', function () {
     return gulp.src([
@@ -61,7 +67,7 @@ gulp.task('clean', function() {
         .pipe(clean());
 });
 
-gulp.task('default', ['clean', 'js', 'component', 'validators'], function(callback) {
+gulp.task('default', ['clean', 'js', 'component', 'validators', 'require.configurator'], function(callback) {
     callback();
     console.log('\nPlaced optimized files in ' + chalk.magenta('dist/\n'));
 });

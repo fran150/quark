@@ -445,7 +445,7 @@ $$.module = function(moduleInfo, config, mainConstructor) {
             var tagName = config.prefix + "-" + componentTagName;
             var path = moduleName + '/' + config.components[componentTagName];
 
-            ko.components.register(tagName, { require: path });
+            $$.registerComponent(tagName, path);
         }
     }
 
@@ -545,6 +545,10 @@ $$.component = function(viewModel, view) {
     } else {
         return { template: view }
     }
+}
+
+$$.registerComponent = function(tag, url) {
+    ko.components.register(tag, { require: url });
 }
 
 // Receive configuration params extacting the value if neccesary.
@@ -1686,12 +1690,6 @@ var controllerUpdater = ko.computed(function() {
 $$.redirect = function(url) {
     window.location.href = url;
     return true;
-}
-
-// Redirect the browser to the specified route
-$$.redirectRoute = function(name, config, location) {
-    var link = $$.routing.link(name, config, location);
-    $$.redirect(link);
 }
 
 // Redirect the browser to the specified hash
