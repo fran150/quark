@@ -99,10 +99,49 @@ ko.components.register('quark-component', {
     template: "<!-- ko componentShadyDom --><!-- /ko --><!-- ko modelExporter --><!-- /ko -->"
 });
 
+ko.bindingProvider.instance.preprocessNode = function(node) {
+    // Only react if this is a comment node of the form <!-- quark-component -->
+    if (node.nodeType == 8) {
+
+        // Allows component definition open with <!-- quark-component -->
+        var match = node.nodeValue.match(/^\s*(quark-component[\s\S]+)/);
+        if (match) {
+            node.data = " ko component: { name: \'quark-component\' } ";
+            return node;
+        }
+
+        // Allows component definition close with <!-- /quark-component -->
+        var match = node.nodeValue.match(/^\s*(\/quark-component[\s\S]+)/);
+        if (match) {
+            node.data = " /ko ";
+
+            return node;
+        }
+
+        // Allows component use with <!-- $$ 'componentName', params: { paramsArray } -->
+        var match = node.nodeValue.match(/^\s*\$\$[\s\S]+}/);
+        if (match) {
+            node.data = node.data.replace(match, " ko component: { name:" + match.toString().replace("$$", "").trim() + " }");
+
+            var closeTag = document.createComment("/ko");
+            node.parentNode.insertBefore(closeTag, node.nextSibling);
+
+            return [node, closeTag];
+        }
+    }
+}
+
 // Sets the component tracking in the parent and awaits the component to be fully binded then it calls the ready function.
 ko.bindingHandlers.import = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var object = viewModel.model;
+        var object;
+
+        if (viewModel && viewModel.model) {
+            object = viewModel.model;
+        } else {
+            object = viewModel;
+        }
+
         var name = valueAccessor();
 
         if (!$$.isString(name)) {
@@ -210,9 +249,15 @@ ko.bindingHandlers.import = {
         // Import the dependency to the target object
         object[name] = {};
 
-        element.setAttribute('qk-export', "\'" + name + "\'");
+        if (element.nodeType != 8) {
+            element.setAttribute('qk-export', "\'" + name + "\'");
+        } else {
+            element.data += "qk-export=\'" + name + "\'";
+        }
     }
 }
+
+ko.virtualElements.allowedBindings.import = true;
 
 // Exports the parent viewmodel to the parent object
 ko.bindingHandlers.export = {
@@ -220,7 +265,9 @@ ko.bindingHandlers.export = {
         var value;
         value = ko.unwrap(valueAccessor());
 
-        viewModel = viewModel.model;
+        if (viewModel && viewModel.model) {
+            viewModel = viewModel.model;
+        }
 
         var property;
 
@@ -268,6 +315,8 @@ function createComponentShadyDomAccesor(context) {
     return newAccesor;
 }
 
+// Every component is a quark component, this binding shows the quark component template and binds it with the scope of the
+// quark component parent (wich is the actual custom tag of the component)
 ko.bindingHandlers.componentShadyDom = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createComponentShadyDomAccesor(context);
@@ -284,18 +333,50 @@ ko.bindingHandlers.componentShadyDom = {
 };
 ko.virtualElements.allowedBindings.componentShadyDom = true;
 
+function isChildOf(element, search) {
+    var previousChilds = ko.virtualElements.childNodes(element);
+
+    for (var i = 0; i < previousChilds.length; i++) {
+        if (previousChilds[i] == search) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function findParent(element) {
+    var previous = element.previousSibling;
+
+    while (previous != null) {
+        if (isChildOf(previous, element)) {
+            return previous;
+        }
+
+        previous = previous.previousSibling;
+    }
+
+    if (previous == null) {
+        return element.parentElement;
+    }
+}
+
 
 function createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
-    var newAccesor = function () {
+    var newAccesor = function() {
         var nodes = Array();
-        var parent = element.parentNode.parentNode;
 
-        for (var i = 0; i < parent.attributes.length; i++) {
-            var attrib = parent.attributes[i];
-            if (attrib.specified) {
-                if (attrib.name.indexOf('qk-') === 0) {
-                    nodes.push(document.createComment("ko " + attrib.name.replace('qk-', '') + ": " + attrib.value));
-                    nodes.push(document.createComment("/ko"));
+        var parent = findParent(element);
+        parent = findParent(parent);
+
+        if (parent.attributes) {
+            for (var i = 0; i < parent.attributes.length; i++) {
+                var attrib = parent.attributes[i];
+                if (attrib.specified) {
+                    if (attrib.name.indexOf('qk-') === 0) {
+                        nodes.push(document.createComment("ko " + attrib.name.replace('qk-', '') + ": " + attrib.value));
+                        nodes.push(document.createComment("/ko"));
+                    }
                 }
             }
         }

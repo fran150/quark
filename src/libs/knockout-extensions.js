@@ -28,15 +28,3 @@ ko.mapToJS = function(observable) {
 ko.mapFromJS = function(observable) {
     return komapping.fromJS(komapping.toJS(observable));
 }
-
-ko.tryBlock = function(observable, message) {
-    if (observable.block) {
-        observable.block(message);
-    }
-}
-
-ko.tryUnblock = function(observable) {
-    if (observable.unblock) {
-        observable.unblock();
-    }
-}

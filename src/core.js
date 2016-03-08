@@ -49,11 +49,7 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     // If there's a css configuration add links in the header
     if ($$.isArray(config.css)) {
         for (var i = 0; i < config.css.length; i++) {
-            var link = document.createElement("link");
-            link.type = "text/css";
-            link.rel = "stylesheet";
-            link.href = modulePath + '/' + config.css[i];
-            document.getElementsByTagName("head")[0].appendChild(link);
+            $$.loadCss(modulePath + '/' + config.css[i]);
         }
     }
 
@@ -146,62 +142,6 @@ $$.component = function(viewModel, view) {
 
 $$.registerComponent = function(tag, url) {
     ko.components.register(tag, { require: url });
-}
-
-// Receive configuration params extacting the value if neccesary.
-$$.config = function(config, values, objects) {
-    // Checks the configuration object
-    if (!$$.isObject(config)) {
-        throw 'You must specify a config object';
-    }
-
-    // Checks the values object
-    if (!$$.isObject(values)) {
-        throw 'You must specify the configured values for the component, usually you can obtain it from the parameters array received in the component\'s constructor.';
-    }
-
-    if (!$$.isDefined(objects)) {
-        throw 'You must specify the viewmodel of the component in wich to load the configuration.';
-    }
-
-    if (!$$.isArray(objects)) {
-        objects = Array(objects);
-    }
-
-    // Iterates configuration...
-    for (var name in config) {
-        for (var i = 0; i < objects.length; i++) {
-            var object = objects[i];
-
-            // If config object doesnt exists, it creates one
-            if (!$$.isDefined(object.config)) {
-                object.config = {};
-            }
-
-            // Warn if config exists
-            if ($$.isDefined(object.config[name])) {
-                console.warn('There is already a config property named ' + name + ' in the target component. The property will be replaced.');
-            }
-
-            // Sets the new config property with the default value to the target component
-            object.config[name] = config[name];
-
-            // Warn if property is defined as observable
-            if (ko.isObservable(object.config[name])) {
-                console.warn('Property ' + name + ' should not be observable. The configuration parameters should be static, if you want the object to react to parameter changes use the parameters method.');
-            }
-
-            // If there is a value for the configuration then replace it in the configuration property
-            if ($$.isDefined(values[name])) {
-                // if the source value is an observable extract value if not use as is
-                if (ko.isObservable(values[name])) {
-                    object.config[name] = values[name]();
-                } else {
-                    object.config[name] = values[name];
-                }
-            }
-        }
-    }
 }
 
 // Receive parameters from the component tag and set them into the viewmodel

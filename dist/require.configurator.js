@@ -1,11 +1,31 @@
-function requireConfigure(bowerDir, timeout) {
+function requireConfigure(requireConfig, bowerDir, timeout) {
     bowerDir = bowerDir || 'bower_components';
     timeout = timeout || 120;
 
-    return {
+    /*
+    * Recursively merge properties of two objects
+    */
+    function mergeRecursive(obj1, obj2) {
+        for (var p in obj2) {
+            try {
+                // Property in destination object set; update its value.
+                if ( obj2[p].constructor==Object ) {
+                    obj1[p] = mergeRecursive(obj1[p], obj2[p]);
+                } else {
+                    obj1[p] = obj2[p];
+                }
+            } catch(e) {
+                // Property in destination object not set; create it and set its value.
+                obj1[p] = obj2[p];
+            }
+        }
+
+        return obj1;
+    }
+
+    var quarkConfig = {
         baseUrl: ".",
         paths: {
-            "bootstrap":            bowerDir + "/bootstrap/dist/js/bootstrap",
             "crossroads":           bowerDir + "/crossroads/dist/crossroads",
             "hasher":               bowerDir + "/hasher/dist/js/hasher",
             "jquery":               bowerDir + "/jquery/dist/jquery",
@@ -23,9 +43,10 @@ function requireConfigure(bowerDir, timeout) {
             "quark-validators":     bowerDir + "/quark/dist/quark-validators",
         },
         shim: {
-            "bootstrap": { deps: ["jquery"] },
             "knockout-mapping": { deps: ["knockout"] }
         },
         waitSeconds: timeout
     };
+
+    return mergeRecursive(requireConfig, quarkConfig);
 }

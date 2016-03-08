@@ -452,11 +452,7 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     // If there's a css configuration add links in the header
     if ($$.isArray(config.css)) {
         for (var i = 0; i < config.css.length; i++) {
-            var link = document.createElement("link");
-            link.type = "text/css";
-            link.rel = "stylesheet";
-            link.href = modulePath + '/' + config.css[i];
-            document.getElementsByTagName("head")[0].appendChild(link);
+            $$.loadCss(modulePath + '/' + config.css[i]);
         }
     }
 
@@ -549,62 +545,6 @@ $$.component = function(viewModel, view) {
 
 $$.registerComponent = function(tag, url) {
     ko.components.register(tag, { require: url });
-}
-
-// Receive configuration params extacting the value if neccesary.
-$$.config = function(config, values, objects) {
-    // Checks the configuration object
-    if (!$$.isObject(config)) {
-        throw 'You must specify a config object';
-    }
-
-    // Checks the values object
-    if (!$$.isObject(values)) {
-        throw 'You must specify the configured values for the component, usually you can obtain it from the parameters array received in the component\'s constructor.';
-    }
-
-    if (!$$.isDefined(objects)) {
-        throw 'You must specify the viewmodel of the component in wich to load the configuration.';
-    }
-
-    if (!$$.isArray(objects)) {
-        objects = Array(objects);
-    }
-
-    // Iterates configuration...
-    for (var name in config) {
-        for (var i = 0; i < objects.length; i++) {
-            var object = objects[i];
-
-            // If config object doesnt exists, it creates one
-            if (!$$.isDefined(object.config)) {
-                object.config = {};
-            }
-
-            // Warn if config exists
-            if ($$.isDefined(object.config[name])) {
-                console.warn('There is already a config property named ' + name + ' in the target component. The property will be replaced.');
-            }
-
-            // Sets the new config property with the default value to the target component
-            object.config[name] = config[name];
-
-            // Warn if property is defined as observable
-            if (ko.isObservable(object.config[name])) {
-                console.warn('Property ' + name + ' should not be observable. The configuration parameters should be static, if you want the object to react to parameter changes use the parameters method.');
-            }
-
-            // If there is a value for the configuration then replace it in the configuration property
-            if ($$.isDefined(values[name])) {
-                // if the source value is an observable extract value if not use as is
-                if (ko.isObservable(values[name])) {
-                    object.config[name] = values[name]();
-                } else {
-                    object.config[name] = values[name];
-                }
-            }
-        }
-    }
 }
 
 // Receive parameters from the component tag and set them into the viewmodel
@@ -936,10 +876,49 @@ ko.components.register('quark-component', {
     template: "<!-- ko componentShadyDom --><!-- /ko --><!-- ko modelExporter --><!-- /ko -->"
 });
 
+ko.bindingProvider.instance.preprocessNode = function(node) {
+    // Only react if this is a comment node of the form <!-- quark-component -->
+    if (node.nodeType == 8) {
+
+        // Allows component definition open with <!-- quark-component -->
+        var match = node.nodeValue.match(/^\s*(quark-component[\s\S]+)/);
+        if (match) {
+            node.data = " ko component: { name: \'quark-component\' } ";
+            return node;
+        }
+
+        // Allows component definition close with <!-- /quark-component -->
+        var match = node.nodeValue.match(/^\s*(\/quark-component[\s\S]+)/);
+        if (match) {
+            node.data = " /ko ";
+
+            return node;
+        }
+
+        // Allows component use with <!-- $$ 'componentName', params: { paramsArray } -->
+        var match = node.nodeValue.match(/^\s*\$\$[\s\S]+}/);
+        if (match) {
+            node.data = node.data.replace(match, " ko component: { name:" + match.toString().replace("$$", "").trim() + " }");
+
+            var closeTag = document.createComment("/ko");
+            node.parentNode.insertBefore(closeTag, node.nextSibling);
+
+            return [node, closeTag];
+        }
+    }
+}
+
 // Sets the component tracking in the parent and awaits the component to be fully binded then it calls the ready function.
 ko.bindingHandlers.import = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var object = viewModel.model;
+        var object;
+
+        if (viewModel && viewModel.model) {
+            object = viewModel.model;
+        } else {
+            object = viewModel;
+        }
+
         var name = valueAccessor();
 
         if (!$$.isString(name)) {
@@ -1047,9 +1026,15 @@ ko.bindingHandlers.import = {
         // Import the dependency to the target object
         object[name] = {};
 
-        element.setAttribute('qk-export', "\'" + name + "\'");
+        if (element.nodeType != 8) {
+            element.setAttribute('qk-export', "\'" + name + "\'");
+        } else {
+            element.data += " qk-export=\'" + name + "\'";
+        }
     }
 }
+
+ko.virtualElements.allowedBindings.import = true;
 
 // Exports the parent viewmodel to the parent object
 ko.bindingHandlers.export = {
@@ -1057,7 +1042,9 @@ ko.bindingHandlers.export = {
         var value;
         value = ko.unwrap(valueAccessor());
 
-        viewModel = viewModel.model;
+        if (viewModel && viewModel.model) {
+            viewModel = viewModel.model;
+        }
 
         var property;
 
@@ -1105,6 +1092,8 @@ function createComponentShadyDomAccesor(context) {
     return newAccesor;
 }
 
+// Every component is a quark component, this binding shows the quark component template and binds it with the scope of the
+// quark component parent (wich is the actual custom tag of the component)
 ko.bindingHandlers.componentShadyDom = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createComponentShadyDomAccesor(context);
@@ -1121,18 +1110,50 @@ ko.bindingHandlers.componentShadyDom = {
 };
 ko.virtualElements.allowedBindings.componentShadyDom = true;
 
+function isChildOf(element, search) {
+    var previousChilds = ko.virtualElements.childNodes(element);
+
+    for (var i = 0; i < previousChilds.length; i++) {
+        if (previousChilds[i] == search) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function findParent(element) {
+    var previous = element.previousSibling;
+
+    while (previous != null) {
+        if (isChildOf(previous, element)) {
+            return previous;
+        }
+
+        previous = previous.previousSibling;
+    }
+
+    if (previous == null) {
+        return element.parentElement;
+    }
+}
+
 
 function createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
-    var newAccesor = function () {
+    var newAccesor = function() {
         var nodes = Array();
-        var parent = element.parentNode.parentNode;
 
-        for (var i = 0; i < parent.attributes.length; i++) {
-            var attrib = parent.attributes[i];
-            if (attrib.specified) {
-                if (attrib.name.indexOf('qk-') === 0) {
-                    nodes.push(document.createComment("ko " + attrib.name.replace('qk-', '') + ": " + attrib.value));
-                    nodes.push(document.createComment("/ko"));
+        var parent = findParent(element);
+        parent = findParent(parent);
+
+        if (parent.attributes) {
+            for (var i = 0; i < parent.attributes.length; i++) {
+                var attrib = parent.attributes[i];
+                if (attrib.specified) {
+                    if (attrib.name.indexOf('qk-') === 0) {
+                        nodes.push(document.createComment("ko " + attrib.name.replace('qk-', '') + ": " + attrib.value));
+                        nodes.push(document.createComment("/ko"));
+                    }
                 }
             }
         }
@@ -1723,42 +1744,6 @@ $$.replaceAndBind = function (placeholderSelector, html, model) {
     ko.applyBindings(model, placeholderSelector.get(0));
 }
 
-
-// Blocks user input for the specified target showing a message. If no target specified blocks entire screen
-$$.block = function (message, target) {
-    if (!message)
-        message = 'Loading...';
-
-    var options = {
-        message: message,
-        css: {
-            border: 'none',
-            padding: '5px',
-            backgroundColor: '#000',
-            '-webkit-border-radius': '5px',
-            '-moz-border-radius': '5px',
-            opacity: .7,
-            color: '#fff'
-        },
-        baseZ: 5000
-    }
-
-    if (target) {
-        $(target).block(options);
-    } else {
-        $.blockUI(options);
-    }
-}
-
-// Unblock user input from the specified target (JQuery Selector)
-$$.unblock = function (target) {
-    if (target) {
-        $(target).unblock();
-    } else {
-        $.unblockUI();
-    }
-}
-
 // Encode the value as HTML
 $$.htmlEncode = function (value) {
     if (value) {
@@ -1826,6 +1811,14 @@ $$.getCookie = function (name) {
 // Clears the specified cookie
 $$.clearCookie = function(name) {
     $$.setCookie(name,"",-1);
+}
+
+$$.loadCss = function(path) {
+    var link = document.createElement("link");
+    link.type = "text/css";
+    link.rel = "stylesheet";
+    link.href = path;
+    document.getElementsByTagName("head")[0].appendChild(link);
 }
 
 var authorizing = false;
@@ -1980,471 +1973,36 @@ ko.mapFromJS = function(observable) {
     return komapping.fromJS(komapping.toJS(observable));
 }
 
-ko.tryBlock = function(observable, message) {
-    if (observable.block) {
-        observable.block(message);
+ko.bindingHandlers.href = {
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+
+        var newAccesor = function() {
+            if ($$.isString(value)) {
+                return { href: '#' + $$.routing.hash(value) }
+            } else if ($$.isObject(value)) {
+                var url;
+
+                if (value.page) {
+                    url = value.page;
+                }
+
+                if (value.routeName) {
+                    url += "#" + $$.routing.hash(value.routeName, value.routeConfig);
+                }
+
+                return { href: url }
+            }
+        }
+        return ko.bindingHandlers.attr.update(element, newAccesor, allBindingsAccessor, viewModel, context);
     }
 }
-
-ko.tryUnblock = function(observable) {
-    if (observable.unblock) {
-        observable.unblock();
-    }
-}
-
-ko.extenders.blockable = function(target, defaultMessage) {
-    target.blocked = ko.observable('');
-
-    target.block = function(message) {
-        var msg = message || defaultMessage;
-        target.blocked(msg);
-    }
-
-    target.unblock = function() {
-        target.blocked('');
-    }
-
-    //return the original observable
-    return target;
-};
 
 // Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
 ko.bindingHandlers.onBind = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
         var value = ko.unwrap(valueAccessor());
         value(element, viewModel, context);
-    }
-}
-
-function block(element, value) {
-    if (value) {
-        $$.block(value, $(element));
-    } else {
-        $$.unblock($(element));
-    }
-}
-
-// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
-ko.bindingHandlers.block = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        block(element, value);
-    },
-    update: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        block(element, value);
-    }
-}
-
-function blockWithError(element, value, style) {
-    if (value.length) {
-        $(element).block({
-            message: 'Error',
-            overlayCSS: {
-                backgroundColor: '#A94442',
-                opacity: 0.5,
-            },
-            css: {
-                border: 'none',
-                padding: '5px',
-                backgroundColor: '#000',
-                '-webkit-border-radius': '5px',
-                '-moz-border-radius': '5px',
-                backgroundColor: '#A94442',
-                opacity: 1,
-                color: '#fff'
-            },
-            baseZ: 900
-        });
-    } else {
-        $(element).unblock();
-    }
-}
-
-function blockWithWarning(element, value, style) {
-    if (value.length) {
-        $(element).block({
-            message: 'Hay problemas con este elemento.',
-            overlayCSS: {
-                backgroundColor: '#FCF8E3',
-                opacity: 0.4,
-            },
-            css: {
-                border: 'none',
-                padding: '5px',
-                backgroundColor: '#000',
-                '-webkit-border-radius': '5px',
-                '-moz-border-radius': '5px',
-                backgroundColor: '#FCF8E3',
-                opacity: 1,
-                color: '#000'
-            },
-            baseZ: 900
-        });
-    } else {
-        $(element).unblock();
-    }
-}
-
-// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
-ko.bindingHandlers.blockOnError = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var handler = viewModel.errorHandler;
-        var value = handler.getByLevel(2000, 9999);
-
-        function validate(value) {
-            if ($$.isArray(value)) {
-                blockWithError(element, value);
-            }
-        }
-
-        var subscription = value.subscribe(validate);
-
-        validate(value());
-
-        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
-            subscription.dispose();
-        });
-    }
-}
-
-// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
-ko.bindingHandlers.blockOnWarning = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var handler = viewModel.errorHandler;
-        var value = handler.getByLevel(1000, 9999);
-
-        function validate(value) {
-            if ($$.isArray(value)) {
-                var hasWarning = false;
-
-                for (var index in value) {
-                    var error = value[index];
-
-                    if (error.level > 2000) {
-                        blockWithError(element, value);
-                        return;
-                    }
-
-                    if (error.level >= 1000 && error.level < 2000) {
-                        hasWarning = true;
-                    }
-                }
-
-                blockWithWarning(element, value);
-            }
-        }
-
-        var subscription = value.subscribe(validate);
-
-        validate(value());
-
-        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
-            subscription.dispose();
-        });
-    }
-}
-
-ko.bindingHandlers.blockOnErrorSource = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var source = ko.unwrap(valueAccessor());
-        var handler = viewModel.errorHandler;
-        var value = handler.getBySource(source);
-
-        function validate(value) {
-            if ($$.isArray(value)) {
-                blockWithError(element, value);
-            }
-        }
-
-        var subscription = value.subscribe(validate);
-
-        validate(value());
-
-        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
-            subscription.dispose();
-        });
-    }
-}
-
-// Calls the specified function when binding the element. The element, viewmodel and context are passed to the function.
-ko.bindingHandlers.blockOnErrorCondition = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var condition = ko.unwrap(valueAccessor);
-        var handler = viewModel.errorHandler;
-        var value = handler.getBy(condition);
-
-        function validate(value) {
-            if ($$.isArray(value)) {
-                blockWithError(element, value);
-            }
-        }
-
-        var subscription = value.subscribe(validate);
-
-        validate(value());
-
-        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
-            subscription.dispose();
-        });
-    }
-}
-
-// Applies the success style to the element if the specified condition is met. Useful highlight the selected row on a table:
-// <div data-bind="rowSelect: id == $parent.idSeleccionado">
-ko.bindingHandlers.rowSelect = {
-    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var options = ko.unwrap(valueAccessor());
-
-        var selectedValueAccessor = function () {
-            if ($$.isFunction(options.isSelected)) {
-                return { success: options.isSelected(viewModel) };
-            } else {
-                return { success: options.isSelected };
-            }
-
-        };
-
-        ko.bindingHandlers.css.update(element, selectedValueAccessor, allBindingsAccessor, viewModel, context);
-
-        var clickValueAccessor = function () {
-            return options.select;
-        };
-
-        ko.bindingHandlers.click.init(element, clickValueAccessor, allBindingsAccessor, viewModel, context);
-    }
-};
-
-// Uses accounting js to show a numeric input
-ko.bindingHandlers.numericValue = {
-    init: function (element, valueAccessor) {
-        var underlyingObservable = valueAccessor();
-
-        if (!ko.isObservable(underlyingObservable)) {
-            underlyingObservable = ko.observable(underlyingObservable);
-        }
-
-        var interceptor = ko.pureComputed({
-            read: function () {
-                if ($$.isDefined(underlyingObservable())) {
-                    return accounting.formatNumber(underlyingObservable(), 2, ".", ",");
-                } else {
-                    return undefined;
-                }
-            },
-
-            write: function (newValue) {
-                var current = underlyingObservable();
-                var valueToWrite = accounting.unformat(newValue, ",");
-
-                if (isNaN(valueToWrite)) {
-                    valueToWrite = newValue;
-                }
-
-                if (valueToWrite !== current) {
-                    underlyingObservable(accounting.toFixed(valueToWrite, 2));
-                } else {
-                    if (newValue !== current.toString())
-                        underlyingObservable.valueHasMutated();
-                }
-            }
-        });
-
-        ko.applyBindingsToNode(element, { value: interceptor });
-    }
-}
-
-ko.bindingHandlers.moneyValue = {
-    init: function (element, valueAccessor) {
-        var underlyingObservable = valueAccessor();
-
-        if (!ko.isObservable(underlyingObservable)) {
-            underlyingObservable = ko.observable(underlyingObservable);
-        }
-
-        var interceptor = ko.pureComputed({
-            read: function () {
-                if ($$.isDefined(underlyingObservable())) {
-                    return accounting.formatMoney(underlyingObservable(),"$ ", 2, ".", ",");
-                } else {
-                    return undefined;
-                }
-            },
-
-            write: function (newValue) {
-                var current = underlyingObservable();
-                var valueToWrite = accounting.unformat(newValue, ",");
-
-                if (isNaN(valueToWrite)) {
-                    valueToWrite = newValue;
-                }
-
-                if (valueToWrite !== current) {
-                    underlyingObservable(accounting.toFixed(valueToWrite, 2));
-                } else {
-                    if (newValue !== current.toString())
-                        underlyingObservable.valueHasMutated();
-                }
-            }
-        });
-
-        ko.applyBindingsToNode(element, { value: interceptor });
-    }
-}
-
-
-// Uses accounting js to show a numeric input
-ko.bindingHandlers.numericText = {
-    init: function (element, valueAccessor) {
-        var underlyingObservable = valueAccessor();
-
-        if (!ko.isObservable(underlyingObservable)) {
-            underlyingObservable = ko.observable(underlyingObservable);
-        }
-
-        var interceptor = ko.pureComputed({
-            read: function () {
-                if ($$.isDefined(underlyingObservable())) {
-                    return accounting.formatNumber(underlyingObservable(), 2, ".", ",");
-                } else {
-                    return undefined;
-                }
-            },
-
-            write: function (newValue) {
-                var current = underlyingObservable();
-                var valueToWrite = accounting.unformat(newValue, ",");
-
-                if (isNaN(valueToWrite)) {
-                    valueToWrite = newValue;
-                }
-
-                if (valueToWrite !== current) {
-                    underlyingObservable(accounting.toFixed(valueToWrite, 2));
-                } else {
-                    if (newValue !== current.toString())
-                        underlyingObservable.valueHasMutated();
-                }
-            }
-        });
-
-        ko.applyBindingsToNode(element, { text: interceptor });
-    }
-}
-
-// Uses accounting js to show a numeric input
-ko.bindingHandlers.numericText = {
-    init: function (element, valueAccessor) {
-        var underlyingObservable = valueAccessor();
-
-        if (!ko.isObservable(underlyingObservable)) {
-            underlyingObservable = ko.observable(underlyingObservable);
-        }
-
-        var interceptor = ko.pureComputed({
-            read: function () {
-                if ($$.isDefined(underlyingObservable())) {
-                    return accounting.formatNumber(underlyingObservable(), 2, ".", ",");
-                } else {
-                    return undefined;
-                }
-            },
-
-            write: function (newValue) {
-                var current = underlyingObservable();
-                var valueToWrite = accounting.unformat(newValue, ",");
-
-                if (isNaN(valueToWrite)) {
-                    valueToWrite = newValue;
-                }
-
-                if (valueToWrite !== current) {
-                    underlyingObservable(accounting.toFixed(valueToWrite, 2));
-                } else {
-                    if (newValue !== current.toString())
-                        underlyingObservable.valueHasMutated();
-                }
-            }
-        });
-
-        ko.applyBindingsToNode(element, { text: interceptor });
-    }
-}
-
-ko.bindingHandlers.moneyText = {
-    init: function (element, valueAccessor) {
-        var underlyingObservable = valueAccessor();
-
-        if (!ko.isObservable(underlyingObservable)) {
-            underlyingObservable = ko.observable(underlyingObservable);
-        }
-
-        var interceptor = ko.pureComputed({
-            read: function () {
-                if ($$.isDefined(underlyingObservable())) {
-                    return accounting.formatMoney(underlyingObservable(),"$ ", 2, ".", ",");
-                } else {
-                    return undefined;
-                }
-            },
-
-            write: function (newValue) {
-                var current = underlyingObservable();
-                var valueToWrite = accounting.unformat(newValue, ",");
-
-                if (isNaN(valueToWrite)) {
-                    valueToWrite = newValue;
-                }
-
-                if (valueToWrite !== current) {
-                    underlyingObservable(accounting.toFixed(valueToWrite, 2));
-                } else {
-                    if (newValue !== current.toString())
-                        underlyingObservable.valueHasMutated();
-                }
-            }
-        });
-
-        ko.applyBindingsToNode(element, { text: interceptor });
-    }
-}
-
-// Uses accounting js to show a numeric input
-ko.bindingHandlers.numericText = {
-    init: function (element, valueAccessor) {
-        var underlyingObservable = valueAccessor();
-
-        if (!ko.isObservable(underlyingObservable)) {
-            underlyingObservable = ko.observable(underlyingObservable);
-        }
-
-        var interceptor = ko.pureComputed({
-            read: function () {
-                if ($$.isDefined(underlyingObservable())) {
-                    return accounting.formatNumber(underlyingObservable(), 2, ".", ",");
-                } else {
-                    return undefined;
-                }
-            },
-
-            write: function (newValue) {
-                var current = underlyingObservable();
-                var valueToWrite = accounting.unformat(newValue, ",");
-
-                if (isNaN(valueToWrite)) {
-                    valueToWrite = newValue;
-                }
-
-                if (valueToWrite !== current) {
-                    underlyingObservable(accounting.toFixed(valueToWrite, 2));
-                } else {
-                    if (newValue !== current.toString())
-                        underlyingObservable.valueHasMutated();
-                }
-            }
-        });
-
-        ko.applyBindingsToNode(element, { text: interceptor });
     }
 }
 

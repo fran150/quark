@@ -35,42 +35,6 @@ $$.replaceAndBind = function (placeholderSelector, html, model) {
     ko.applyBindings(model, placeholderSelector.get(0));
 }
 
-
-// Blocks user input for the specified target showing a message. If no target specified blocks entire screen
-$$.block = function (message, target) {
-    if (!message)
-        message = 'Loading...';
-
-    var options = {
-        message: message,
-        css: {
-            border: 'none',
-            padding: '5px',
-            backgroundColor: '#000',
-            '-webkit-border-radius': '5px',
-            '-moz-border-radius': '5px',
-            opacity: .7,
-            color: '#fff'
-        },
-        baseZ: 5000
-    }
-
-    if (target) {
-        $(target).block(options);
-    } else {
-        $.blockUI(options);
-    }
-}
-
-// Unblock user input from the specified target (JQuery Selector)
-$$.unblock = function (target) {
-    if (target) {
-        $(target).unblock();
-    } else {
-        $.unblockUI();
-    }
-}
-
 // Encode the value as HTML
 $$.htmlEncode = function (value) {
     if (value) {
@@ -138,4 +102,12 @@ $$.getCookie = function (name) {
 // Clears the specified cookie
 $$.clearCookie = function(name) {
     $$.setCookie(name,"",-1);
+}
+
+$$.loadCss = function(path) {
+    var link = document.createElement("link");
+    link.type = "text/css";
+    link.rel = "stylesheet";
+    link.href = path;
+    document.getElementsByTagName("head")[0].appendChild(link);
 }
