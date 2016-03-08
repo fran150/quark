@@ -41,6 +41,8 @@ gulp.task('js', function () {
         './src/wrap.start',
         './src/init.js',
         './src/libs/utils.js',
+        './src/libs/knockout-extensions.js',
+        './src/libs/knockout-bindings.js',
         './src/core-errors.js',
         './src/core.js',
         './src/core-behaviours.js',
@@ -48,8 +50,6 @@ gulp.task('js', function () {
         './src/core-routing.js',
         './src/libs/web.js',
         './src/libs/ajax.js',
-        './src/libs/knockout-extensions.js',
-        './src/libs/knockout-bindings.js',
         './src/libs/validation.js',
         './src/wrap.end'
         ])

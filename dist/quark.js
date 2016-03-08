@@ -908,123 +908,127 @@ ko.bindingProvider.instance.preprocessNode = function(node) {
     }
 }
 
+function importDependencies(name, element, valueAccessor, allBindings, viewModel, context) {
+    var object;
+
+    if (viewModel && viewModel.model) {
+        object = viewModel.model;
+    } else {
+        object = viewModel;
+    }
+
+    if (!$$.isString(name)) {
+        throw 'The import value must be an string with the name of the property to create on the parent object';
+    }
+
+    if (!$$.isObject(object.$support)) {
+        object.$support = {};
+    }
+
+    // Sets the childs array wich tracks the dependencies and state
+    if (!$$.isObject(object.$support.tracking)) {
+        object.$support.tracking = {
+            childs: {}
+        }
+    }
+
+    // Start tracking the dependency
+    object.$support.tracking.childs[name] = {};
+
+    // Define a function to call when the child finishes loading.
+    // PropertyName contains the child name, and vm the corresponding viewmodel
+    object.$support.tracking.childs[name]['load'] = function(propertyName, vm) {
+        // Sets the child viemodel and marks it as loaded
+        object[propertyName] = vm;
+        object.$support.tracking.childs[propertyName]['loaded'] = true;
+
+        if ($$.isDefined(object['loaded'])) {
+            object.loaded(propertyName, vm);
+        }
+
+        if ($$.isDefined(vm.$support) && $$.isDefined(vm.$support.tracking)) {
+            // If the child has dependencies mark the dependency as not ready and save
+            // the parent data (reference and state)
+            object.$support.tracking.childs[propertyName]['ready'] = false;
+
+            vm.$support.tracking.parent = object;
+            vm.$support.tracking.parentState = object.$support.tracking.childs[propertyName];
+        } else {
+            // If the child hasn't dependencies mark the dependency on parent as ready
+            object.$support.tracking.childs[propertyName]['ready'] = true;
+
+            if ($$.isDefined(object['readied'])) {
+                object.readied(propertyName, vm);
+            }
+
+            // If there's a ready function on the child invoke it
+            if ($$.isDefined(vm['ready'])) {
+                vm['ready']();
+            }
+        }
+
+        // If any property in the child is not loaded or ready then exit
+        // !! OPTIMIZE !! by using a counter and not iterating all array over and over
+        for (var property in object.$support.tracking.childs) {
+            if (!object.$support.tracking.childs[property]['loaded'] || !object.$support.tracking.childs[property]['ready']) {
+                return;
+            }
+        }
+
+        // And the ready method...
+        if ($$.isFunction(object['ready'])) {
+            object['ready']();
+        }
+
+        // Finally if the object is tracked and has a parent, mark itself as ready on the parent
+        // object and call the function on the parent to reevaluate readiness.
+        if ($$.isDefined(object.$support) && $$.isDefined(object.$support.tracking) && $$.isDefined(object.$support.tracking.parent)) {
+            object.$support.tracking.parentState['ready'] = true;
+
+            if ($$.isDefined(object.$support.tracking.parent['readied'])) {
+                object.$support.tracking.parent.readied(propertyName, vm);
+            }
+
+            object.$support.tracking.parent.$support.tracking.childReady();
+        }
+    }
+
+    // Initialize the tracking of the child component
+    object.$support.tracking.childs[name]['loaded'] = false;
+
+    // Defines a function to call when one of its childs is ready.
+    // It forces the object to reevaluate its readiness
+    object.$support.tracking.childReady = function() {
+        // !! OPTIMIZE !! By using a counter. If there is a child that is not ready then exits
+        for (var property in object.$support.tracking.childs) {
+            if (!object.$support.tracking.childs[property]['ready']) {
+                return;
+            }
+        }
+
+        // And the ready method...
+        if ($$.isFunction(object['ready'])) {
+            object['ready']();
+        }
+
+        // Finally if the object is tracked and has a parent, mark itself as ready on the parent
+        // object and call the function on the parent to reevaluate readiness.
+        if ($$.isDefined(object['parent']) && $$.isDefined(object.parent.$support.tracking)) {
+            object.$support.tracking.parentState['ready'] = true;
+            object.$support.tracking.parent.$support.tracking.childReady();
+        }
+    }
+
+    // Import the dependency to the target object
+    object[name] = {};
+}
+
 // Sets the component tracking in the parent and awaits the component to be fully binded then it calls the ready function.
 ko.bindingHandlers.import = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var object;
-
-        if (viewModel && viewModel.model) {
-            object = viewModel.model;
-        } else {
-            object = viewModel;
-        }
-
+    init: function(element, valueAccessor, allBindings, viewModel, context) {
         var name = valueAccessor();
 
-        if (!$$.isString(name)) {
-            throw 'The import value must be an string with the name of the property to create on the parent object';
-        }
-
-        if (!$$.isObject(object.$support)) {
-            object.$support = {};
-        }
-
-        // Sets the childs array wich tracks the dependencies and state
-        if (!$$.isObject(object.$support.tracking)) {
-            object.$support.tracking = {
-                childs: {}
-            }
-        }
-
-        // Start tracking the dependency
-        object.$support.tracking.childs[name] = {};
-
-        // Define a function to call when the child finishes loading.
-        // PropertyName contains the child name, and vm the corresponding viewmodel
-        object.$support.tracking.childs[name]['load'] = function(propertyName, vm) {
-            // Sets the child viemodel and marks it as loaded
-            object[propertyName] = vm;
-            object.$support.tracking.childs[propertyName]['loaded'] = true;
-
-            if ($$.isDefined(object['loaded'])) {
-                object.loaded(propertyName, vm);
-            }
-
-            if ($$.isDefined(vm.$support) && $$.isDefined(vm.$support.tracking)) {
-                // If the child has dependencies mark the dependency as not ready and save
-                // the parent data (reference and state)
-                object.$support.tracking.childs[propertyName]['ready'] = false;
-
-                vm.$support.tracking.parent = object;
-                vm.$support.tracking.parentState = object.$support.tracking.childs[propertyName];
-            } else {
-                // If the child hasn't dependencies mark the dependency on parent as ready
-                object.$support.tracking.childs[propertyName]['ready'] = true;
-
-                if ($$.isDefined(object['readied'])) {
-                    object.readied(propertyName, vm);
-                }
-
-                // If there's a ready function on the child invoke it
-                if ($$.isDefined(vm['ready'])) {
-                    vm['ready']();
-                }
-            }
-
-            // If any property in the child is not loaded or ready then exit
-            // !! OPTIMIZE !! by using a counter and not iterating all array over and over
-            for (var property in object.$support.tracking.childs) {
-                if (!object.$support.tracking.childs[property]['loaded'] || !object.$support.tracking.childs[property]['ready']) {
-                    return;
-                }
-            }
-
-            // And the ready method...
-            if ($$.isFunction(object['ready'])) {
-                object['ready']();
-            }
-
-            // Finally if the object is tracked and has a parent, mark itself as ready on the parent
-            // object and call the function on the parent to reevaluate readiness.
-            if ($$.isDefined(object.$support) && $$.isDefined(object.$support.tracking) && $$.isDefined(object.$support.tracking.parent)) {
-                object.$support.tracking.parentState['ready'] = true;
-
-                if ($$.isDefined(object.$support.tracking.parent['readied'])) {
-                    object.$support.tracking.parent.readied(propertyName, vm);
-                }
-
-                object.$support.tracking.parent.$support.tracking.childReady();
-            }
-        }
-
-        // Initialize the tracking of the child component
-        object.$support.tracking.childs[name]['loaded'] = false;
-
-        // Defines a function to call when one of its childs is ready.
-        // It forces the object to reevaluate its readiness
-        object.$support.tracking.childReady = function() {
-            // !! OPTIMIZE !! By using a counter. If there is a child that is not ready then exits
-            for (var property in object.$support.tracking.childs) {
-                if (!object.$support.tracking.childs[property]['ready']) {
-                    return;
-                }
-            }
-
-            // And the ready method...
-            if ($$.isFunction(object['ready'])) {
-                object['ready']();
-            }
-
-            // Finally if the object is tracked and has a parent, mark itself as ready on the parent
-            // object and call the function on the parent to reevaluate readiness.
-            if ($$.isDefined(object['parent']) && $$.isDefined(object.parent.$support.tracking)) {
-                object.$support.tracking.parentState['ready'] = true;
-                object.$support.tracking.parent.$support.tracking.childReady();
-            }
-        }
-
-        // Import the dependency to the target object
-        object[name] = {};
+        importDependencies(name, element, valueAccessor, allBindings, viewModel, context);
 
         if (element.nodeType != 8) {
             element.setAttribute('qk-export', "\'" + name + "\'");
@@ -1033,10 +1037,9 @@ ko.bindingHandlers.import = {
         }
     }
 }
-
 ko.virtualElements.allowedBindings.import = true;
 
-// Exports the parent viewmodel to the parent object
+// Exports the component viewmodel to the parent object
 ko.bindingHandlers.export = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
         var value;
@@ -1146,13 +1149,31 @@ function createModelExporterAccessor(element, valueAccessor, allBindingsAccessor
         var parent = findParent(element);
         parent = findParent(parent);
 
-        if (parent.attributes) {
-            for (var i = 0; i < parent.attributes.length; i++) {
-                var attrib = parent.attributes[i];
-                if (attrib.specified) {
-                    if (attrib.name.indexOf('qk-') === 0) {
-                        nodes.push(document.createComment("ko " + attrib.name.replace('qk-', '') + ": " + attrib.value));
-                        nodes.push(document.createComment("/ko"));
+        if (parent.nodeType == 8) {
+            var matches = parent.nodeValue.match(/qk-[\w]+[\s]*=[\s]*[\'\"][\s\S]+?[\'\"]/g);
+
+            if (matches) {
+                for (var i = 0; i < matches.length; i++) {
+                    var match = matches[i];
+
+                    var parts = match.split('=');
+
+                    var name = parts[0].toString().trim().replace('qk-', '');
+                    var value = parts[1].toString().trim();
+
+                    nodes.push(document.createComment("ko " + name + ": " + value));
+                    nodes.push(document.createComment("/ko"));
+                }
+            }
+        } else {
+            if (parent.attributes) {
+                for (var i = 0; i < parent.attributes.length; i++) {
+                    var attrib = parent.attributes[i];
+                    if (attrib.specified) {
+                        if (attrib.name.indexOf('qk-') === 0) {
+                            nodes.push(document.createComment("ko " + attrib.name.replace('qk-', '') + ": " + attrib.value));
+                            nodes.push(document.createComment("/ko"));
+                        }
                     }
                 }
             }
