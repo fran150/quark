@@ -509,3 +509,63 @@ ko.computedParameter = function (param, accessors, object) {
         }
     }, object);
 }
+
+
+ko.bindingHandlers.call = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        value();
+    }
+}
+ko.virtualElements.allowedBindings.call = true;
+
+
+function injectBinding(valueAccessor, viewModel, context) {
+    var value = ko.unwrap(valueAccessor());
+
+    var target = context.$child;
+    var data = value;
+
+    if ($$.isObject(value)) {
+        if ($$.isDefined(value['data']) && $$.isDefined(value['target'])) {
+            target = value.target;
+            if (ko.isObservable(value.data)) {
+                data = value.data();
+            } else {
+                data = value.data;
+            }
+        }
+    }
+
+    $$.inject(data, target);
+}
+
+ko.bindingHandlers.inject = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        injectBinding(valueAccessor, viewModel, context);
+    },
+    update: function (element, valueAccessor, allBindings, viewModel, context) {
+        injectBinding(valueAccessor, viewModel, context);
+    }
+};
+ko.virtualElements.allowedBindings.inject = true;
+
+
+ko.bindingHandlers.stopBinding = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        return { controlsDescendantBindings: true };
+    }
+}
+
+ko.bindingHandlers.upContext = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
+        return ko.bindingHandlers.template.init(element, valueAccessor, allBindingsAccessor, context.$parent, newContext);
+    },
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
+        return ko.bindingHandlers.template.update(element, valueAccessor, allBindingsAccessor, context.$parent, newContext);
+    }
+};
+
+ko.virtualElements.allowedBindings.upContext = true;

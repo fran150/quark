@@ -1,56 +1,71 @@
-//crossroads, hasher
+// Quark router object
 function QuarkRouter() {
     var self = this;
 
+    // An observable that has the current route
     this.current = ko.observable();
+
+    // Routes configuration
     this.configuration = {};
 
+    // List of defined location finders.
+    // Quark allows to define routes grouped by "locations"
+    // Each "location" have a set of routes defined independent of other.
     this.locationFinders = [];
 
-    this.locationFinders.push(function(currentLocation, callback) {
-        var path;
+    // A location finder is a function used by the quark routing system to resolve the location.
+    // The function receives a callback and if it understands the current location it invoke the callback
+    // passing the route configuration extracted from self.configuration.
+    // This is the default location finder, it matches allows to specify a regular expression in the location
+    // that must match the window.location.pathname
+    // The location finders defined are called in order until one understands the location and invoke the callback.
+    this.locationFinders.push(function(callback) {
+        // Get the windolw location pathname
+        var path = window.location.pathname;
 
-        if (!currentLocation) {
-            path = window.location.pathname;
-        } else {
-            path = currentLocation;
-        }
-
+        // Iterate over the defined locations trying to find one that has a regular expression wich matches the
+        // path
         for (var locationName in self.configuration) {
+            // Get the location data
             var location = self.configuration[locationName];
 
+            // Create a regular expression object with the location configuration string
             var exp = RegExp(location.config);
 
+            // If there's a match invoke the callback with the matching location
             if (path.match(exp)) {
                 callback(location);
             }
         }
     });
 
+    // Object passed to the configure method that allows to chain routes definition with calls to the .on method and the .when
+    // method
     function RoutingConfig() {
         // Self
         var routingConfig = this;
 
-        // Router Configuration
+        // Resulting configuration
         routingConfig.configuration = {};
 
-        // Location's name
+        // Current location's name
         var currentLocationName;
 
-        // Adds a location to the route. The routes applied to it using the .when method are parsed if the location.pathname
-        // matches the specified pattern
+        // Adds a location to the routes.
         this.on = function(name, config) {
+            // Check parameter
             if (!$$.isDefined(name)) {
                 throw 'Must define a name for the routes on the page.';
             }
 
-            // Initialize the location configuration
+            // Initialize the location configuration on the resulting configuration
             routingConfig.configuration[name] = {
                 config: config,
                 routes: {}
             };
 
-            // Sets the current location and current so it can be used by the .when method in chained calls.
+            // Sets the current location so it can be used by the .when method in chained calls.
+            // All subsequent .when calls will apply to this location.
             currentLocationName = name;
 
             // Returns itself so config methods are chainable.
@@ -58,8 +73,8 @@ function QuarkRouter() {
         }
 
         // Adds a route to the last location specified with .on. The hash is a pattern to match on the hash, the
-        // name parameter is the name of the route, and the components parameter is an object with each property being the name of a placeholder
-        // and it's value the component that must be binded on it.
+        // name parameter is the name of the route, and the components parameter is an object with each property being the
+        // name of a placeholder and it's value the component name that must be binded on it (see the page binding).
         this.when = function(hash, name, components, controller) {
             // If only one parameter is specified we assume that its the components parameter
             if (!$$.isDefined(name) && !$$.isDefined(components)) {
@@ -75,7 +90,7 @@ function QuarkRouter() {
                 throw 'You must define the location to where this route applies using the .on method before calling .when.';
             }
 
-            // Forms full name (location name/route name)
+            // Forms full name (location name/route name). Routes full name are the locationName + / + the route name
             var fullName = currentLocationName + '/' + name;
 
             // Loads the configuration
@@ -92,12 +107,15 @@ function QuarkRouter() {
         }
     }
 
+    // Specific route configuration, contains all route data and register the route in crossroads.js
     function Route(router, name, fullName, locationConfig, hash, components, controller) {
         var routeObject = this;
 
-        // Add route in crossroad
+        // Add route in crossroad.
+        // The actual routing in quark is performed by crossroads.js.
+        // Foreach location defined, quark creates a crossroad router and adds all defined routes to it.
         var csRoute = router.addRoute(hash, function(requestParams) {
-            // If the current route has a controller defined and the controller has a leaving method call it to allow
+            // If the current route has a controller defined and the controller has a "leaving" method call it to allow
             // controller cleanup, if controller result is false do not reroute
             if (self.current() && self.current().controller && self.current().controller.leaving) {
                 if (self.current().controller.leaving() === false) {
@@ -105,8 +123,10 @@ function QuarkRouter() {
                 }
             }
 
-            // Changes route setting the specified controller
+            // Changes the current route
             function changeCurrent(routeController) {
+                // If theres a route controller defined and it doesn't have an error handler created
+                // create one.
                 if (routeController && !routeController.errorHandler) {
                     // Create the default controller level error handler
                     routeController.errorHandler = $$.errorHandler();
@@ -140,7 +160,7 @@ function QuarkRouter() {
                 });
             } else {
                 // If controller is a function, the function must create the controller object and
-                // invoke the callback passed as firt parameter
+                // invoke the callback passed as first parameter
                 if ($$.isFunction(controller)) {
                     controller(changeCurrent);
                 } else {
@@ -175,13 +195,12 @@ function QuarkRouter() {
         return new RoutingConfig();
     }
 
-    // Configure routing system using the specified routing config (created by using $$.routes)
+    // Configure routing system using the specified routing config (created by using $$.routing.routes)
     this.configure = function(routingConfig) {
         // For each location configured
         for (var locationName in routingConfig.configuration) {
             // Get this location and the specified config
             var location = routingConfig.configuration[locationName];
-
 
             // If there's a previouly configurated location with the same name get it, if not create a new one
             var dest;
@@ -207,14 +226,16 @@ function QuarkRouter() {
                 dest.routes = {};
             }
 
+            // Copy the configured location config to the quark configuration
             if (!dest.config) {
                 dest.config = location.config;
             }
 
             // For each hash configured for this location
             for (var routeName in location.routes) {
-                // If the routeName is not the generic one, load the configuration (generic config is apllied to each detailed route)
+                // If the routeName is not the generic one, load the configuration.
                 if (routeName !== '') {
+                    // Initialize component configuration object
                     var components = {};
 
                     // If there's a previously default route defined in configuration load the components with it
@@ -236,81 +257,74 @@ function QuarkRouter() {
                     // Creates the new route
                     var newRoute = new Route(dest.router, routeConfig.name, routeConfig.fullName, location.config, routeConfig.hash, components, routeConfig.controller);
 
-                    // Save it on the location routes
+                    // Save it on the location's routes
                     dest.routes[routeName] = newRoute;
                 }
             }
         }
     }
 
-
-
     // Parses the specified route and location changing the current route
-    this.parse = function(location, hash) {
-        // If only one parameter is specified we assume that is the hash, and the location must be taken from the
-        // window location object.
-        if (!$$.isDefined(hash)) {
-            hash = location;
-            location = undefined;
-        }
-
+    this.parse = function(hash) {
         var found = false;
 
+        // Iterate over location finders
         for (var index in self.locationFinders) {
             var finder = self.locationFinders[index];
 
-            finder(location, function(locationConfig) {
+            // Call the finder to get the actual location, if found call the crossroad parser passing the hash
+            finder(function(locationConfig) {
                 found = true;
                 locationConfig.router.parse(hash);
             });
 
+            // If location is found stop iterating
             if (found) return;
         }
     }
 
+    // Get the route with the specified name (in the form locationName/routeName)
     this.getRoute = function(name) {
+        // Extract location and routeName
         var location = name.substr(0, name.indexOf('/'));
         var routeName = name.substr(name.indexOf('/') + 1);
 
+        // Validate parameter
         if (!routeName) {
             throw new 'You must specifiy route name in the form location/routeName.';
         }
 
+        // If there isn't a location with the specified name warn on console
         if (!self.configuration[location]) {
             console.warn('The location specified as ' + name + ' was not found in the routing configuration.');
         } else {
+            // if there isn't a route in the location with the specified name warn on console
             if (!self.configuration[location]['routes'][routeName]) {
                 console.warn('The route name specified as ' + name + ' was not found in the routing configuration for the ' + location + ' location.');
             }
         }
 
+        // If the specified location and route exists return it
         if (self.configuration[location] && self.configuration[location]['routes'][routeName]) {
             return self.configuration[location]['routes'][routeName];
         }
     }
 
+    // Returns a hash for the specified route and configuration.
+    // Routes can have variables, you can define a value for this variables using the config parameter
     this.hash = function(name, config) {
+        // Get the route with the specified name
         var route = self.getRoute(name);
 
+        // If theres a route with the specified name use the crossroad router to interpolate the hash
         if (route) {
             return route.interpolate(config);
         }
     }
 
-    this.listLocation = function(location) {
-        var locations = [];
-
-        for (var index in self.locationFinders) {
-            var finder = self.locationFinders[index];
-
-            finder(location, function(locationConfig) {
-                locations.push(locationConfig.routes);
-            });
-        }
-
-        return locations;
-    }
-
+    // Activates the quark routing system.
+    // Allows to define a callback that is called each time the current hash is changed.
+    // The callback accepts the new hash, and the old hash as parameters
     this.activateHasher = function(callback) {
         function parseHash(newHash, oldHash) {
             if ($$.isDefined(callback)) {
@@ -325,17 +339,27 @@ function QuarkRouter() {
         hasher.init();
     }
 
+    // Create a route signal that is fired each time a route finishes loading
     this.routed = new signals.Signal();
 }
 
+// Create the quark router
 $$.routing = new QuarkRouter();
 
+// Initialize the current controller object
 $$.controller = {};
 
+// This computed sets the current controller in the $$.controller variable.
 var controllerUpdater = ko.computed(function() {
+    // Get the current route
     var current = $$.routing.current();
 
-    if (current && current.controller) {
-        $$.controller = current.controller;
+    // If the current route is defined and has a controller, set it on the $$.controller variable
+    if (current) {
+        if (current.controller) {
+            $$.controller = current.controller;
+        } else {
+            $$.controller = {};
+        }
     }
 });

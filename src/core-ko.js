@@ -458,7 +458,7 @@ function createHasContentAccesor(element, valueAccessor, allBindingsAccessor, vi
 ko.bindingHandlers.hasContent = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createHasContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        // If va asi por el IE8
+
         return ko.bindingHandlers['if'].init(element, newAccesor, allBindingsAccessor, context, context);
     }
 };
@@ -468,7 +468,7 @@ ko.virtualElements.allowedBindings.hasContent = true;
 ko.bindingHandlers.hasNotContent = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createHasContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        // If va asi por el IE8
+
         return ko.bindingHandlers['ifnot'].init(element, newAccesor, allBindingsAccessor, context, context);
     }
 };
@@ -546,7 +546,7 @@ function createHasPageAccessor(element, valueAccessor, allBindingsAccessor, view
     return newAccesor;
 }
 
-// This binding is similar to the if value, it shows and bind its content only the current route
+// This binding is similar to the if binding, it shows and bind its content only the current route
 // there are defined components to show with the specified name
 ko.bindingHandlers.hasPage = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
@@ -557,63 +557,3 @@ ko.bindingHandlers.hasPage = {
 }
 ko.virtualElements.allowedBindings.hasPage = true;
 
-
-
-ko.bindingHandlers.call = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        value();
-    }
-}
-ko.virtualElements.allowedBindings.call = true;
-
-
-function injectBinding(valueAccessor, viewModel, context) {
-    var value = ko.unwrap(valueAccessor());
-
-    var target = context.$child;
-    var data = value;
-
-    if ($$.isObject(value)) {
-        if ($$.isDefined(value['data']) && $$.isDefined(value['target'])) {
-            target = value.target;
-            if (ko.isObservable(value.data)) {
-                data = value.data();
-            } else {
-                data = value.data;
-            }
-        }
-    }
-
-    $$.inject(data, target);
-}
-
-ko.bindingHandlers.inject = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        injectBinding(valueAccessor, viewModel, context);
-    },
-    update: function (element, valueAccessor, allBindings, viewModel, context) {
-        injectBinding(valueAccessor, viewModel, context);
-    }
-};
-ko.virtualElements.allowedBindings.inject = true;
-
-
-ko.bindingHandlers.stopBinding = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        return { controlsDescendantBindings: true };
-    }
-}
-
-ko.bindingHandlers.upContext = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
-        return ko.bindingHandlers.template.init(element, valueAccessor, allBindingsAccessor, context.$parent, newContext);
-    },
-    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newContext = context.$parentContext.extend({ $child: viewModel, $childContext: context });
-        return ko.bindingHandlers.template.update(element, valueAccessor, allBindingsAccessor, context.$parent, newContext);
-    }
-};
-
-ko.virtualElements.allowedBindings.upContext = true;

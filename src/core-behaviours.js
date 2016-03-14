@@ -1,9 +1,18 @@
 // Loaded behaviours array
 var behaviours = {};
 
-// Loads a behaviour with the specified name
+// Define a behaviour with the specified name.
+// Behaviours allows to attach functionality to an object. This makes possible to share the same code across various classes
+// enabling a sort of hierachy.
+// If an object has an specific behaviour we can assume it will have certain methods and properties associated with the behaviour.
+// Basically a behaviour definition is a function that receives and object and a configuration and attaches the required methods
+// and properties.
+// The first parameter is the name of the behaviour, it will be used when applying this behaviour to an object.
+// The second parameter is a function that accepts a parameter with the object to wich the behaviour must be applied
+// The last parameter allows to define a function that runs when the object with this behaviour is disposed. This function must accept
+// as parameter the object that is being disposed.
 $$.behaviour = function(name, behaviour, dispose) {
-    // Warn if repeated
+    // Warn if behaviour is repeated
     if ($$.behaviour[name]) {
         console.warn('There was already a behaviour loaded with the name ' + name + '. It will be replaced with the new one.');
     }
@@ -39,24 +48,27 @@ function applyBehaviour(object, behaviourName) {
 
     // Chek if behaviour exists
     if (behaviours[behaviourName]) {
-        // Apply new behaviour
+        // Apply new behaviour by calling the behaviour definition function
         behaviours[behaviourName](object);
 
+        // Check if there's a $support variable on the object and if not create one. (Used by quark to store metadata)
         if (!$$.isDefined(object.$support)) {
             object.$support = {};
         }
 
+        // Check if there's a behaviour array on the object. (Used to maintain the applied behaviours list)
         if (!$$.isDefined(object.$support.behaviours)) {
             object.$support.behaviours = {};
         }
 
+        // Add the applied behaviour to the list
         object.$support.behaviours[behaviourName] = true;
     } else {
         throw 'The are no behaviours loaded with the name ' + behaviourName + '.';
     }
 }
 
-// Applies the behaviour to the object. You can specify a string with the name of a loaded behaviour
+// Applies the behaviour to the object. You can specify a string with the name of a defined behaviour
 // or an array of behaviour names.
 $$.behave = function(object, behaviour) {
     // Validates object
@@ -102,12 +114,14 @@ $$.hasBehaviour = function(object, behaviourName) {
 
 // Disposes object behaviours
 $$.disposeBehaviours = function(object) {
- // Validates object
+    // Validates object
     if (!$$.isObject(object)) {
         throw 'You must specifify a valid object to apply the behaviour.';
     }
 
+    // If theres a quark metadata defined with behaviours
     if ($$.isDefined(object.$support) && $$.isDefined(object.$support.behaviours)) {
+        // Iterate applied behaviours calling the dispose function of each behaviour and passing the disposed object on each
         for (var name in object.$support.behaviours) {
             var behaviour = object.$support.behaviours[name];
 
