@@ -1,16 +1,25 @@
 // Initialize validators array
+// This an object containing a property for each validator that quark supports.
+// Each validator is an object receiving the observable to validate and the validation config (for example min and max allowed values)
+// Then the validator must define a validate method that returns true if the validation passes
+// You can attach a validator to an observable by using the validation method of the observable (Extension method added by Quark).
 ko.validators = {};
 
-// Validates the observables in the specified object. It can subscribe to the observables so it revalidates each field on change.
+// Validate the observables in the specified object.
+// If subscribe is true, it adds a subscription so it revalidates each field on change.
+// Returns true if the object is valid or false if it has some error
 ko.validate = function(object, subscribe) {
+    // Initializes validation in true
     var result = true;
 
+    // Iterate all properties in the object
     for (var propertyName in object) {
         var property = object[propertyName];
 
+        // If the property is observable and has a validator attached, validate
         if (ko.isObservable(property)) {
             if (property['validatable']) {
-                // Valida el observable pasandole si debe subscribir
+                // Validates the property indicating if it must subscribe the validation
                 if (!property.validate(subscribe)) {
                     result = false;
                 }
@@ -18,16 +27,20 @@ ko.validate = function(object, subscribe) {
         }
     }
 
+    // Returns the result
     return result;
 }
 
+// Unsubscribe validation from the object.
 ko.unsubscribeValidation = function(object) {
+    // Iterate each property
     for (var propertyName in object) {
         var property = object[propertyName];
 
+        // If the property is an observable and has a validator attached..
         if (ko.isObservable(property)) {
             if (property['validatable']) {
-                // Valida el observable pasandole si debe subscribir
+                // If it has a subscription dispose and delete it
                 if (property.validationSubscription) {
                     property.validationSubscription.dispose();
                     delete property.validationSubscription;
@@ -37,7 +50,7 @@ ko.unsubscribeValidation = function(object) {
     }
 }
 
-// Resets error on all the observables of the object
+// Resets errors on all the observables of the object
 ko.validationReset = function(object) {
     for (var propertyName in object) {
         var property = object[propertyName];
@@ -55,37 +68,36 @@ ko.validationReset = function(object) {
 // Name is the field name to show on error messages. Validation config is an object with the configuration of validations to enfoce,
 // if theres an error handler specified every validation error is added to the handler
 ko.observable.fn.validation = function(name, validationConfig, errorHandler) {
-    // Indica que el campo es validable, y el nombre con el cual debe aparecer en los mensajes
+    // Indicates that the field is validatable and the name of the field on the error messages
     this.validatable = name;
 
-    // Carga la configuracion de validacion
-    this.validationConfig = {};
+    // Loads the validation configuration
     this.validationConfig = validationConfig;
 
-    // Extiende el observable con observables que indican si el observable tiene error
-    // y el mensaje
+    // Extends the observable with properties that indicates if the observable has an error, and the error message
     this.hasError = ko.observable();
     this.validationMessage = ko.observable();
 
-    // Si se especifico un errorHandler
+    // If an error handler has been specified
     if (errorHandler) {
         this.errorHandler = errorHandler;
     }
 
-    // Devuelve el propio observable, permitiendo encadenar la llamada en la misma llamada a ko.observable
+    // Returns the observable allowing to chain validate calls on the same
     return this;
 }
 
 // Resets validation errors on the observable and clears itself from the objects errorHandler
 ko.observable.fn.validationReset = function () {
     var me = this;
-    // Si se configuraron validaciones sobre este observable
+
+    // If there is a validator attached
     if (this['validatable']) {
-        // Saca el flag de error y limpia el mensaje
+        // Clears error flag and message
         this.hasError(false);
         this.validationMessage('');
 
-        // Si ademas se definio un errorHandler y se cargo un error lo resuelvo utilizando la clave almacenada
+        // If an error handler is defined use stored error key and resolve it (clearing it from the list)
         if (this.errorHandler && this.errorKey) {
             this.errorHandler.resolve(this.errorKey);
         }
@@ -94,63 +106,75 @@ ko.observable.fn.validationReset = function () {
 
 // Performs the actual validation on the observable. Its on a separate function to allow subscription
 function validateValue(newValue, target) {
+    // If a target is not defined assume its the observable
     if (!target) {
         target = this;
     }
 
-    // Resetea las validaciones del observable
+    // Resets observable validations
     target.validationReset();
 
-    // Recorro las configuraciones de validacion del observable
+    // Iterate over the validation configs in the observable
     for (var name in target.validationConfig) {
-        // Obtengo la configuracion del validador
         var config = target.validationConfig[name];
 
-        // Si hay un validador configurado con el nombre especificado
+        // If there a validator in the ko.validators array
         if (ko.validators[name]) {
-            // Obtengo el validador ;) pasandole el observable y la configuracion
+            // Get the validator passing the target observable and the validation config
             var validator = ko.validators[name](target, config);
 
-            // Valido utilizando el valor obtenido y el valor pasado a la funcion
+            // Perform the actual validation of the new value
             if (!validator.validate(newValue)) {
+                // If there's an error handler defined add the validation error and store the error key.
                 if (target.errorHandler) {
                     target.errorKey = target.errorHandler.add(target.validationMessage(), { level: 100, type: 'validation' });
                 }
 
+                // Return false if validation fails
                 return false;
             }
         }
     }
 
+    // If validation passes return true
     return true;
 };
 
 // Validates the observable using the defined rules. Subscribe indicates if the validators must subscribe to the observable
 // to reevaluate on change.
 ko.observable.fn.validate = function (subscribe) {
-    // Si se debe subscribir y no hay una subscripcion previa
+    // If it must subscribe and there is no previous subscrption, subscribe
     if (subscribe && !this['validationSubscription']) {
         this.validationSubscription = this.subscribe(validateValue, this);
     }
 
+    // Validate value and return the result
     return validateValue(this(), this);
 }
 
 // Sets the form group error class if the specified observable or array of observables has error.
 function setFormGroupErrorClass(element, valueAccessor, allBindings, viewModel, context) {
+    // Get the binding value
     var value = valueAccessor();
+    // Init error status
     var hasError = false;
 
+    // If binding value is an array
     if ($$.isArray(value)) {
+        // Iterate over each item and check if it has an error
         for (var i = 0; i < value.length; i++) {
+            // If one of the observables has an error mark error status and break
             if (!value[i].hasError()) {
                 hasError = true;
+                break;
             }
         }
     } else {
+        // If binding value is only one element check if it has an error
         hasError = value.hasError();
     }
 
+    // If we are in an error state add the has error class to the element, if not remove it
     if (hasError) {
         $(element).addClass('has-error');
     } else {
@@ -169,23 +193,30 @@ ko.bindingHandlers.formGroupError = {
     }
 };
 
+// This binding used in an element makes the element to show only if the specified observable has an error
+// and fill the element text with the observable's error message
 ko.bindingHandlers.fieldError = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
+        // Create an accessor for the text binding with the validation message of the specified observable
         var textAccessor = function() {
             return valueAccessor().validationMessage;
         }
 
+        // Use the text binding
         ko.bindingHandlers.text.init(element, textAccessor, allBindings, viewModel, context);
     },
     update: function (element, valueAccessor, allBindings, viewModel, context) {
+        // Create a visible accessor checking if the observable has an error
         var visibleAccessor = function() {
             return valueAccessor().hasError;
         }
 
+        // Create an accessor for the text binding with the validation message of the specified observable
         var textAccessor = function() {
             return valueAccessor().validationMessage;
         }
 
+        // Use the text and visible binding
         ko.bindingHandlers.visible.update(element, visibleAccessor, allBindings, viewModel, context);
         ko.bindingHandlers.text.update(element, textAccessor, allBindings, viewModel, context);
     }

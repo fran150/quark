@@ -48,6 +48,8 @@ gulp.task('js', function () {
         './src/core-behaviours.js',
         './src/core-ko.js',
         './src/core-routing.js',
+        './src/libs/signals.js',
+        './src/libs/locks.js',
         './src/libs/web.js',
         './src/libs/ajax.js',
         './src/libs/validation.js',

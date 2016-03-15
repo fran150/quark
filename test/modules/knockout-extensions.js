@@ -22,11 +22,5 @@ define(['quark', 'knockout'], function($$, ko) {
             expect(ko.isComputed(test.computed)).toBe(true);
             expect(ko.isComputed(test.pureComputed)).toBe(true);
         });
-
-        it('Must convert correctly JSON to object', function() {
-            var json = ko.getJson(o);
-
-            expect(json).toBe('{"surname":"Doe","name":"John","street":{"name":"Some","number":1234}}');
-        });
     });
 });

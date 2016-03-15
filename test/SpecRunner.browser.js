@@ -6,13 +6,8 @@
         'modules/utils-misc',
         'modules/web',
         'modules/behaviours',
-        'modules/web',
-        'modules/knockout-bindings',
         'modules/knockout-extensions',
         'modules/core-parameters',
-        'modules/core-config',
-        'modules/core-call',
-        'modules/core-inject',
         'modules/routing'
     ];
 

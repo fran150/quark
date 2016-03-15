@@ -33,8 +33,6 @@ function requireConfigure(requireConfig, bowerDir, timeout) {
             "knockout-projections": bowerDir + "/knockout-projections/dist/knockout-projections",
             "signals":              bowerDir + "/js-signals/dist/signals.min",
 
-            "accounting-js":        bowerDir + "/accounting.js/accounting",
-            "blockui":              bowerDir + "/blockui/jquery.blockUI",
             "knockout-mapping":     bowerDir + "/knockout-mapping/knockout.mapping",
 
             "text":                 bowerDir + "/requirejs-text/text",

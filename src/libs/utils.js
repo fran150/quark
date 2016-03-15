@@ -18,9 +18,15 @@ $$.isString = function (variable) {
 
 // Check if the sepcified var is an integer
 $$.isInt = function (variable) {
-    return Number(variable) == variable && variable % 1 === 0;
+    return Number(variable) === variable && variable % 1 === 0;
 };
 
+// Check if the specified var can be transformed in an integer
+$$.canBeInt = function(variable) {
+    return Number(variable) == variable && variable % 1 === 0;
+}
+
+// Check if the specified var is a number
 $$.isNumeric = function (variable) {
     return (typeof variable === 'number');
 }

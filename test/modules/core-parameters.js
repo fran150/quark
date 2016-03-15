@@ -12,22 +12,25 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
                     observable: ko.observable(),
                     notObservable: '',
                     notReceived: ko.observable('Model'),
-                    computable: ko.computedParameter(params.computableObs, {
+                }, params, [this, $scope]);
+
+                $$.computedParameters({
+                    computable: {
                         read: function(param) {
                             return param() + 'added';
                         },
-                        write: function(param, newValue) {
-                            param(newValue);
+                        write: function(newValue) {
+                             return newValue;
                         }
-                    }, this),
-                    computableNotObs: ko.computedParameter(params.computableNotObs, {
+                    },
+                    computableNotObs: {
                         read: function(param) {
                             return param() + 'added';
                         },
-                        write: function(param, newValue) {
-                            param(newValue);
+                        write: function(newValue) {
+                            return newValue;
                         }
-                    }, this)
+                    }
                 }, params, [this, $scope]);
 
                 this.receivedButNotSet = ko.observable('Model');
@@ -44,7 +47,6 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
                 this.pageToCompute = ko.observable('Page');
 
                 this.ready = function() {
-                    debugger;
                     done();
                 };
             }
@@ -57,7 +59,7 @@ define(['knockout', 'jquery', 'quark'], function(ko, $, $$) {
                                 'observable: pageObservable,' +
                                 'notObservable: pageNotObservable,' +
                                 'receivedButNotSet: pageNotToSet,' +
-                                'computableObs: pageToCompute,' +
+                                'computable: pageToCompute,' +
                                 'computableNotObs: \'Page\'' +
                             '\">' +
                         '</test-component>');
