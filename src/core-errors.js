@@ -13,10 +13,10 @@ function ComponentErrors() {
 
     var repository = ko.observableArray();
 
-    this.keys = 1;
+    var keys = 1;
 
     this.add = function(source, text, data) {
-        var key = self.keys++;
+        var key = keys++;
         var error = new ComponentError(key, source, text, data);
 
         repository.push(error);

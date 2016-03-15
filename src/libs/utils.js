@@ -150,6 +150,7 @@ $$.makeDate = function (value, useToday) {
     return value;
 }
 
+// Sets all object properties to undefined
 $$.clear = function(object) {
     $.each(object, function(key, property) {
         if (ko.isObservable(property)) {
@@ -160,6 +161,7 @@ $$.clear = function(object) {
     });
 }
 
+// Undefine the specified object (variable or observable)
 $$.undefine = function(object) {
     if (ko.isObservable(object)) {
         object(undefined);
@@ -168,58 +170,6 @@ $$.undefine = function(object) {
     }
 }
 
-$$.signal = function() {
-    return new signals.Signal();
-}
-
-$$.signalClear = function(signal) {
-    signal.removeAll();
-}
-
-function SyncLock() {
-    var self = this;
-
-    var dispatched = false;
-    var signal = $$.signal();
-
-    this.lock = function() {
-        dispatched = false;
-        signal.dispatch();
-    }
-
-    this.unlock = function() {
-        dispatched = true;
-        signal.dispatch();
-    }
-
-    this.isLocked = function() {
-        return !dispatched;
-    }
-
-    this.call = function(callback) {
-        if (dispatched) {
-            callback();
-        } else {
-            signal.add(function() {
-                dispatched = true;
-                callback();
-                signal.remove(callback);
-            });
-        }
-    }
-}
-
-$$.lock = function() {
-    return new SyncLock();
-}
-
-$$.wait = function(lock, callback) {
-    lock.call(callback);
-}
-
-$$.isLocked = function(lock) {
-    return lock.isLocked();
-}
 
 function escapeRegExp(str) {
     return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
@@ -229,7 +179,8 @@ function replaceAll(str, find, replace) {
     return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
 }
 
-// First, checks if it isn't implemented yet.
+// Replaces {0}, {1}.. in the specified string for the first, second.. etc parameter after the string.
+// I.e: $$.format('Hello {0}, {1}', 'World', '2016') will return Hello World 2016
 $$.formatString = function() {
     var args = Array.prototype.slice.call(arguments);
     var str = args[0]

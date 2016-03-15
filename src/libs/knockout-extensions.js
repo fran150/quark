@@ -84,6 +84,7 @@ ko.associativeObservable = function (initialValue) {
     return associative
 }
 
+// Extends all observables adding the refresh method wich
 // Clears and refill the observable with the original value to force notify update.
 ko.observable.fn.refresh = function() {
     var value = this();
@@ -107,10 +108,12 @@ ko.isComputed = function (instance) {
     return ko.isComputed(instance.__ko_proto__); // Walk the prototype chain
 }
 
+// Maps from an object with observables to a plain javascript object.
 ko.mapToJS = function(observable) {
     return komapping.toJS(komapping.fromJS(observable));
 }
 
+// Maps from a plain javascript object to an observable object (where all properties are observables)
 ko.mapFromJS = function(observable) {
     return komapping.fromJS(komapping.toJS(observable));
 }

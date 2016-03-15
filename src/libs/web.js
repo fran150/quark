@@ -104,6 +104,7 @@ $$.clearCookie = function(name) {
     $$.setCookie(name,"",-1);
 }
 
+// Loads the specified css by adding a link element to the head tag
 $$.loadCss = function(path) {
     var link = document.createElement("link");
     link.type = "text/css";
