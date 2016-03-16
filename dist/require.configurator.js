@@ -1,5 +1,4 @@
-function requireConfigure(requireConfig, bowerDir, timeout) {
-    bowerDir = bowerDir || 'bower_components';
+function requireConfigure(requireConfig, newConfig, timeout) {
     timeout = timeout || 120;
 
     /*
@@ -9,7 +8,7 @@ function requireConfigure(requireConfig, bowerDir, timeout) {
         for (var p in obj2) {
             try {
                 // Property in destination object set; update its value.
-                if ( obj2[p].constructor==Object ) {
+                if (obj2[p].constructor == Object) {
                     obj1[p] = mergeRecursive(obj1[p], obj2[p]);
                 } else {
                     obj1[p] = obj2[p];
@@ -23,28 +22,7 @@ function requireConfigure(requireConfig, bowerDir, timeout) {
         return obj1;
     }
 
-    var quarkConfig = {
-        baseUrl: ".",
-        paths: {
-            "crossroads":           bowerDir + "/crossroads/dist/crossroads",
-            "hasher":               bowerDir + "/hasher/dist/js/hasher",
-            "jquery":               bowerDir + "/jquery/dist/jquery",
-            "knockout":             bowerDir + "/knockout/dist/knockout",
-            "knockout-projections": bowerDir + "/knockout-projections/dist/knockout-projections",
-            "signals":              bowerDir + "/js-signals/dist/signals.min",
+    requireConfig.timeout = timeout;
 
-            "knockout-mapping":     bowerDir + "/knockout-mapping/knockout.mapping",
-
-            "text":                 bowerDir + "/requirejs-text/text",
-
-            "quark":                bowerDir + "/quark/dist/quark",
-            "quark-validators":     bowerDir + "/quark/dist/quark-validators",
-        },
-        shim: {
-            "knockout-mapping": { deps: ["knockout"] }
-        },
-        waitSeconds: timeout
-    };
-
-    return mergeRecursive(requireConfig, quarkConfig);
+    return mergeRecursive(requireConfig, newConfig);
 }

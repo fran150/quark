@@ -35,6 +35,12 @@ gulp.task('require.configurator', function () {
         .pipe(gulp.dest('./dist/'));
 });
 
+// Copies the require configuration
+gulp.task('require.conf', function () {
+    return gulp.src('./src/quark.require.conf.js')
+        .pipe(gulp.dest('./dist/'));
+});
+
 // Concatenates together all required .js files, minifies them generating the normal lib and minified lib
 gulp.task('js', function () {
     return gulp.src([
@@ -43,15 +49,15 @@ gulp.task('js', function () {
         './src/libs/utils.js',
         './src/libs/knockout-extensions.js',
         './src/libs/knockout-bindings.js',
+        './src/libs/signals.js',
+        './src/libs/locks.js',
+        './src/libs/web.js',
+        './src/libs/ajax.js',
         './src/core-errors.js',
         './src/core.js',
         './src/core-behaviours.js',
         './src/core-ko.js',
         './src/core-routing.js',
-        './src/libs/signals.js',
-        './src/libs/locks.js',
-        './src/libs/web.js',
-        './src/libs/ajax.js',
         './src/libs/validation.js',
         './src/wrap.end'
         ])
@@ -68,7 +74,7 @@ gulp.task('clean', function() {
         .pipe(clean());
 });
 
-gulp.task('default', ['clean', 'js', 'component', 'validators', 'require.configurator'], function(callback) {
+gulp.task('default', ['clean', 'js', 'component', 'validators', 'require.configurator', 'require.conf'], function(callback) {
     callback();
     console.log('\nPlaced optimized files in ' + chalk.magenta('dist/\n'));
 });

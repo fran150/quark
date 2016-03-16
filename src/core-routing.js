@@ -146,6 +146,9 @@ function QuarkRouter() {
 
                 // Dispatch the routed signal
                 self.routed.dispatch();
+
+                // Unlock the first routing lock
+                self.firstRouting.unlock();
             }
 
             // If the controller is a string then assume its a js module name
@@ -341,6 +344,11 @@ function QuarkRouter() {
 
     // Create a route signal that is fired each time a route finishes loading
     this.routed = new signals.Signal();
+
+    // Create a lock that opens when the routing system loads the first route.
+    // This is useful to start the quark application once the first routing is finished, most likely to be used
+    // when a custom route function is used.
+    this.firstRouting = $$.lock();
 }
 
 // Create the quark router

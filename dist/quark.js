@@ -422,6 +422,345 @@ ko.bindingHandlers.format = {
     }
 }
 
+// Signals.js wrapper, returns a signal.
+$$.signal = function() {
+    return new signals.Signal();
+}
+
+// Removes all listener from the signal.
+$$.signalClear = function(signal) {
+    signal.removeAll();
+}
+
+// Locks allows to define functions that will not be called inmediately but will wait until when
+// an event occurs unlocking the calls.
+// Once the functions are called they are cleared from the waiting list.
+function SyncLock() {
+    var self = this;
+
+    // Is the signal dispatched (and unlocked)
+    var dispatched = false;
+    // Signal to notify the unlocking and call all functions
+    var signal = $$.signal();
+
+    // Lock effectively blocking all function calls
+    this.lock = function() {
+        dispatched = false;
+        signal.dispatch();
+    }
+
+    // Unlock calling all blocked functions
+    this.unlock = function() {
+        dispatched = true;
+        signal.dispatch();
+    }
+
+    // Is this lock locked
+    this.isLocked = function() {
+        return !dispatched;
+    }
+
+    // Call the specified function when unlocked
+    this.call = function(callback) {
+        // If is alredy unlocked call inmediately
+        if (dispatched) {
+            callback();
+        } else {
+            // If not is unlocked add a listener to the unlock signal.
+            signal.add(function() {
+                // When unlocked call the function and remove the listener from the signal
+                dispatched = true;
+                callback();
+                // TODO: This might not work, the remove must be with "this" or something alike
+                signal.remove(callback);
+            });
+        }
+    }
+}
+
+// Returns a lock
+$$.lock = function() {
+    return new SyncLock();
+}
+
+// Blocks execution of the function until the specified lock unlocks
+$$.wait = function(lock, callback) {
+    lock.call(callback);
+}
+
+// Returns if the lock is locked or not
+$$.isLocked = function(lock) {
+    return lock.isLocked();
+}
+
+// Redirect the browser to the specified url
+$$.redirect = function(url) {
+    window.location.href = url;
+    return true;
+}
+
+// Redirect the browser to the specified hash
+$$.redirectHash = function(name, config) {
+    var hash = $$.routing.hash(name, config);
+    $$.redirect('#' + hash);
+}
+
+// Gets value of the parameter from the URL
+$$.getParam = function (parameterName) {
+    var result = undefined;
+    var tmp = [];
+
+    location.search
+        .substr(1)
+        .split("&")
+        .forEach(function (item) {
+            tmp = item.split("=");
+            if (tmp[0] === parameterName) result = decodeURIComponent(tmp[1]);
+        });
+
+    return result;
+}
+
+// UI Functions
+
+// Replace the placeholder content with the html specified and bind the model to the new context
+$$.replaceAndBind = function (placeholderSelector, html, model) {
+    $(placeholderSelector).html(html);
+    ko.cleanNode(placeholderSelector.get(0));
+    ko.applyBindings(model, placeholderSelector.get(0));
+}
+
+// Encode the value as HTML
+$$.htmlEncode = function (value) {
+    if (value) {
+        return $('<div />').text(value).html();
+    } else {
+        return '';
+    }
+}
+
+// Decode the html to a string.
+$$.htmlDecode = function (value) {
+    if (value) {
+        return $('<div />').html(value).text();
+    } else {
+        return '';
+    }
+};
+
+// Limit the string to the specified number of chars. If the text is larger adds '...' to the end.
+$$.limitText = function (value, limit) {
+    if (!$$.isInt(limit)) {
+        limit = 6;
+    } else {
+        if (limit < 6) {
+            limit = 6;
+        }
+    }
+
+    if ($$.isString(value)) {
+        if (value.length > limit) {
+            value = value.substr(0, limit - 3) + '...';
+        }
+
+        return value;
+    } else {
+        return '';
+    }
+}
+
+// Sets the specified cookie, its value, and duration in seconds
+$$.setCookie = function (name, value, duration) {
+    var d = new Date();
+
+    if (duration !== undefined) {
+        d.setTime(d.getTime() + (duration * 1000));
+        var expires = "expires=" + d.toUTCString();
+        document.cookie = name + "=" + value + "; " + expires;
+    } else {
+        document.cookie = name + "=" + value + "; ";
+    }
+}
+
+// Gets the value of the specified cookie
+$$.getCookie = function (name) {
+    name = name + "=";
+    var ca = document.cookie.split(';');
+    for (var i = 0; i < ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1);
+        if (c.indexOf(name) === 0) return c.substring(name.length, c.length);
+    }
+    return "";
+}
+
+// Clears the specified cookie
+$$.clearCookie = function(name) {
+    $$.setCookie(name,"",-1);
+}
+
+// Loads the specified css by adding a link element to the head tag
+$$.loadCss = function(path) {
+    var link = document.createElement("link");
+    link.type = "text/css";
+    link.rel = "stylesheet";
+    link.href = path;
+    document.getElementsByTagName("head")[0].appendChild(link);
+}
+
+// Is quark authorizing?
+var authorizing = false;
+
+// Default ajax config.
+// Sets the content for json, async calls and no cache.
+// Define a default (overriden) authorization flow.
+// Quark can automatically authorize your ajax calls, if you specify that an ajax calls needs authorization quark will go thru the
+// authentication flow.
+// First uses the authorization.has function to determine if the user has credentials, if the function returns true quark assumes that
+// has credentials and doesn't need to ask for. (for example checking session storage for an existing token)
+// If authorization.has function returns false, calls authorization.authorize function to ask for credentials, passing a callback
+// that this function must call when credential has been obtained. (for example showing an popup to enter user and password)
+// Finally before any ajax call that requires authentication calls configAuthorization to config ajax for pass the credentials to the
+// server (i.e. adding a token to the request header)
+// Both configAuthorization and authorize receive an opts object with the actual ajax configuration to use in any ajax call.
+$$.ajaxConfig = {
+    contentType: 'application/json',
+    dataType : 'json',
+    async: true,
+    cache: false,
+    authorization: {
+        has: function() {
+            return true;
+        },
+        configAuthorization: function(opts) {
+            return opts;
+        },
+        authorize: function(opts, callback) {
+            callback(true);
+        }
+    }
+}
+
+// Executes an ajax call to the specified url
+// Method is an string with the method to use, GET, PUT, POST, DELETE, etc.
+// Data is an object with the data to send to the server.
+// Callbacks allows to define an object with the methods:
+//      onSuccess: this will be called if the ajax method returned ok, and will pass as parameter the data received.
+//      onError: this will be called if the ajax method returns an error, must try to handle the error, and if it could return true,
+//               if returns other than true the error will be handed to the error handlers.
+//      onComplete: this will be called when ajax call finishes (ok or with error)
+// If callbacks is not specified as an object but as a function it will be assumed that is the onSuccess function.
+// auth is a boolean indicating if the ajax call needs authentication (triggering the authentication flow)
+// Finally options allows to customize ajax options for the call.
+$$.ajax = function (url, method, data, callbacks, auth, options) {
+    // Default value for parameters
+    var opts = options || {};
+    var clbks = callbacks || {};
+
+    // Error if target is not specified
+    if (!url) {
+        throw 'Must specify the target URL';
+    }
+
+    // Check if callbacks is defined as function or object
+    var onSuccess;
+
+    // If is function assume that it is the onSuccess, if not extract the onSuccess function.
+    if ($$.isFunction(clbks)) {
+        onSuccess = clbks;
+    } else if ($$.isObject(clbks)) {
+        onSuccess = clbks.onSuccess;
+    }
+
+    // Configure ajax options
+    var ajaxOptions = {
+        url: url,
+        type: method || 'GET',
+        data: data,
+        success: onSuccess,
+        complete: function() {
+            if ($$.isDefined(clbks.onComplete)) {
+                clbks.onComplete();
+            }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            // Check if some handler processed the error.
+            var handled = false;
+
+            // If there is an error handler defined in the call excute it. If has handled the error it must return true
+            if ($$.isDefined(clbks.onError)) {
+                handled = clbks.onError();
+            }
+
+            // If nobody has handled the error try to use a generic handler
+            if (!handled) {
+                // If it's a server error
+                if (jqXHR.status >= 500 && jqXHR.status < 600) {
+                    // Call all handlers in registration order until someone handles it (must return true)
+                    for (var handlerName in $$.serverErrorHandlers) {
+                        if ($$.serverErrorHandlers[handlerName](url, opts.source, jqXHR.responseText)) {
+                            // If its handled stop executing handlers
+                            handled = true;
+                            break;
+                        }
+                    }
+                } else {
+                    // If it's a client error
+                    for (handlerName in $$.clientErrorHandlers) {
+                        // Call all handlers in registration order until someone handles it (must return true)
+                        if ($$.clientErrorHandlers[handlerName](url, opts.source, jqXHR, textStatus, errorThrown)) {
+                            // If its handled stop executing handlers
+                            handled = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Combine ajax options with the defaults
+    ajaxOptions = $.extend(ajaxOptions, $$.ajaxConfig);
+    // Override ajax default options with this call specifics
+    ajaxOptions = $.extend(ajaxOptions, opts);
+
+    // If we are authorizing or the ajax call doesnt need authorization we make the call directly (no authorization flow)
+    // If the call needs authorization and we are not authorizing we do the authorization flow
+    if (!authorizing && auth) {
+        // Configures authorization and makes the ajax call
+        function invoke() {
+            // Configure authorization on ajax request
+            ajaxOptions = ajaxOptions.authorization.configAuthorization(ajaxOptions);
+
+            // AJAX call
+            $.ajax(ajaxOptions);
+        }
+
+        // If don´t have authorization we must authorize
+        if (!ajaxOptions.authorization.has()) {
+            // Set the flag to true so any ajax call during authorization does not trigger the authorization flow (again)
+            authorizing = true;
+
+            // Call the function to authorize and wait for callback
+            ajaxOptions.authorization.authorize(function(authorized) {
+                // When authorization is obtained clear the authorizing flag
+                authorizing = false;
+
+                // Then if credentials are obtained make the ajax call
+                if (authorized) {
+                    invoke();
+                }
+            });
+        } else {
+            // If already have credentials invoke
+            invoke();
+        }
+    } else {
+        // If its authorizing do the ajax call directly (not doing the authorization flow again)
+        $.ajax(ajaxOptions);
+    }
+}
+
 // Component error object
 // It stores:
 // - The error source
@@ -1819,6 +2158,9 @@ function QuarkRouter() {
 
                 // Dispatch the routed signal
                 self.routed.dispatch();
+
+                // Unlock the first routing lock
+                self.firstRouting.unlock();
             }
 
             // If the controller is a string then assume its a js module name
@@ -2014,6 +2356,11 @@ function QuarkRouter() {
 
     // Create a route signal that is fired each time a route finishes loading
     this.routed = new signals.Signal();
+
+    // Create a lock that opens when the routing system loads the first route.
+    // This is useful to start the quark application once the first routing is finished, most likely to be used
+    // when a custom route function is used.
+    this.firstRouting = $$.lock();
 }
 
 // Create the quark router
@@ -2036,345 +2383,6 @@ var controllerUpdater = ko.computed(function() {
         }
     }
 });
-
-// Signals.js wrapper, returns a signal.
-$$.signal = function() {
-    return new signals.Signal();
-}
-
-// Removes all listener from the signal.
-$$.signalClear = function(signal) {
-    signal.removeAll();
-}
-
-// Locks allows to define functions that will not be called inmediately but will wait until when
-// an event occurs unlocking the calls.
-// Once the functions are called they are cleared from the waiting list.
-function SyncLock() {
-    var self = this;
-
-    // Is the signal dispatched (and unlocked)
-    var dispatched = false;
-    // Signal to notify the unlocking and call all functions
-    var signal = $$.signal();
-
-    // Lock effectively blocking all function calls
-    this.lock = function() {
-        dispatched = false;
-        signal.dispatch();
-    }
-
-    // Unlock calling all blocked functions
-    this.unlock = function() {
-        dispatched = true;
-        signal.dispatch();
-    }
-
-    // Is this lock locked
-    this.isLocked = function() {
-        return !dispatched;
-    }
-
-    // Call the specified function when unlocked
-    this.call = function(callback) {
-        // If is alredy unlocked call inmediately
-        if (dispatched) {
-            callback();
-        } else {
-            // If not is unlocked add a listener to the unlock signal.
-            signal.add(function() {
-                // When unlocked call the function and remove the listener from the signal
-                dispatched = true;
-                callback();
-                // TODO: This might not work, the remove must be with "this" or something alike
-                signal.remove(callback);
-            });
-        }
-    }
-}
-
-// Returns a lock
-$$.lock = function() {
-    return new SyncLock();
-}
-
-// Blocks execution of the function until the specified lock unlocks
-$$.wait = function(lock, callback) {
-    lock.call(callback);
-}
-
-// Returns if the lock is locked or not
-$$.isLocked = function(lock) {
-    return lock.isLocked();
-}
-
-// Redirect the browser to the specified url
-$$.redirect = function(url) {
-    window.location.href = url;
-    return true;
-}
-
-// Redirect the browser to the specified hash
-$$.redirectHash = function(name, config) {
-    var hash = $$.routing.hash(name, config);
-    $$.redirect('#' + hash);
-}
-
-// Gets value of the parameter from the URL
-$$.getParam = function (parameterName) {
-    var result = undefined;
-    var tmp = [];
-
-    location.search
-        .substr(1)
-        .split("&")
-        .forEach(function (item) {
-            tmp = item.split("=");
-            if (tmp[0] === parameterName) result = decodeURIComponent(tmp[1]);
-        });
-
-    return result;
-}
-
-// UI Functions
-
-// Replace the placeholder content with the html specified and bind the model to the new context
-$$.replaceAndBind = function (placeholderSelector, html, model) {
-    $(placeholderSelector).html(html);
-    ko.cleanNode(placeholderSelector.get(0));
-    ko.applyBindings(model, placeholderSelector.get(0));
-}
-
-// Encode the value as HTML
-$$.htmlEncode = function (value) {
-    if (value) {
-        return $('<div />').text(value).html();
-    } else {
-        return '';
-    }
-}
-
-// Decode the html to a string.
-$$.htmlDecode = function (value) {
-    if (value) {
-        return $('<div />').html(value).text();
-    } else {
-        return '';
-    }
-};
-
-// Limit the string to the specified number of chars. If the text is larger adds '...' to the end.
-$$.limitText = function (value, limit) {
-    if (!$$.isInt(limit)) {
-        limit = 6;
-    } else {
-        if (limit < 6) {
-            limit = 6;
-        }
-    }
-
-    if ($$.isString(value)) {
-        if (value.length > limit) {
-            value = value.substr(0, limit - 3) + '...';
-        }
-
-        return value;
-    } else {
-        return '';
-    }
-}
-
-// Sets the specified cookie, its value, and duration in seconds
-$$.setCookie = function (name, value, duration) {
-    var d = new Date();
-
-    if (duration !== undefined) {
-        d.setTime(d.getTime() + (duration * 1000));
-        var expires = "expires=" + d.toUTCString();
-        document.cookie = name + "=" + value + "; " + expires;
-    } else {
-        document.cookie = name + "=" + value + "; ";
-    }
-}
-
-// Gets the value of the specified cookie
-$$.getCookie = function (name) {
-    name = name + "=";
-    var ca = document.cookie.split(';');
-    for (var i = 0; i < ca.length; i++) {
-        var c = ca[i];
-        while (c.charAt(0) === ' ') c = c.substring(1);
-        if (c.indexOf(name) === 0) return c.substring(name.length, c.length);
-    }
-    return "";
-}
-
-// Clears the specified cookie
-$$.clearCookie = function(name) {
-    $$.setCookie(name,"",-1);
-}
-
-// Loads the specified css by adding a link element to the head tag
-$$.loadCss = function(path) {
-    var link = document.createElement("link");
-    link.type = "text/css";
-    link.rel = "stylesheet";
-    link.href = path;
-    document.getElementsByTagName("head")[0].appendChild(link);
-}
-
-// Is quark authorizing?
-var authorizing = false;
-
-// Default ajax config.
-// Sets the content for json, async calls and no cache.
-// Define a default (overriden) authorization flow.
-// Quark can automatically authorize your ajax calls, if you specify that an ajax calls needs authorization quark will go thru the
-// authentication flow.
-// First uses the authorization.has function to determine if the user has credentials, if the function returns true quark assumes that
-// has credentials and doesn't need to ask for. (for example checking session storage for an existing token)
-// If authorization.has function returns false, calls authorization.authorize function to ask for credentials, passing a callback
-// that this function must call when credential has been obtained. (for example showing an popup to enter user and password)
-// Finally before any ajax call that requires authentication calls configAuthorization to config ajax for pass the credentials to the
-// server (i.e. adding a token to the request header)
-// Both configAuthorization and authorize receive an opts object with the actual ajax configuration to use in any ajax call.
-$$.ajaxConfig = {
-    contentType: 'application/json',
-    dataType : 'json',
-    async: true,
-    cache: false,
-    authorization: {
-        has: function() {
-            return true;
-        },
-        configAuthorization: function(opts) {
-            return opts;
-        },
-        authorize: function(opts, callback) {
-            callback(true);
-        }
-    }
-}
-
-// Executes an ajax call to the specified url
-// Method is an string with the method to use, GET, PUT, POST, DELETE, etc.
-// Data is an object with the data to send to the server.
-// Callbacks allows to define an object with the methods:
-//      onSuccess: this will be called if the ajax method returned ok, and will pass as parameter the data received.
-//      onError: this will be called if the ajax method returns an error, must try to handle the error, and if it could return true,
-//               if returns other than true the error will be handed to the error handlers.
-//      onComplete: this will be called when ajax call finishes (ok or with error)
-// If callbacks is not specified as an object but as a function it will be assumed that is the onSuccess function.
-// auth is a boolean indicating if the ajax call needs authentication (triggering the authentication flow)
-// Finally options allows to customize ajax options for the call.
-$$.ajax = function (url, method, data, callbacks, auth, options) {
-    // Default value for parameters
-    var opts = options || {};
-    var clbks = callbacks || {};
-
-    // Error if target is not specified
-    if (!url) {
-        throw 'Must specify the target URL';
-    }
-
-    // Check if callbacks is defined as function or object
-    var onSuccess;
-
-    // If is function assume that it is the onSuccess, if not extract the onSuccess function.
-    if ($$.isFunction(clbks)) {
-        onSuccess = clbks;
-    } else if ($$.isObject(clbks)) {
-        onSuccess = clbks.onSuccess;
-    }
-
-    // Configure ajax options
-    var ajaxOptions = {
-        url: url,
-        type: method || 'GET',
-        data: data,
-        success: onSuccess,
-        complete: function() {
-            if ($$.isDefined(clbks.onComplete)) {
-                clbks.onComplete();
-            }
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            // Check if some handler processed the error.
-            var handled = false;
-
-            // If there is an error handler defined in the call excute it. If has handled the error it must return true
-            if ($$.isDefined(clbks.onError)) {
-                handled = clbks.onError();
-            }
-
-            // If nobody has handled the error try to use a generic handler
-            if (!handled) {
-                // If it's a server error
-                if (jqXHR.status >= 500 && jqXHR.status < 600) {
-                    // Call all handlers in registration order until someone handles it (must return true)
-                    for (var handlerName in $$.serverErrorHandlers) {
-                        if ($$.serverErrorHandlers[handlerName](url, opts.source, jqXHR.responseText)) {
-                            // If its handled stop executing handlers
-                            handled = true;
-                            break;
-                        }
-                    }
-                } else {
-                    // If it's a client error
-                    for (handlerName in $$.clientErrorHandlers) {
-                        // Call all handlers in registration order until someone handles it (must return true)
-                        if ($$.clientErrorHandlers[handlerName](url, opts.source, jqXHR, textStatus, errorThrown)) {
-                            // If its handled stop executing handlers
-                            handled = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Combine ajax options with the defaults
-    ajaxOptions = $.extend(ajaxOptions, $$.ajaxConfig);
-    // Override ajax default options with this call specifics
-    ajaxOptions = $.extend(ajaxOptions, opts);
-
-    // If we are authorizing or the ajax call doesnt need authorization we make the call directly (no authorization flow)
-    // If the call needs authorization and we are not authorizing we do the authorization flow
-    if (!authorizing && auth) {
-        // Configures authorization and makes the ajax call
-        function invoke() {
-            // Configure authorization on ajax request
-            ajaxOptions = ajaxOptions.authorization.configAuthorization(ajaxOptions);
-
-            // AJAX call
-            $.ajax(ajaxOptions);
-        }
-
-        // If don´t have authorization we must authorize
-        if (!ajaxOptions.authorization.has()) {
-            // Set the flag to true so any ajax call during authorization does not trigger the authorization flow (again)
-            authorizing = true;
-
-            // Call the function to authorize and wait for callback
-            ajaxOptions.authorization.authorize(function(authorized) {
-                // When authorization is obtained clear the authorizing flag
-                authorizing = false;
-
-                // Then if credentials are obtained make the ajax call
-                if (authorized) {
-                    invoke();
-                }
-            });
-        } else {
-            // If already have credentials invoke
-            invoke();
-        }
-    } else {
-        // If its authorizing do the ajax call directly (not doing the authorization flow again)
-        $.ajax(ajaxOptions);
-    }
-}
 
 // Initialize validators array
 // This an object containing a property for each validator that quark supports.
