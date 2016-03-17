@@ -105,7 +105,7 @@ $$.component = function(viewModel, view) {
     // If only one parameter is specified we assume that is view only component
     if (!$$.isDefined(view)) {
         view = viewModel;
-        viewModel = undefined;
+        $$.undefine(viewModel);
     }
 
     // Viewmodel constructor function
@@ -157,15 +157,32 @@ $$.component = function(viewModel, view) {
                 model.dispose();
             }
 
+            // If there's a ready lock defined undefine it
+            if (model && model.readyLock) {
+                $$.undefine(model.readyLock);
+            }
+
+            // If there's a readiedSignal defined clear all listeners and undefine it
+            if (model && model.readiedSignal) {
+                $$.signalClear(model.readiedSignal);
+                $$.undefine(model.readiedSignal);
+            }
+
+            // If there's a loadedSignal defined clear all listeners and undefine it
+            if (model && model.loadedSignal) {
+                $$.signalClear(model.loadedSignal);
+                $$.undefine(model.loadedSignal);
+            }
+
             // If theres an scope defined and has a dispose method call it
             if ($scope && $scope.dispose) {
                 $scope.dispose();
             }
 
             // Undefine all internal variables.
-            model = undefined;
-            $scope = undefined;
-            $errors = undefined;
+            $$.undefine(model);
+            $$.undefine($scope);
+            $$.undefine($errorHandler);
         }
     }
 

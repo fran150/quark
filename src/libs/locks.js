@@ -12,7 +12,6 @@ function SyncLock() {
     // Lock effectively blocking all function calls
     this.lock = function() {
         dispatched = false;
-        signal.dispatch();
     }
 
     // Unlock calling all blocked functions
@@ -33,12 +32,10 @@ function SyncLock() {
             callback();
         } else {
             // If not is unlocked add a listener to the unlock signal.
-            signal.add(function() {
+            signal.addOnce(function() {
                 // When unlocked call the function and remove the listener from the signal
                 dispatched = true;
                 callback();
-                // TODO: This might not work, the remove must be with "this" or something alike
-                signal.remove(callback);
             });
         }
     }

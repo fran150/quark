@@ -446,7 +446,6 @@ function SyncLock() {
     // Lock effectively blocking all function calls
     this.lock = function() {
         dispatched = false;
-        signal.dispatch();
     }
 
     // Unlock calling all blocked functions
@@ -467,12 +466,10 @@ function SyncLock() {
             callback();
         } else {
             // If not is unlocked add a listener to the unlock signal.
-            signal.add(function() {
+            signal.addOnce(function() {
                 // When unlocked call the function and remove the listener from the signal
                 dispatched = true;
                 callback();
-                // TODO: This might not work, the remove must be with "this" or something alike
-                signal.remove(callback);
             });
         }
     }
@@ -1036,7 +1033,7 @@ $$.component = function(viewModel, view) {
     // If only one parameter is specified we assume that is view only component
     if (!$$.isDefined(view)) {
         view = viewModel;
-        viewModel = undefined;
+        $$.undefine(viewModel);
     }
 
     // Viewmodel constructor function
@@ -1088,15 +1085,32 @@ $$.component = function(viewModel, view) {
                 model.dispose();
             }
 
+            // If there's a ready lock defined undefine it
+            if (model && model.readyLock) {
+                $$.undefine(model.readyLock);
+            }
+
+            // If there's a readiedSignal defined clear all listeners and undefine it
+            if (model && model.readiedSignal) {
+                $$.signalClear(model.readiedSignal);
+                $$.undefine(model.readiedSignal);
+            }
+
+            // If there's a loadedSignal defined clear all listeners and undefine it
+            if (model && model.loadedSignal) {
+                $$.signalClear(model.loadedSignal);
+                $$.undefine(model.loadedSignal);
+            }
+
             // If theres an scope defined and has a dispose method call it
             if ($scope && $scope.dispose) {
                 $scope.dispose();
             }
 
             // Undefine all internal variables.
-            model = undefined;
-            $scope = undefined;
-            $errors = undefined;
+            $$.undefine(model);
+            $$.undefine($scope);
+            $$.undefine($errorHandler);
         }
     }
 
@@ -1502,10 +1516,7 @@ ko.bindingProvider.instance.preprocessNode = function(node) {
 
 // Marks the object as ready and inform its parent (if is tracking dependencies)
 function markReadyAndInformParent(object) {
-    // If there´s a ready callback on the object invoke it.
-    if ($$.isFunction(object['ready'])) {
-        object['ready']();
-    }
+    callReady(object);
 
     // Finally, if the object is tracked and has a parent, mark itself as ready on the parent
     // and call the function on the parent to reevaluate readiness.
@@ -1513,10 +1524,7 @@ function markReadyAndInformParent(object) {
         // Mark the object ready on the parent
         object.$support.tracking.parentState['ready'] = true;
 
-        // Calls the readied function on the parent (if its defined)
-        if ($$.isDefined(object.$support.tracking.parent['readied'])) {
-            object.$support.tracking.parent.readied(propertyName, vm);
-        }
+        callReadied(object.$support.tracking.parent, object.$support.tracking.parentState.propertyName, object);
 
         // Inform to the tracking system on the parent that a child is ready
         object.$support.tracking.parent.$support.tracking.childReady();
@@ -1533,6 +1541,45 @@ function checkObjectReady(object) {
     }
 
     return true;
+}
+
+// Calls the object's readied function and signals
+function callReadied(object, propertyName, vm) {
+    // If theres a readied function on the object call it passing the dependency name and model
+    if ($$.isDefined(object['readied'])) {
+        object.readied(propertyName, vm);
+    }
+
+    // If theres a readied signal on the object dispatch it with the readied object
+    if ($$.isDefined(object['readiedSignal'])) {
+        object.readiedSignal.dispatch(propertyName, vm);
+    }
+}
+
+// Calls the object's loaded function and signals
+function callLoaded(object, propertyName, vm) {
+    // If theres a loaded function on the object call it passing the dependency name and model
+    if ($$.isDefined(object['loaded'])) {
+        object.loaded(propertyName, vm);
+    }
+
+    // If theres a loaded signal on the object dispatch it with the readied object
+    if ($$.isDefined(object['loadedSignal'])) {
+        object.loadedSignal.dispatch(propertyName, vm);
+    }
+}
+
+// Call Ready function and signals on the object
+function callReady(object) {
+    // If there´s a ready callback on the object invoke it
+    if ($$.isFunction(object['ready'])) {
+        object['ready']();
+    }
+
+    // If theres a ready lock on the object unlock it
+    if ($$.isDefined(object['readyLock'])) {
+        object.readyLock.unlock();
+    }
 }
 
 // This binding allows to import the viewmodel of a component into the parent creating a property with the specified name.
@@ -1576,9 +1623,18 @@ ko.bindingHandlers.import = {
         // Sets the childs array wich tracks the dependencies and state of each viewModel to import
         if (!$$.isObject(object.$support.tracking)) {
             object.$support.tracking = {
-                childs: {}
+                childs: {},
             }
         }
+
+        // Creates a ready lock to fire when the object is ready
+        object.readyLock = $$.lock();
+
+        // Creates a signal to fire when a dependency loads
+        object.loadedSignal = $$.signal();
+
+        // Creates a signal to fire when a dependency is ready
+        object.readiedSignal = $$.signal();
 
         // Start tracking the dependency with the specified name.
         object.$support.tracking.childs[name] = {};
@@ -1590,10 +1646,10 @@ ko.bindingHandlers.import = {
             object[propertyName] = vm;
             object.$support.tracking.childs[propertyName]['loaded'] = true;
 
-            // If theres a loaded method on the object call it passing the dependency name and model
-            if ($$.isDefined(object['loaded'])) {
-                object.loaded(propertyName, vm);
-            }
+            callLoaded(object, propertyName, vm);
+
+            // Save the property name
+            object.$support.tracking.childs[propertyName]['propertyName'] = propertyName;
 
             // If the child is tracking dependencies itself...
             if ($$.isDefined(vm.$support) && $$.isDefined(vm.$support.tracking)) {
@@ -1607,15 +1663,7 @@ ko.bindingHandlers.import = {
                 // If the child hasn't dependencies mark the dependency on parent as ready
                 object.$support.tracking.childs[propertyName]['ready'] = true;
 
-                // If theres a readied function on the object call it passing the dependency name and model
-                if ($$.isDefined(object['readied'])) {
-                    object.readied(propertyName, vm);
-                }
-
-                // If there's a ready function on the child invoke it
-                if ($$.isDefined(vm['ready'])) {
-                    vm['ready']();
-                }
+                callReadied(object, propertyName, vm);
             }
 
             // If the object is ready, mark it and inform its parent
@@ -1629,7 +1677,7 @@ ko.bindingHandlers.import = {
 
         // Defines a function to call when one of this object childs is ready.
         // It forces the object to reevaluate this object readiness
-        object.$support.tracking.childReady = function() {
+        object.$support.tracking.childReady = function(propertyName, vm) {
             // If the object is ready, mark it and inform its parent
             if (checkObjectReady(object)) {
                 markReadyAndInformParent(object);
@@ -2009,7 +2057,24 @@ ko.bindingHandlers.hasPage = {
 }
 ko.virtualElements.allowedBindings.hasPage = true;
 
+// This binding is similar to the if binding, it shows and bind its content only when the specified dependency is ready
+ko.bindingHandlers.waitReady = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = valueAccessor();
+        var newAccessor = ko.observable(false);
 
+        if (viewModel && viewModel.readiedSignal) {
+            viewModel.readiedSignal.addOnce(function(propertyName) {
+                if (propertyName == value) {
+                    newAccessor(true);
+                }
+            });
+        }
+
+        return ko.bindingHandlers['if'].init(element, newAccessor, allBindingsAccessor, viewModel, context);
+    }
+}
+ko.virtualElements.allowedBindings.hasPage = true;
 // Quark router object
 function QuarkRouter() {
     var self = this;
