@@ -200,6 +200,20 @@ $$.registerComponent = function(tag, url) {
     ko.components.register(tag, { require: url });
 }
 
+$$.onNamespace = function(namespace) {
+    var self = this;
+
+    var ns = namespace;
+
+    this.register = function(name, url) {
+        $$.registerComponent(ns + '-' + name, url);
+
+        return self;
+    }
+
+    return self;
+}
+
 // This function allows to define the accepted parameters of the quark component.
 // In the first parameter you must specify an object with parameters and the default value.
 // The second parameter must contain the parameters values, you can pass here the first parameter received in the component model

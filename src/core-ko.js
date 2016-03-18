@@ -608,4 +608,85 @@ ko.bindingHandlers.waitReady = {
         return ko.bindingHandlers['if'].init(element, newAccessor, allBindingsAccessor, viewModel, context);
     }
 }
-ko.virtualElements.allowedBindings.hasPage = true;
+ko.virtualElements.allowedBindings.waitReady = true;
+
+ko.bindingHandlers.namespace = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        // Get the namespace value
+        var value = valueAccessor();
+
+        // Get the namespace alias
+        var alias = allBindings.get('alias') || 400;
+
+        // Validate data
+        if (!$$.isString(value)) {
+            throw 'Must specify namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
+        }
+
+        // If namespace alias is not defined throw error
+        if (!$$.isString(alias)) {
+            throw 'Must specify alias to namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
+        }
+
+        // Transform values to lowercase
+        var namespace = value.toLowerCase();
+        alias = alias.toLowerCase();
+
+        // If theres a context defined
+        if (context) {
+            // Check if theres a namespaces object defined in the context
+            if (!context.namespaces) {
+                context.namespaces = {};
+            }
+
+            // Add the alias to the list
+            context.namespaces[alias] = namespace;
+        }
+    }
+}
+ko.virtualElements.allowedBindings.namespace = true;
+
+// Custom node processor for custom components.
+// It allows to use namespaces
+ko.components.getComponentNameForNode = function(node) {
+    // Get the tag name and transform it to lower case
+    var tagNameLower = node.tagName && node.tagName.toLowerCase();
+
+    // If the tag has a component registered as is use the component directly
+    if (ko.components.isRegistered(tagNameLower)) {
+        // If the element's name exactly matches a preregistered
+        // component, use that component
+        return tagNameLower;
+    } else {
+        // If the tag name contains a colon indicating that is using an alias notation
+        if (tagNameLower.indexOf(':') !== -1) {
+            // Get the tag parts
+            var parts = tagNameLower.split(':');
+
+            // Extract the alias and the tag name
+            var alias = parts[0];
+            var tag = parts[1];
+
+            // Get the context for the node
+            var context = ko.contextFor(node);
+
+            // If there's namespaces alias defined in the context and...
+            if (context && $$.isObject(context.namespaces)) {
+                // If there's a matching alias on the context's list
+                if (context.namespaces[alias]) {
+                    // Get the namespace and form the component's full name
+                    var namespace = context.namespaces[alias];
+                    var fullName = namespace + '-' + tag;
+
+                    // If component with the full name is registered then return it
+                    if (ko.components.isRegistered(fullName)) {
+                        return fullName;
+                    }
+                }
+            }
+        }
+
+        // Treat anything else as not representing a component
+        return null;
+    }
+}
