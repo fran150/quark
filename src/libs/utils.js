@@ -156,6 +156,12 @@ $$.makeDate = function (value, useToday) {
     return value;
 }
 
+$$.toShortISO = function(value) {
+    if ($$.isDate(value)) {
+        return value.toISOString().slice(0, 10);
+    }
+}
+
 // Sets all object properties to undefined
 $$.clear = function(object) {
     $.each(object, function(key, property) {
