@@ -66,6 +66,29 @@ $$.module = function(moduleInfo, config, mainConstructor) {
         }
     }
 
+    // If theres namespace component registrations
+    if (config.namespaces) {
+        // Foreach namespace declared
+        for (var namespaceName in config.namespaces) {
+            var name;
+            if (config.prefix) {
+                name = config.prefix + "-" + namespaceName;
+            } else {
+                name = namespaceName;
+            }
+
+            // Get the register object
+            var r = $$.onNamespace(name);
+            var components = config.namespaces[namespaceName];
+
+            for (var componentName in components) {
+                var path = moduleName + '/' + components[componentName];
+
+                r.register(componentName, path);
+            }
+        }
+    }
+
     // If there's a css configuration add links in the header
     if ($$.isArray(config.css)) {
         // Iterate over the css file loading each one
