@@ -117,28 +117,32 @@ $$.component = function(viewModel, view) {
         var $scope = {
         };
 
-        // Get the error handler from the parameters, if not found try the controller, finally if not found init one
-        var errorHandler;
-        if (p.errorHandler) {
-            errorHandler = p.errorHandler;
-        } else if ($$.controller && $$.controller.errorHandler) {
-            errorHandler = $$.controller.errorHandler;
-        } else {
-            errorHandler = new ComponentErrors();
-        }
-
-        // Valid Error Handler
-        var $errorHandler = errorHandler;
-
         // If theres a model defined
         if (viewModel && !model) {
-            // Creates the model passing the received parameters an empty scope and the error handler
-            model = new viewModel(p, $scope, $errorHandler);
+            // Creates the model passing the received parameters an empty scope
+            model = new viewModel(p, $scope);
+
+            // Creates an error handler for the component
+            var errorHandler = new ComponentErrors($$.controller, model);
+
+            // Adds the errorHandler property
+            if (model) {
+                // Warns if the property already exists
+                if (model.errorHandler) {
+                    console.warn('This component already have a property named errorHandler, wich will be replaced by the error handler.')
+                }
+                model.errorHandler = errorHandler;
+            }
+
+            // Calls the function init component if exists
+            if (model && $$.isFunction(model.initComponent)) {
+                model.initComponent();
+            }
 
             // Adds the created model to the scope.
             $scope.model = model;
             // Adds the defined error handler to the scope
-            $scope.errorHandler = $errorHandler;
+            $scope.errorHandler = errorHandler;
             // Adds a reference to the controller to the scope
             $scope.controller = $$.controller;
         }
@@ -147,7 +151,6 @@ $$.component = function(viewModel, view) {
         // This are used by quark to access each element.
         this.getModel = function() { return model; }
         this.getScope = function() { return $scope; }
-        this.getErrorHandler = function() { return $errorHandler; }
 
         // When the component is disposed Knockout calls this method.
         // We use it to dispose all objects.
@@ -179,10 +182,15 @@ $$.component = function(viewModel, view) {
                 $scope.dispose();
             }
 
+            // If theres an error handler clear it and remove it
+            if (model && model.errorHandler) {
+                model.errorHandler.clear();
+                $$.undefine(model.errorHandler);
+            }
+
             // Undefine all internal variables.
             $$.undefine(model);
             $$.undefine($scope);
-            $$.undefine($errorHandler);
         }
     }
 

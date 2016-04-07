@@ -123,13 +123,27 @@ function QuarkRouter() {
                 }
             }
 
+            // If it's leaving and the controller has an error handler, clear all errrors
+            if (self.current() && self.current().controller) {
+                // If it's leaving clear the error handler
+                if (self.current().controller.errorHandler) {
+                    self.current().controller.errorHandler.clear();
+                }
+            }
+
+
             // Changes the current route
             function changeCurrent(routeController) {
                 // If theres a route controller defined and it doesn't have an error handler created
                 // create one.
-                if (routeController && !routeController.errorHandler) {
-                    // Create the default controller level error handler
-                    routeController.errorHandler = $$.errorHandler();
+                if (routeController) {
+                    // If property will be overwritten warn the user
+                    if (routeController.errorHandler) {
+                        console.warn('This controller already have a property named errorHandler, wich will be replaced by the error handler.');
+                    }
+
+                    // Create the error handler
+                    routeController.errorHandler = new ComponentErrors(routeController);
                 }
 
                 // Change the current route
