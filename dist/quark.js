@@ -13,9 +13,7 @@ var $$ = {};
 // Quark started
 $$.started = false;
 // Client error handlers repository
-$$.clientErrorHandlers = {};
-// Server error handlers repository
-$$.serverErrorHandlers = {};
+$$.ajaxErrorHandlers = {};
 // Formatters
 $$.formatters = {};
 
@@ -697,25 +695,12 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
 
             // If nobody has handled the error try to use a generic handler
             if (!handled) {
-                // If it's a server error
-                if (jqXHR.status >= 500 && jqXHR.status < 600) {
-                    // Call all handlers in registration order until someone handles it (must return true)
-                    for (var handlerName in $$.serverErrorHandlers) {
-                        if ($$.serverErrorHandlers[handlerName](url, opts.source, jqXHR.responseText, jqXHR, textStatus, errorThrown)) {
-                            // If its handled stop executing handlers
-                            handled = true;
-                            break;
-                        }
-                    }
-                } else {
-                    // If it's a client error
-                    for (handlerName in $$.clientErrorHandlers) {
-                        // Call all handlers in registration order until someone handles it (must return true)
-                        if ($$.clientErrorHandlers[handlerName](url, opts.source, jqXHR, textStatus, errorThrown)) {
-                            // If its handled stop executing handlers
-                            handled = true;
-                            break;
-                        }
+                // Call all handlers in registration order until someone handles it (must return true)
+                for (var handlerName in $$.ajaxErrorHandlers) {
+                    if ($$.ajaxErrorHandlers[handlerName](url, opts.source, jqXHR, textStatus, errorThrown)) {
+                        // If its handled stop executing handlers
+                        handled = true;
+                        break;
                     }
                 }
             }
