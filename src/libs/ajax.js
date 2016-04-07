@@ -16,7 +16,7 @@ var authorizing = false;
 $$.ajaxConfig = {
     contentType: 'application/json',
     dataType : 'json',
-    async: true,
+    'async': true,
     cache: false,
     authorization: {
         has: function() {
@@ -79,7 +79,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
 
             // If there is an error handler defined in the call excute it. If has handled the error it must return true
             if ($$.isDefined(clbks.onError)) {
-                handled = clbks.onError();
+                handled = clbks.onError(jqXHR, textStatus, errorThrown);
             }
 
             // If nobody has handled the error try to use a generic handler
@@ -88,7 +88,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
                 if (jqXHR.status >= 500 && jqXHR.status < 600) {
                     // Call all handlers in registration order until someone handles it (must return true)
                     for (var handlerName in $$.serverErrorHandlers) {
-                        if ($$.serverErrorHandlers[handlerName](url, opts.source, jqXHR.responseText)) {
+                        if ($$.serverErrorHandlers[handlerName](url, opts.source, jqXHR.responseText, jqXHR, textStatus, errorThrown)) {
                             // If its handled stop executing handlers
                             handled = true;
                             break;
