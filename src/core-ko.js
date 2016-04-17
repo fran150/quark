@@ -508,40 +508,6 @@ ko.bindingHandlers.hasNotContent = {
 };
 ko.virtualElements.allowedBindings.hasNotContent = true;
 
-// Accesor for the "component" binding that returns the data defined with the specified name in the current route
-function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
-    // Page name on the route
-    var name = ko.unwrap(valueAccessor());
-
-    var newAccesor = function () {
-        // Gets the current route
-        var current = $$.routing.current();
-
-        var component;
-        var params;
-
-        // Create the accesor getting the component defined in the current route with the page name.
-        // If the route specify an array we assume that is component name and parameters.
-        // If not, is the name of the component and as parameters pass the current route.
-        if ($$.isArray(current.route.components[name])) {
-            component = current.route.components[name][0];
-            eval("params = {" + current.route.components[name][1] + "}");
-        } else {
-            component = current.route.components[name];
-            params = current;
-        }
-
-        // Return the accesor for the component binding
-        return {
-            name: ko.pureComputed(function() {
-                return component;
-            }),
-            params: params
-        }
-    };
-
-    return newAccesor;
-}
 
 // This binding works in conjunction with the routing system. In the routes you can define the components that must be shown
 // for an specific route in wich "page".
@@ -550,14 +516,78 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
 // page we specify <div data-bind="page: 'body'"></div> will show the "title-component" inside the DIV.
 ko.bindingHandlers.page = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+        // Page name on the route
+        var name = ko.unwrap(valueAccessor());
 
+        // C is the component name
+        var c = ko.observable();
+        // P is the parameters object
+        var p = ko.observable();
+
+        // This computed updates C and P when the current route changes
+        var updater = ko.computed(function() {
+            // Gets the current route
+            var current = $$.routing.current();
+
+            var component;
+            var params;
+
+            // Create the accesor getting the component defined in the current route with the page name.
+            // If the route specify an array we assume that is component name and parameters.
+            // If not, is the name of the component and as parameters pass the current route.
+            if ($$.isArray(current.route.components[name])) {
+                component = current.route.components[name][0];
+                eval("params = {" + current.route.components[name][1] + "}");
+            } else {
+                component = current.route.components[name];
+                params = current;
+            }
+
+            // Set persistent flag to false
+            // A persistent flag indicates that if the route changes, but the same component is applied to this page then do not redraw it,
+            // just change the parameters
+            var persistent = false;
+
+            // If the component name in the route starts with ! then is persistent
+            if (component.charAt(0) == "!") {
+                // Set the persistent flag
+                persistent = true;
+                // Clear the component name of the !
+                component = component.substr(1);
+            }
+
+            // If its a diferent component name or the component is not persistent update component name and parameters
+            // If its a persistent component the routing system will update the parameters
+            if (c() != component || !persistent) {
+                c(component);
+                p(params);
+            }
+        });
+
+        // Create an accessor for the component binding
+        var newAccesor = function () {
+            // Return the accesor for the component binding
+            return {
+                name: c,
+                params: p
+            }
+        };
+
+        // Gets the current route
         var current = $$.routing.current();
+
+        // If theres a controller defined create a new context with the controller specified
         if ($$.isObject(current.controller)) {
             context = context.createChildContext(current.controller);
         }
 
-        return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
+        // When disposing the page element (and this binding) dispose the computed observable
+        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
+            updater.dispose();
+        });
+
+        // Bind as component binding
+        return ko.bindingHandlers.component.init(element, newAccesor, allBindingsAccessor, viewModel, context);
     }
 }
 ko.virtualElements.allowedBindings.page = true;

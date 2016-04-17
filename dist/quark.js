@@ -1884,40 +1884,6 @@ ko.bindingHandlers.hasNotContent = {
 };
 ko.virtualElements.allowedBindings.hasNotContent = true;
 
-// Accesor for the "component" binding that returns the data defined with the specified name in the current route
-function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
-    // Page name on the route
-    var name = ko.unwrap(valueAccessor());
-
-    var newAccesor = function () {
-        // Gets the current route
-        var current = $$.routing.current();
-
-        var component;
-        var params;
-
-        // Create the accesor getting the component defined in the current route with the page name.
-        // If the route specify an array we assume that is component name and parameters.
-        // If not, is the name of the component and as parameters pass the current route.
-        if ($$.isArray(current.route.components[name])) {
-            component = current.route.components[name][0];
-            eval("params = {" + current.route.components[name][1] + "}");
-        } else {
-            component = current.route.components[name];
-            params = current;
-        }
-
-        // Return the accesor for the component binding
-        return {
-            name: ko.pureComputed(function() {
-                return component;
-            }),
-            params: params
-        }
-    };
-
-    return newAccesor;
-}
 
 // This binding works in conjunction with the routing system. In the routes you can define the components that must be shown
 // for an specific route in wich "page".
@@ -1926,14 +1892,61 @@ function createPageAccessor(element, valueAccessor, allBindingsAccessor, viewMod
 // page we specify <div data-bind="page: 'body'"></div> will show the "title-component" inside the DIV.
 ko.bindingHandlers.page = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccessor = createPageAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+        // Page name on the route
+        var name = ko.unwrap(valueAccessor());
+
+        var c = ko.observable();
+        var p = ko.observable();
+
+        var updater = ko.computed(function() {
+            // Gets the current route
+            var current = $$.routing.current();
+
+            var component;
+            var params;
+
+            // Create the accesor getting the component defined in the current route with the page name.
+            // If the route specify an array we assume that is component name and parameters.
+            // If not, is the name of the component and as parameters pass the current route.
+            if ($$.isArray(current.route.components[name])) {
+                component = current.route.components[name][0];
+                eval("params = {" + current.route.components[name][1] + "}");
+            } else {
+                component = current.route.components[name];
+                params = current;
+            }
+
+            var persistent = false;
+
+            if (component.charAt(0) == "!") {
+                persistent = true;
+                component = component.substr(1);
+            }
+
+            if (c() != component || !persistent) {
+                c(component);
+                p(params);
+            }
+        });
+
+        var newAccesor = function () {
+            // Return the accesor for the component binding
+            return {
+                name: c,
+                params: p
+            }
+        };
 
         var current = $$.routing.current();
         if ($$.isObject(current.controller)) {
             context = context.createChildContext(current.controller);
         }
 
-        return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
+        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
+            updater.dispose();
+        });
+
+        return ko.bindingHandlers.component.init(element, newAccesor, allBindingsAccessor, viewModel, context);
     }
 }
 ko.virtualElements.allowedBindings.page = true;
@@ -2154,6 +2167,15 @@ function QuarkRouter() {
                 throw 'Must define the hash, name and components parameters'
             }
 
+            // Route persistent flag
+            var persistent = false;
+
+            // If the starts with !, then the route is persistent, mark the flag and get the clean hash
+            if (hash.charAt(0) == '!') {
+                persistent = true;
+                hash = hash.substr(1);
+            }
+
             // If .on was not called previously
             if (!$$.isDefined(currentLocationName)) {
                 throw 'You must define the location to where this route applies using the .on method before calling .when.';
@@ -2168,7 +2190,8 @@ function QuarkRouter() {
                 components: components,
                 fullName: fullName,
                 name: name,
-                controller: controller
+                controller: controller,
+                persistent: persistent
             };
 
             // Returns itself so config methods are chainable.
@@ -2177,48 +2200,50 @@ function QuarkRouter() {
     }
 
     // Specific route configuration, contains all route data and register the route in crossroads.js
-    function Route(router, name, fullName, locationConfig, hash, components, controller) {
+    function Route(router, name, fullName, locationConfig, hash, components, controller, persistent) {
         var routeObject = this;
 
         // Add route in crossroad.
         // The actual routing in quark is performed by crossroads.js.
         // Foreach location defined, quark creates a crossroad router and adds all defined routes to it.
         var csRoute = router.addRoute(hash, function(requestParams) {
-            // If the current route has a controller defined and the controller has a "leaving" method call it to allow
-            // controller cleanup, if controller result is false do not reroute
-            if (self.current() && self.current().controller && self.current().controller.leaving) {
-                if (self.current().controller.leaving() === false) {
-                    return;
-                }
-            }
-
-            // If it's leaving and the controller has an error handler, clear all errrors
-            if (self.current() && self.current().controller) {
-                // If it's leaving clear the error handler
-                if (self.current().controller.errorHandler) {
-                    self.current().controller.errorHandler.clear();
-                }
-            }
-
-
             // Changes the current route
             function changeCurrent(routeController) {
-                // If theres a route controller defined and it doesn't have an error handler created
-                // create one.
-                if (routeController) {
-                    // If property will be overwritten warn the user
-                    if (routeController.errorHandler) {
-                        console.warn('This controller already have a property named errorHandler, wich will be replaced by the error handler.');
+                // Set the value for all the parameters defined in the route
+                for (var index in routeObject.params) {
+                    routeObject.params[index](requestParams[index]);
+                }
+
+                var current = self.current();
+
+                // If the current route and the new route hasn't got the same controller object,
+                // proceed to clear the old one
+                if (current && current.route.controller != routeController) {
+                    // If the current route has a controller defined and the controller has a "leaving" method call it to allow
+                    // controller cleanup, if controller result is false do not reroute
+                    if (current.controller && current.controller.leaving) {
+                        if (current.controller.leaving() === false) {
+                            return;
+                        }
                     }
 
-                    // Create the error handler
-                    routeController.errorHandler = new ComponentErrors(routeController);
+                    // If theres an error handler defined in the controller clear it
+                    if (current.controller) {
+                        if (current.controller.errorHandler) {
+                            current.controller.errorHandler.clear();
+                        }
+
+                        if (!current.route.persistent) {
+                            // Delete the old controller
+                            delete current.route.controller;
+                        }
+                    }
                 }
 
                 // Change the current route
                 self.current({
                     route: routeObject,
-                    params: requestParams,
+                    params: routeObject.params,
                     controller: routeController
                 });
 
@@ -2238,8 +2263,30 @@ function QuarkRouter() {
             if ($$.isString(controller)) {
                 // Require the controller file
                 require([controller], function(controllerObject) {
-                    // If the module returns a constructor create an object, if not use it as is
-                    var routeController = $$.isFunction(controllerObject) ? new controllerObject : controllerObject;
+                    var routeController;
+
+                    // If theres a controller created for the route use it if not initialize one and assign it to the route
+                    if (routeObject.controller) {
+                        routeController = routeObject.controller;
+                    } else {
+                        // If the module returns a constructor create an object, if not use it as is
+                        var routeController = $$.isFunction(controllerObject) ? new controllerObject : controllerObject;
+
+                        // Store the controller object on the associated route
+                        routeObject.controller = routeController;
+
+                        // If theres a route controller defined and it doesn't have an error handler created
+                        // create one.
+                        if (routeController) {
+                            // If property will be overwritten warn the user
+                            if (routeController.errorHandler) {
+                                console.warn('This controller already have a property named errorHandler, wich will be replaced by the error handler.');
+                            }
+
+                            // Create the error handler
+                            routeController.errorHandler = new ComponentErrors(routeController);
+                        }
+                    }
 
                     // Change current route using the loaded controller
                     changeCurrent(routeController);
@@ -2264,6 +2311,16 @@ function QuarkRouter() {
         this.hash = hash;
         // Route components for each page bind
         this.components = components;
+
+        // Store if the route is persistent
+        this.persistent = persistent;
+
+        // Initialize the array of parameters configured
+        this.params = {};
+        // Read the route configuration and store in the route object the parameters used by this route
+        for (var index in csRoute._paramsIds) {
+            this.params[csRoute._paramsIds[index]] = ko.observable();
+        }
 
         // Parse the hash using the current router
         this.parse = function(hash) {
@@ -2341,7 +2398,7 @@ function QuarkRouter() {
                     $.extend(components, routeConfig.components);
 
                     // Creates the new route
-                    var newRoute = new Route(dest.router, routeConfig.name, routeConfig.fullName, location.config, routeConfig.hash, components, routeConfig.controller);
+                    var newRoute = new Route(dest.router, routeConfig.name, routeConfig.fullName, location.config, routeConfig.hash, components, routeConfig.controller, routeConfig.persistent);
 
                     // Save it on the location's routes
                     dest.routes[routeName] = newRoute;
