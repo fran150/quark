@@ -79,3 +79,45 @@ ko.bindingHandlers.format = {
         ko.applyBindingsToNode(element, { text: interceptor });
     }
 }
+
+// $$.formatters is an object in wich each property is a function that accepts an object and returns the value formatted as
+// must be shown in the page.
+// The binding format allows to specify an object in the form:
+// {
+//  value: observable or item to format
+//  formatter: name of the formatter (must correspond to an $$.formatters property)
+// }
+// Internally when writing this value quark will call the formatter passing the value to format as parameter
+// and using the result in a normal value binding.
+ko.bindingHandlers.formatValue = {
+    init: function (element, valueAccessor) {
+        // Get the formatter configuration
+        var config = valueAccessor();
+
+        // Validate that is correctly invoked
+        if (!$$.isDefined(config.value) || !$$.isString(config.formatter)) {
+            throw 'Must specify format configuration in the form { value: observableValue, formatter: formatterName }';
+        }
+
+        // If value its not an observable, create an observable and set the value inside
+        if (!ko.isObservable(config.value)) {
+            config.value = ko.observable(config.value);
+        }
+
+        // Create the interceptor that is a pure computed wich transforms the specified value with the formatter.
+        var interceptor = ko.pureComputed({
+            read: function () {
+                // If the value and formatter are defined invoke the formatter and use the formatted result
+                // else use the value as is.
+                if ($$.isDefined(config.value()) && $$.isDefined(config.formatter)) {
+                    return $$.formatters[config.formatter](config.value());
+                } else {
+                    return config.value();
+                }
+            }
+        });
+
+        // Apply the value binding to the element with the formatted output
+        ko.applyBindingsToNode(element, { value: interceptor });
+    }
+}
