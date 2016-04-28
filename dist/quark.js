@@ -426,6 +426,48 @@ ko.bindingHandlers.format = {
     }
 }
 
+// $$.formatters is an object in wich each property is a function that accepts an object and returns the value formatted as
+// must be shown in the page.
+// The binding format allows to specify an object in the form:
+// {
+//  value: observable or item to format
+//  formatter: name of the formatter (must correspond to an $$.formatters property)
+// }
+// Internally when writing this value quark will call the formatter passing the value to format as parameter
+// and using the result in a normal value binding.
+ko.bindingHandlers.formatValue = {
+    init: function (element, valueAccessor) {
+        // Get the formatter configuration
+        var config = valueAccessor();
+
+        // Validate that is correctly invoked
+        if (!$$.isDefined(config.value) || !$$.isString(config.formatter)) {
+            throw 'Must specify format configuration in the form { value: observableValue, formatter: formatterName }';
+        }
+
+        // If value its not an observable, create an observable and set the value inside
+        if (!ko.isObservable(config.value)) {
+            config.value = ko.observable(config.value);
+        }
+
+        // Create the interceptor that is a pure computed wich transforms the specified value with the formatter.
+        var interceptor = ko.pureComputed({
+            read: function () {
+                // If the value and formatter are defined invoke the formatter and use the formatted result
+                // else use the value as is.
+                if ($$.isDefined(config.value()) && $$.isDefined(config.formatter)) {
+                    return $$.formatters[config.formatter](config.value());
+                } else {
+                    return config.value();
+                }
+            }
+        });
+
+        // Apply the value binding to the element with the formatted output
+        ko.applyBindingsToNode(element, { value: interceptor });
+    }
+}
+
 // Signals.js wrapper, returns a signal.
 $$.signal = function() {
     return new signals.Signal();
@@ -1895,9 +1937,12 @@ ko.bindingHandlers.page = {
         // Page name on the route
         var name = ko.unwrap(valueAccessor());
 
+        // C is the component name
         var c = ko.observable();
+        // P is the parameters object
         var p = ko.observable();
 
+        // This computed updates C and P when the current route changes
         var updater = ko.computed(function() {
             // Gets the current route
             var current = $$.routing.current();
@@ -1916,19 +1961,28 @@ ko.bindingHandlers.page = {
                 params = current;
             }
 
+            // Set persistent flag to false
+            // A persistent flag indicates that if the route changes, but the same component is applied to this page then do not redraw it,
+            // just change the parameters
             var persistent = false;
 
+            // If the component name in the route starts with ! then is persistent
             if (component.charAt(0) == "!") {
+                // Set the persistent flag
                 persistent = true;
+                // Clear the component name of the !
                 component = component.substr(1);
             }
 
+            // If its a diferent component name or the component is not persistent update component name and parameters
+            // If its a persistent component the routing system will update the parameters
             if (c() != component || !persistent) {
                 c(component);
                 p(params);
             }
         });
 
+        // Create an accessor for the component binding
         var newAccesor = function () {
             // Return the accesor for the component binding
             return {
@@ -1937,15 +1991,20 @@ ko.bindingHandlers.page = {
             }
         };
 
+        // Gets the current route
         var current = $$.routing.current();
+
+        // If theres a controller defined create a new context with the controller specified
         if ($$.isObject(current.controller)) {
             context = context.createChildContext(current.controller);
         }
 
+        // When disposing the page element (and this binding) dispose the computed observable
         ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
             updater.dispose();
         });
 
+        // Bind as component binding
         return ko.bindingHandlers.component.init(element, newAccesor, allBindingsAccessor, viewModel, context);
     }
 }
