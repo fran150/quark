@@ -354,7 +354,7 @@ function findParent(element) {
 
     // If there are no previous siblings, the parent is effectively the real parent tag of the element (non virtual)
     if (previous == null) {
-        return element.parentElement;
+        return element.parentNode;
     }
 }
 
