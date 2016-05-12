@@ -204,3 +204,11 @@ $$.formatString = function() {
     return str;
 };
 
+$$.formatStringObj = function(string, object) {
+    for (var name in object) {
+        string = replaceAll(string, '{' + name + '}', object[name]);
+    }
+
+    return string;
+}
+

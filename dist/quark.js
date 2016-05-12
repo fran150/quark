@@ -223,6 +223,14 @@ $$.formatString = function() {
     return str;
 };
 
+$$.formatStringObj = function(string, object) {
+    for (var name in object) {
+        string = replaceAll(string, '{' + name + '}', object[name]);
+    }
+
+    return string;
+}
+
 
 // This is an associative observable, it allows to maintain a collection of key -> values
 // To be able to track changes, modifications must be made using the provided methods
