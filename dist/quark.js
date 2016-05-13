@@ -1542,6 +1542,82 @@ function callReady(object) {
     }
 }
 
+function initTracking(object, name) {
+    // If the specified binding is not an string throw an error (to avoid a common mistake)
+    if (!$$.isString(name)) {
+        throw 'The import value must be an string with the name of the property to create on the parent object';
+    }
+
+    // If the target object doesn´t have a $support property initialize it
+    if (!$$.isObject(object.$support)) {
+        object.$support = {};
+    }
+
+    // Sets the childs array wich tracks the dependencies and state of each viewModel to import
+    if (!$$.isObject(object.$support.tracking)) {
+        object.$support.tracking = {
+            childs: {},
+        }
+    }
+
+    // Creates a ready lock to fire when the object is ready
+    object.readyLock = $$.lock();
+
+    // Creates a signal to fire when a dependency loads
+    object.loadedSignal = $$.signal();
+
+    // Creates a signal to fire when a dependency is ready
+    object.readiedSignal = $$.signal();
+
+    // Start tracking the dependency with the specified name.
+    object.$support.tracking.childs[name] = {};
+
+    // The child components uses this function to notify that it finished loading.
+    // PropertyName contains the child name, and vm the corresponding viewmodel.
+    object.$support.tracking.childs[name]['load'] = function(propertyName, vm) {
+        // Sets the child viemodel and marks it as loaded
+        object[propertyName] = vm;
+        object.$support.tracking.childs[propertyName]['loaded'] = true;
+
+        callLoaded(object, propertyName, vm);
+
+        // Save the property name
+        object.$support.tracking.childs[propertyName]['propertyName'] = propertyName;
+
+        // If the child is tracking dependencies itself...
+        if ($$.isDefined(vm.$support) && $$.isDefined(vm.$support.tracking)) {
+            // If the child has dependencies mark the dependency as not ready and save
+            // the parent data (reference and state)
+            object.$support.tracking.childs[propertyName]['ready'] = false;
+
+            vm.$support.tracking.parent = object;
+            vm.$support.tracking.parentState = object.$support.tracking.childs[propertyName];
+        } else {
+            // If the child hasn't dependencies mark the dependency on parent as ready
+            object.$support.tracking.childs[propertyName]['ready'] = true;
+
+            callReadied(object, propertyName, vm);
+        }
+
+        // If the object is ready, mark it and inform its parent
+        if (checkObjectReady(object)) {
+            markReadyAndInformParent(object);
+        }
+    }
+
+    // Initialize the tracking flag of the child component loaded state
+    object.$support.tracking.childs[name]['loaded'] = false;
+
+    // Defines a function to call when one of this object childs is ready.
+    // It forces the object to reevaluate this object readiness
+    object.$support.tracking.childReady = function(propertyName, vm) {
+        // If the object is ready, mark it and inform its parent
+        if (checkObjectReady(object)) {
+            markReadyAndInformParent(object);
+        }
+    }
+}
+
 // This binding allows to import the viewmodel of a component into the parent creating a property with the specified name.
 // This binding is executed at the target object context in the custom tag of the component to import. The component to import
 // is not loaded when this binds, so it creates an array to track whem each dependency loads. When the dependency loads,
@@ -1570,79 +1646,7 @@ ko.bindingHandlers.import = {
             object = viewModel;
         }
 
-        // If the specified binding is not an string throw an error (to avoid a common mistake)
-        if (!$$.isString(name)) {
-            throw 'The import value must be an string with the name of the property to create on the parent object';
-        }
-
-        // If the target object doesn´t have a $support property initialize it
-        if (!$$.isObject(object.$support)) {
-            object.$support = {};
-        }
-
-        // Sets the childs array wich tracks the dependencies and state of each viewModel to import
-        if (!$$.isObject(object.$support.tracking)) {
-            object.$support.tracking = {
-                childs: {},
-            }
-        }
-
-        // Creates a ready lock to fire when the object is ready
-        object.readyLock = $$.lock();
-
-        // Creates a signal to fire when a dependency loads
-        object.loadedSignal = $$.signal();
-
-        // Creates a signal to fire when a dependency is ready
-        object.readiedSignal = $$.signal();
-
-        // Start tracking the dependency with the specified name.
-        object.$support.tracking.childs[name] = {};
-
-        // The child components uses this function to notify that it finished loading.
-        // PropertyName contains the child name, and vm the corresponding viewmodel.
-        object.$support.tracking.childs[name]['load'] = function(propertyName, vm) {
-            // Sets the child viemodel and marks it as loaded
-            object[propertyName] = vm;
-            object.$support.tracking.childs[propertyName]['loaded'] = true;
-
-            callLoaded(object, propertyName, vm);
-
-            // Save the property name
-            object.$support.tracking.childs[propertyName]['propertyName'] = propertyName;
-
-            // If the child is tracking dependencies itself...
-            if ($$.isDefined(vm.$support) && $$.isDefined(vm.$support.tracking)) {
-                // If the child has dependencies mark the dependency as not ready and save
-                // the parent data (reference and state)
-                object.$support.tracking.childs[propertyName]['ready'] = false;
-
-                vm.$support.tracking.parent = object;
-                vm.$support.tracking.parentState = object.$support.tracking.childs[propertyName];
-            } else {
-                // If the child hasn't dependencies mark the dependency on parent as ready
-                object.$support.tracking.childs[propertyName]['ready'] = true;
-
-                callReadied(object, propertyName, vm);
-            }
-
-            // If the object is ready, mark it and inform its parent
-            if (checkObjectReady(object)) {
-                markReadyAndInformParent(object);
-            }
-        }
-
-        // Initialize the tracking flag of the child component loaded state
-        object.$support.tracking.childs[name]['loaded'] = false;
-
-        // Defines a function to call when one of this object childs is ready.
-        // It forces the object to reevaluate this object readiness
-        object.$support.tracking.childReady = function(propertyName, vm) {
-            // If the object is ready, mark it and inform its parent
-            if (checkObjectReady(object)) {
-                markReadyAndInformParent(object);
-            }
-        }
+        initTracking(object, name);
 
         // Import the dependency to the target object
         object[name] = {};
@@ -2021,6 +2025,9 @@ ko.bindingHandlers.page = {
             updater.dispose();
         });
 
+        // Apply the import binding to node
+        ko.applyBindingsToNode(element, { import: name }, context);
+
         // Bind as component binding
         return ko.bindingHandlers.component.init(element, newAccesor, allBindingsAccessor, viewModel, context);
     }
@@ -2335,6 +2342,42 @@ function QuarkRouter() {
                 self.firstRouting.unlock();
             }
 
+            function initController(controller) {
+                // Store the controller object on the associated route
+                routeObject.controller = controller;
+
+                // If theres a route controller defined and it doesn't have an error handler created
+                // create one.
+                if (controller) {
+                    // If property will be overwritten warn the user
+                    if (controller.errorHandler) {
+                        console.warn('This controller already have a property named errorHandler, wich will be replaced by the error handler.');
+                    }
+
+                    // Create the error handler
+                    controller.errorHandler = new ComponentErrors(controller);
+
+                    // If the target object doesn´t have a $support property initialize it
+                    if (!$$.isObject(controller.$support)) {
+                        controller.$support = {};
+                    }
+
+                    // Sets the childs array wich tracks the dependencies and state of each viewModel to import
+                    if (!$$.isObject(controller.$support.tracking)) {
+                        controller.$support.tracking = {
+                            childs: {},
+                        }
+                    }
+
+                    if (routeObject && $$.isObject(routeObject.components)) {
+                        for (var name in routeObject.components) {
+                            initTracking(controller, name);
+                        }
+                    }
+
+                }
+            }
+
             // If the controller is a string then assume its a js module name
             if ($$.isString(controller)) {
                 // Require the controller file
@@ -2347,22 +2390,10 @@ function QuarkRouter() {
                     } else {
                         // If the module returns a constructor create an object, if not use it as is
                         var routeController = $$.isFunction(controllerObject) ? new controllerObject : controllerObject;
-
-                        // Store the controller object on the associated route
-                        routeObject.controller = routeController;
-
-                        // If theres a route controller defined and it doesn't have an error handler created
-                        // create one.
-                        if (routeController) {
-                            // If property will be overwritten warn the user
-                            if (routeController.errorHandler) {
-                                console.warn('This controller already have a property named errorHandler, wich will be replaced by the error handler.');
-                            }
-
-                            // Create the error handler
-                            routeController.errorHandler = new ComponentErrors(routeController);
-                        }
                     }
+
+                    // Intializes the controller
+                    initController(routeController);
 
                     // Change current route using the loaded controller
                     changeCurrent(routeController);
@@ -2371,9 +2402,13 @@ function QuarkRouter() {
                 // If controller is a function, the function must create the controller object and
                 // invoke the callback passed as first parameter
                 if ($$.isFunction(controller)) {
-                    controller(changeCurrent);
+                    controller(function(param) {
+                        initController(param);
+                        changeCurrent(param);
+                    });
                 } else {
                     // If the controller is not an string nor function then use it as specified
+                    initController(controller);
                     changeCurrent(controller);
                 }
             }

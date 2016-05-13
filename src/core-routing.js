@@ -177,6 +177,42 @@ function QuarkRouter() {
                 self.firstRouting.unlock();
             }
 
+            function initController(controller) {
+                // Store the controller object on the associated route
+                routeObject.controller = controller;
+
+                // If theres a route controller defined and it doesn't have an error handler created
+                // create one.
+                if (controller) {
+                    // If property will be overwritten warn the user
+                    if (controller.errorHandler) {
+                        console.warn('This controller already have a property named errorHandler, wich will be replaced by the error handler.');
+                    }
+
+                    // Create the error handler
+                    controller.errorHandler = new ComponentErrors(controller);
+
+                    // If the target object doesn´t have a $support property initialize it
+                    if (!$$.isObject(controller.$support)) {
+                        controller.$support = {};
+                    }
+
+                    // Sets the childs array wich tracks the dependencies and state of each viewModel to import
+                    if (!$$.isObject(controller.$support.tracking)) {
+                        controller.$support.tracking = {
+                            childs: {},
+                        }
+                    }
+
+                    if (routeObject && $$.isObject(routeObject.components)) {
+                        for (var name in routeObject.components) {
+                            initTracking(controller, name);
+                        }
+                    }
+
+                }
+            }
+
             // If the controller is a string then assume its a js module name
             if ($$.isString(controller)) {
                 // Require the controller file
@@ -189,22 +225,10 @@ function QuarkRouter() {
                     } else {
                         // If the module returns a constructor create an object, if not use it as is
                         var routeController = $$.isFunction(controllerObject) ? new controllerObject : controllerObject;
-
-                        // Store the controller object on the associated route
-                        routeObject.controller = routeController;
-
-                        // If theres a route controller defined and it doesn't have an error handler created
-                        // create one.
-                        if (routeController) {
-                            // If property will be overwritten warn the user
-                            if (routeController.errorHandler) {
-                                console.warn('This controller already have a property named errorHandler, wich will be replaced by the error handler.');
-                            }
-
-                            // Create the error handler
-                            routeController.errorHandler = new ComponentErrors(routeController);
-                        }
                     }
+
+                    // Intializes the controller
+                    initController(routeController);
 
                     // Change current route using the loaded controller
                     changeCurrent(routeController);
@@ -213,9 +237,13 @@ function QuarkRouter() {
                 // If controller is a function, the function must create the controller object and
                 // invoke the callback passed as first parameter
                 if ($$.isFunction(controller)) {
-                    controller(changeCurrent);
+                    controller(function(param) {
+                        initController(param);
+                        changeCurrent(param);
+                    });
                 } else {
                     // If the controller is not an string nor function then use it as specified
+                    initController(controller);
                     changeCurrent(controller);
                 }
             }

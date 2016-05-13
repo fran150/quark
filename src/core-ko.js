@@ -116,6 +116,82 @@ function callReady(object) {
     }
 }
 
+function initTracking(object, name) {
+    // If the specified binding is not an string throw an error (to avoid a common mistake)
+    if (!$$.isString(name)) {
+        throw 'The import value must be an string with the name of the property to create on the parent object';
+    }
+
+    // If the target object doesn´t have a $support property initialize it
+    if (!$$.isObject(object.$support)) {
+        object.$support = {};
+    }
+
+    // Sets the childs array wich tracks the dependencies and state of each viewModel to import
+    if (!$$.isObject(object.$support.tracking)) {
+        object.$support.tracking = {
+            childs: {},
+        }
+    }
+
+    // Creates a ready lock to fire when the object is ready
+    object.readyLock = $$.lock();
+
+    // Creates a signal to fire when a dependency loads
+    object.loadedSignal = $$.signal();
+
+    // Creates a signal to fire when a dependency is ready
+    object.readiedSignal = $$.signal();
+
+    // Start tracking the dependency with the specified name.
+    object.$support.tracking.childs[name] = {};
+
+    // The child components uses this function to notify that it finished loading.
+    // PropertyName contains the child name, and vm the corresponding viewmodel.
+    object.$support.tracking.childs[name]['load'] = function(propertyName, vm) {
+        // Sets the child viemodel and marks it as loaded
+        object[propertyName] = vm;
+        object.$support.tracking.childs[propertyName]['loaded'] = true;
+
+        callLoaded(object, propertyName, vm);
+
+        // Save the property name
+        object.$support.tracking.childs[propertyName]['propertyName'] = propertyName;
+
+        // If the child is tracking dependencies itself...
+        if ($$.isDefined(vm.$support) && $$.isDefined(vm.$support.tracking)) {
+            // If the child has dependencies mark the dependency as not ready and save
+            // the parent data (reference and state)
+            object.$support.tracking.childs[propertyName]['ready'] = false;
+
+            vm.$support.tracking.parent = object;
+            vm.$support.tracking.parentState = object.$support.tracking.childs[propertyName];
+        } else {
+            // If the child hasn't dependencies mark the dependency on parent as ready
+            object.$support.tracking.childs[propertyName]['ready'] = true;
+
+            callReadied(object, propertyName, vm);
+        }
+
+        // If the object is ready, mark it and inform its parent
+        if (checkObjectReady(object)) {
+            markReadyAndInformParent(object);
+        }
+    }
+
+    // Initialize the tracking flag of the child component loaded state
+    object.$support.tracking.childs[name]['loaded'] = false;
+
+    // Defines a function to call when one of this object childs is ready.
+    // It forces the object to reevaluate this object readiness
+    object.$support.tracking.childReady = function(propertyName, vm) {
+        // If the object is ready, mark it and inform its parent
+        if (checkObjectReady(object)) {
+            markReadyAndInformParent(object);
+        }
+    }
+}
+
 // This binding allows to import the viewmodel of a component into the parent creating a property with the specified name.
 // This binding is executed at the target object context in the custom tag of the component to import. The component to import
 // is not loaded when this binds, so it creates an array to track whem each dependency loads. When the dependency loads,
@@ -144,79 +220,7 @@ ko.bindingHandlers.import = {
             object = viewModel;
         }
 
-        // If the specified binding is not an string throw an error (to avoid a common mistake)
-        if (!$$.isString(name)) {
-            throw 'The import value must be an string with the name of the property to create on the parent object';
-        }
-
-        // If the target object doesn´t have a $support property initialize it
-        if (!$$.isObject(object.$support)) {
-            object.$support = {};
-        }
-
-        // Sets the childs array wich tracks the dependencies and state of each viewModel to import
-        if (!$$.isObject(object.$support.tracking)) {
-            object.$support.tracking = {
-                childs: {},
-            }
-        }
-
-        // Creates a ready lock to fire when the object is ready
-        object.readyLock = $$.lock();
-
-        // Creates a signal to fire when a dependency loads
-        object.loadedSignal = $$.signal();
-
-        // Creates a signal to fire when a dependency is ready
-        object.readiedSignal = $$.signal();
-
-        // Start tracking the dependency with the specified name.
-        object.$support.tracking.childs[name] = {};
-
-        // The child components uses this function to notify that it finished loading.
-        // PropertyName contains the child name, and vm the corresponding viewmodel.
-        object.$support.tracking.childs[name]['load'] = function(propertyName, vm) {
-            // Sets the child viemodel and marks it as loaded
-            object[propertyName] = vm;
-            object.$support.tracking.childs[propertyName]['loaded'] = true;
-
-            callLoaded(object, propertyName, vm);
-
-            // Save the property name
-            object.$support.tracking.childs[propertyName]['propertyName'] = propertyName;
-
-            // If the child is tracking dependencies itself...
-            if ($$.isDefined(vm.$support) && $$.isDefined(vm.$support.tracking)) {
-                // If the child has dependencies mark the dependency as not ready and save
-                // the parent data (reference and state)
-                object.$support.tracking.childs[propertyName]['ready'] = false;
-
-                vm.$support.tracking.parent = object;
-                vm.$support.tracking.parentState = object.$support.tracking.childs[propertyName];
-            } else {
-                // If the child hasn't dependencies mark the dependency on parent as ready
-                object.$support.tracking.childs[propertyName]['ready'] = true;
-
-                callReadied(object, propertyName, vm);
-            }
-
-            // If the object is ready, mark it and inform its parent
-            if (checkObjectReady(object)) {
-                markReadyAndInformParent(object);
-            }
-        }
-
-        // Initialize the tracking flag of the child component loaded state
-        object.$support.tracking.childs[name]['loaded'] = false;
-
-        // Defines a function to call when one of this object childs is ready.
-        // It forces the object to reevaluate this object readiness
-        object.$support.tracking.childReady = function(propertyName, vm) {
-            // If the object is ready, mark it and inform its parent
-            if (checkObjectReady(object)) {
-                markReadyAndInformParent(object);
-            }
-        }
+        initTracking(object, name);
 
         // Import the dependency to the target object
         object[name] = {};
@@ -594,6 +598,9 @@ ko.bindingHandlers.page = {
         ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
             updater.dispose();
         });
+
+        // Apply the import binding to node
+        ko.applyBindingsToNode(element, { import: name }, context);
 
         // Bind as component binding
         return ko.bindingHandlers.component.init(element, newAccesor, allBindingsAccessor, viewModel, context);
