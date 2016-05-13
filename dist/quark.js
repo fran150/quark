@@ -1963,7 +1963,16 @@ ko.bindingHandlers.page = {
             // If not, is the name of the component and as parameters pass the current route.
             if ($$.isArray(current.route.components[name])) {
                 component = current.route.components[name][0];
-                eval("params = {" + current.route.components[name][1] + "}");
+                var componentParams = current.route.components[name][1];
+
+                if ($$.isString(componentParams)) {
+                    eval("params = {" + componentParams + "}");
+                }
+
+                if ($$.isObject(componentParams) && $$.isString(componentParams.controller)) {
+                    eval("params = $$.controller." + componentParams.controller + "()");
+                }
+
             } else {
                 component = current.route.components[name];
                 params = current;
