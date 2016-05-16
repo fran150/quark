@@ -125,13 +125,13 @@ function QuarkRouter() {
         // The actual routing in quark is performed by crossroads.js.
         // Foreach location defined, quark creates a crossroad router and adds all defined routes to it.
         var csRoute = router.addRoute(hash, function(requestParams) {
+            // Set the value for all the parameters defined in the route
+            for (var index in routeObject.params) {
+                routeObject.params[index](requestParams[index]);
+            }
+
             // Changes the current route
             function changeCurrent(routeController) {
-                // Set the value for all the parameters defined in the route
-                for (var index in routeObject.params) {
-                    routeObject.params[index](requestParams[index]);
-                }
-
                 var current = self.current();
 
                 // If the current route and the new route hasn't got the same controller object,
@@ -153,6 +153,7 @@ function QuarkRouter() {
 
                         if (!current.route.persistent) {
                             // Delete the old controller
+                            delete current.controller;
                             delete current.route.controller;
                         }
                     }
@@ -192,18 +193,6 @@ function QuarkRouter() {
                     // Create the error handler
                     controller.errorHandler = new ComponentErrors(controller);
 
-                    // If the target object doesn´t have a $support property initialize it
-                    if (!$$.isObject(controller.$support)) {
-                        controller.$support = {};
-                    }
-
-                    // Sets the childs array wich tracks the dependencies and state of each viewModel to import
-                    if (!$$.isObject(controller.$support.tracking)) {
-                        controller.$support.tracking = {
-                            childs: {},
-                        }
-                    }
-
                     if (routeObject && $$.isObject(routeObject.components)) {
                         for (var name in routeObject.components) {
                             initTracking(controller, name);
@@ -224,11 +213,11 @@ function QuarkRouter() {
                         routeController = routeObject.controller;
                     } else {
                         // If the module returns a constructor create an object, if not use it as is
-                        var routeController = $$.isFunction(controllerObject) ? new controllerObject : controllerObject;
-                    }
+                        routeController = $$.isFunction(controllerObject) ? new controllerObject(routeObject) : controllerObject;
 
-                    // Intializes the controller
-                    initController(routeController);
+                        // Intializes the controller
+                        initController(routeController);
+                    }
 
                     // Change current route using the loaded controller
                     changeCurrent(routeController);

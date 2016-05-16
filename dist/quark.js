@@ -1724,6 +1724,59 @@ ko.bindingHandlers.export = {
 }
 ko.virtualElements.allowedBindings.export = true;
 
+ko.bindingHandlers.exporttocontroller = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        var value;
+        // Get's the binded value
+        value = ko.unwrap(valueAccessor());
+
+        var current = $$.routing.current();
+
+        if (current && current.controller) {
+            viewModel = current.controller;
+
+
+            var property;
+
+            // If the binding value is a string then is the name of a property in the viewmodel,
+            // if not, must be an object indicating the target viewModel and the property in wich to set the dependency model
+            if (!$$.isString(value)) {
+                if ($$.isObject(value)) {
+                    if ($$.isString(value['property'])) {
+                        property = value['property'];
+                    }
+
+                    if ($$.isDefined(value['model'])) {
+                        viewModel = value['model'];
+                    }
+                }
+            } else {
+                property = value;
+            }
+
+            // Validates objects and calls the load function on the parent (marking this component as loaded on the parent)
+            if ($$.isString(property)) {
+                if ($$.isDefined(viewModel.$support) && $$.isDefined(viewModel.$support.tracking)) {
+                    if ($$.isDefined(viewModel.$support.tracking['childs'])) {
+                        if ($$.isDefined(viewModel.$support.tracking.childs[property])) {
+                            viewModel.$support.tracking.childs[property]['load'](property, context.$child);
+                        } else {
+                            throw 'The specified object doesn´t have a property named ' + value + '. Verify that the object has a property defined with the .components method with the name defined in the vm binding.';
+                        }
+                    } else {
+                        throw 'The specified object doesn´t have the tracking property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
+                    }
+                } else {
+                    throw 'The specified object doesn´t have the tracking.childs property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
+                }
+            } else {
+                throw 'The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component';
+            }
+        }
+    }
+}
+ko.virtualElements.allowedBindings.exporttocontroller = true;
+
 // Creates the componentShadyDom accessor passing the component template nodes as the nodes array to the template binding
 function createComponentShadyDomAccesor(context) {
     var newAccesor = function () {
@@ -1982,6 +2035,7 @@ ko.bindingHandlers.page = {
                 params = current;
             }
 
+
             // Set persistent flag to false
             // A persistent flag indicates that if the route changes, but the same component is applied to this page then do not redraw it,
             // just change the parameters
@@ -2012,23 +2066,18 @@ ko.bindingHandlers.page = {
             }
         };
 
-        // Gets the current route
-        var current = $$.routing.current();
-
-        // If theres a controller defined create a new context with the controller specified
-        if ($$.isObject(current.controller)) {
-            context = context.createChildContext(current.controller);
+        if (element.nodeType != 8) {
+            element.setAttribute('qk-exporttocontroller', "\'" + name + "\'");
+        } else {
+            element.data += " qk-exporttocontroller=\'" + name + "\'";
         }
+
 
         // When disposing the page element (and this binding) dispose the computed observable
         ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
             updater.dispose();
         });
 
-        // Apply the import binding to node
-        ko.applyBindingsToNode(element, { import: name }, context);
-
-        // Bind as component binding
         return ko.bindingHandlers.component.init(element, newAccesor, allBindingsAccessor, viewModel, context);
     }
 }
@@ -2290,13 +2339,13 @@ function QuarkRouter() {
         // The actual routing in quark is performed by crossroads.js.
         // Foreach location defined, quark creates a crossroad router and adds all defined routes to it.
         var csRoute = router.addRoute(hash, function(requestParams) {
+            // Set the value for all the parameters defined in the route
+            for (var index in routeObject.params) {
+                routeObject.params[index](requestParams[index]);
+            }
+
             // Changes the current route
             function changeCurrent(routeController) {
-                // Set the value for all the parameters defined in the route
-                for (var index in routeObject.params) {
-                    routeObject.params[index](requestParams[index]);
-                }
-
                 var current = self.current();
 
                 // If the current route and the new route hasn't got the same controller object,
@@ -2318,6 +2367,7 @@ function QuarkRouter() {
 
                         if (!current.route.persistent) {
                             // Delete the old controller
+                            delete current.controller;
                             delete current.route.controller;
                         }
                     }
@@ -2357,18 +2407,6 @@ function QuarkRouter() {
                     // Create the error handler
                     controller.errorHandler = new ComponentErrors(controller);
 
-                    // If the target object doesn´t have a $support property initialize it
-                    if (!$$.isObject(controller.$support)) {
-                        controller.$support = {};
-                    }
-
-                    // Sets the childs array wich tracks the dependencies and state of each viewModel to import
-                    if (!$$.isObject(controller.$support.tracking)) {
-                        controller.$support.tracking = {
-                            childs: {},
-                        }
-                    }
-
                     if (routeObject && $$.isObject(routeObject.components)) {
                         for (var name in routeObject.components) {
                             initTracking(controller, name);
@@ -2389,11 +2427,11 @@ function QuarkRouter() {
                         routeController = routeObject.controller;
                     } else {
                         // If the module returns a constructor create an object, if not use it as is
-                        var routeController = $$.isFunction(controllerObject) ? new controllerObject : controllerObject;
-                    }
+                        routeController = $$.isFunction(controllerObject) ? new controllerObject(routeObject) : controllerObject;
 
-                    // Intializes the controller
-                    initController(routeController);
+                        // Intializes the controller
+                        initController(routeController);
+                    }
 
                     // Change current route using the loaded controller
                     changeCurrent(routeController);
