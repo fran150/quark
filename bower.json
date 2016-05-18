@@ -1,6 +1,6 @@
 {
   "name": "quark",
-  "version": "0.10.2",
+  "version": "1.0.0",
   "dependencies": {
     "requirejs": "~2.1.11",
     "requirejs-text": "~2.0.10",
