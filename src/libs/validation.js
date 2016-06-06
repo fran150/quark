@@ -67,7 +67,7 @@ ko.validationReset = function(object) {
 // Adds the validation function to the observables. Calling this function will activate validation on the observable.
 // Name is the field name to show on error messages. Validation config is an object with the configuration of validations to enfoce,
 // if theres an error handler specified every validation error is added to the handler
-ko.observable.fn.validation = function(name, validationConfig, errorHandler) {
+ko.observable.fn.validation = function(name, validationConfig, componentErrors) {
     // Indicates that the field is validatable and the name of the field on the error messages
     this.validatable = name;
 
@@ -79,15 +79,15 @@ ko.observable.fn.validation = function(name, validationConfig, errorHandler) {
     this.validationMessage = ko.observable();
 
     // If an error handler has been specified
-    if (errorHandler) {
-        this.errorHandler = errorHandler;
+    if (componentErrors) {
+        this.componentErrors = componentErrors;
     }
 
     // Returns the observable allowing to chain validate calls on the same
     return this;
 }
 
-// Resets validation errors on the observable and clears itself from the objects errorHandler
+// Resets validation errors on the observable and clears itself from the objects componentErrors
 ko.observable.fn.validationReset = function () {
     var me = this;
 
@@ -98,8 +98,8 @@ ko.observable.fn.validationReset = function () {
         this.validationMessage('');
 
         // If an error handler is defined use stored error key and resolve it (clearing it from the list)
-        if (this.errorHandler && this.errorKey) {
-            this.errorHandler.resolve(this.errorKey);
+        if (this.componentErrors && this.errorKey) {
+            this.componentErrors.resolve(this.errorKey);
         }
     }
 }
@@ -126,8 +126,8 @@ function validateValue(newValue, target) {
             // Perform the actual validation of the new value
             if (!validator.validate(newValue)) {
                 // If there's an error handler defined add the validation error and store the error key.
-                if (target.errorHandler) {
-                    target.errorKey = target.errorHandler.add(target.validationMessage(), { level: 100, type: 'validation' });
+                if (target.componentErrors) {
+                    target.errorKey = target.componentErrors.add(target.validationMessage(), { level: 100, type: 'validation' });
                 }
 
                 // Return false if validation fails

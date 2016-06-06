@@ -139,33 +139,38 @@ $$.component = function(viewModel, view) {
         // Creates empty scope
         var $scope = {
         };
+        // Creates an empty imports object
+        var $imports = {
+        }
 
         // If theres a model defined
         if (viewModel && !model) {
             // Creates the model passing the received parameters an empty scope
-            model = new viewModel(p, $scope);
+            model = new viewModel(p, $scope, $imports);
 
             // Creates an error handler for the component
-            var errorHandler = new ComponentErrors($$.controller, model);
+            var componentErrors = new ComponentErrors($$.controller, model);
 
-            // Adds the errorHandler property
+            // Adds the componentErrors property
             if (model) {
                 // Warns if the property already exists
-                if (model.errorHandler) {
-                    console.warn('This component already have a property named errorHandler, wich will be replaced by the error handler.')
+                if (model.componentErrors) {
+                    console.warn('This component already have a property named componentErrors, wich will be replaced by the quark component error list.')
                 }
-                model.errorHandler = errorHandler;
+                model.componentErrors = componentErrors;
             }
 
-            // Calls the function init component if exists
+            // Calls the function initComponent if exists
             if (model && $$.isFunction(model.initComponent)) {
                 model.initComponent();
             }
 
             // Adds the created model to the scope.
             $scope.model = model;
+            // Add the imported objects to the scope
+            $scope.imports = $imports;
             // Adds the defined error handler to the scope
-            $scope.errorHandler = errorHandler;
+            $scope.componentErrors = componentErrors;
             // Adds a reference to the controller to the scope
             $scope.controller = $$.controller;
         }
@@ -174,6 +179,7 @@ $$.component = function(viewModel, view) {
         // This are used by quark to access each element.
         this.getModel = function() { return model; }
         this.getScope = function() { return $scope; }
+        this.getImports = function() { return $imports; }
 
         // When the component is disposed Knockout calls this method.
         // We use it to dispose all objects.
@@ -184,20 +190,20 @@ $$.component = function(viewModel, view) {
             }
 
             // If there's a ready lock defined undefine it
-            if (model && model.readyLock) {
-                $$.undefine(model.readyLock);
+            if ($imports && $imports.readyLock) {
+                $$.undefine($imports.readyLock);
             }
 
             // If there's a readiedSignal defined clear all listeners and undefine it
-            if (model && model.readiedSignal) {
-                $$.signalClear(model.readiedSignal);
-                $$.undefine(model.readiedSignal);
+            if ($imports && $imports.readiedSignal) {
+                $$.signalClear($imports.readiedSignal);
+                $$.undefine($imports.readiedSignal);
             }
 
             // If there's a loadedSignal defined clear all listeners and undefine it
-            if (model && model.loadedSignal) {
-                $$.signalClear(model.loadedSignal);
-                $$.undefine(model.loadedSignal);
+            if ($imports && $imports.loadedSignal) {
+                $$.signalClear($imports.loadedSignal);
+                $$.undefine($imports.loadedSignal);
             }
 
             // If theres an scope defined and has a dispose method call it
@@ -205,15 +211,16 @@ $$.component = function(viewModel, view) {
                 $scope.dispose();
             }
 
-            // If theres an error handler clear it and remove it
-            if (model && model.errorHandler) {
-                model.errorHandler.clear();
-                $$.undefine(model.errorHandler);
+            // If theres an componentErrors property clear it and remove it
+            if (model && model.componentErrors) {
+                model.componentErrors.clear();
+                $$.undefine(model.componentErrors);
             }
 
             // Undefine all internal variables.
             $$.undefine(model);
             $$.undefine($scope);
+            $$.undefine($imports);
         }
     }
 

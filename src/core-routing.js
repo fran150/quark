@@ -147,8 +147,8 @@ function QuarkRouter() {
 
                     // If theres an error handler defined in the controller clear it
                     if (current.controller) {
-                        if (current.controller.errorHandler) {
-                            current.controller.errorHandler.clear();
+                        if (current.controller.componentErrors) {
+                            current.controller.componentErrors.clear();
                         }
 
                         if (!current.route.persistent) {
@@ -186,12 +186,12 @@ function QuarkRouter() {
                 // create one.
                 if (controller) {
                     // If property will be overwritten warn the user
-                    if (controller.errorHandler) {
-                        console.warn('This controller already have a property named errorHandler, wich will be replaced by the error handler.');
+                    if (controller.componentErrors) {
+                        console.warn('This controller already have a property named componentErrors, wich will be replaced by the error handler.');
                     }
 
                     // Create the error handler
-                    controller.errorHandler = new ComponentErrors(controller);
+                    controller.componentErrors = new ComponentErrors(controller);
 
                     if (routeObject && $$.isObject(routeObject.components)) {
                         for (var name in routeObject.components) {

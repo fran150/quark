@@ -3,7 +3,7 @@ $$.modules = ko.associativeObservable({});
 
 // Registers the quark component
 ko.components.register('quark-component', {
-    template: "<!-- ko componentShadyDom --><!-- /ko --><!-- ko modelExporter --><!-- /ko -->"
+    template: "<!-- ko componentScope --><!-- /ko --><!-- ko modelBinder --><!-- /ko -->"
 });
 
 // Returns an empty component template (useful when creating data components)
@@ -214,8 +214,8 @@ ko.bindingHandlers.import = {
 
         // If the target object has a model (is a quark-component's scope) set the target object to the model,
         // if not the target is the object itself.
-        if (viewModel && viewModel.model) {
-            object = viewModel.model;
+        if (viewModel && viewModel.imports) {
+            object = viewModel.imports;
         } else {
             object = viewModel;
         }
@@ -254,8 +254,8 @@ ko.bindingHandlers.export = {
         value = ko.unwrap(valueAccessor());
 
         // If the binding model has a model (is a quark-component's scope), the binding will be against the model.
-        if (viewModel && viewModel.model) {
-            viewModel = viewModel.model;
+        if (viewModel && viewModel.imports) {
+            viewModel = viewModel.imports;
         }
 
         var property;
@@ -351,8 +351,8 @@ ko.bindingHandlers.exporttocontroller = {
 }
 ko.virtualElements.allowedBindings.exporttocontroller = true;
 
-// Creates the componentShadyDom accessor passing the component template nodes as the nodes array to the template binding
-function createComponentShadyDomAccesor(context) {
+// Creates the componentScope accessor passing the component template nodes as the nodes array to the template binding
+function createComponentScopeAccesor(context) {
     var newAccesor = function () {
         return { nodes: context.$componentTemplateNodes };
     };
@@ -360,23 +360,37 @@ function createComponentShadyDomAccesor(context) {
     return newAccesor;
 }
 
+function createComponentScopeContext(context) {
+    var viewModel = context.$parent;
+    var newContext = context.extend({
+        $component: viewModel.getModel(),
+        $componentTemplateNodes: context.$parentContext.$componentTemplateNodes,
+        $data: viewModel.getScope(),
+        $parent: context.$parentContext.$parent,
+        $parentContext: context.$parentContext.$parentContext,
+        $parents: context.$parentContext.$parents,
+        $rawData: viewModel.getScope(),
+        $root: context.$parentContext.$root
+    });
+
+    return newContext;
+}
+
 // This binding is used inside quark component object. It binds the quark-component tag content against the
 // defined $scope object, effectively separating $scope from model.
-ko.bindingHandlers.componentShadyDom = {
+ko.bindingHandlers.componentScope = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createComponentShadyDomAccesor(context);
-        context.$parentContext.$data = context.$parent.getScope();
-        context.$parentContext.$rawData = context.$parent.getScope();
-        return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent.getScope(), context.$parentContext);
+        var newAccesor = createComponentScopeAccesor(context);
+        var newContext = createComponentScopeContext(context);
+        return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, newContext.$data, newContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createComponentShadyDomAccesor(context);
-        context.$parentContext.$data = context.$parent.getScope();
-        context.$parentContext.$rawData = context.$parent.getScope();
-        return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent.getScope(), context.$parentContext);
+        var newAccesor = createComponentScopeAccesor(context);
+        var newContext = createComponentScopeContext(context);
+        return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, newContext.$data, newContext);
     }
 };
-ko.virtualElements.allowedBindings.componentShadyDom = true;
+ko.virtualElements.allowedBindings.componentScope = true;
 
 // Returns if the specified element is child of the "search" element, taking into account even virtual elements.
 function isChildOf(element, search) {
@@ -419,7 +433,7 @@ function findParent(element) {
 // and for each attribute find create a binding in it's template wich binds to a custom context with has the child model on
 // the $child property.
 // As the export binding executes in here it doesn't export the scope of the object
-function createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
+function createModelBinderAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
     var newAccesor = function() {
         var nodes = Array();
 
@@ -469,24 +483,35 @@ function createModelExporterAccessor(element, valueAccessor, allBindingsAccessor
     return newAccesor;
 }
 
+function createModelBinderContext(context) {
+    var seniorContext = context.$parentContext.$parentContext;
+    var viewModel = context.$parent;
+
+    var newContext = seniorContext.extend({
+        $child: viewModel.getModel()
+    });
+
+    return newContext;
+}
+
 // The model exporter searchs for qk attributes defined in the components custom tag, then it creates a binding with each
 // attribute found, this produces that each binding be executed when the component loads, also this binding creates a custom
 // context wich is at the level of the component parent, and has a property $child with the childs model and a $childContext
 // with the child context.
 // This $child property is used by the export binding to extract the childs model and send it to the parent.
-ko.bindingHandlers.modelExporter = {
+ko.bindingHandlers.modelBinder = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent.getModel(), $childContext: context });
+        var newAccesor = createModelBinderAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+        var newContext = createModelBinderContext(context);
         return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createModelExporterAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        var newContext = context.$parentContext.$parentContext.extend({ $child: context.$parent.getModel(), $childContext: context });
+        var newAccesor = createModelBinderAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+        var newContext = createModelBinderContext(context);
         return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     }
 };
-ko.virtualElements.allowedBindings.modelExporter = true;
+ko.virtualElements.allowedBindings.modelBinder = true;
 
 // The content accesor returns the object needed by the template binding with the array of DOM nodes of the component content to whos.
 // If the value is an integer it returns the slice of that number, if the value is not defined it returns all of the component
@@ -512,6 +537,17 @@ function createContentAccesor(element, valueAccessor, allBindingsAccessor, viewM
     return newAccesor;
 }
 
+function createContentContext(context) {
+    var parentContext = context.$parentContext;
+    var viewModel = context.$data;
+
+    var newContext = parentContext.extend({
+        $child: viewModel.model
+    });
+
+    return newContext;
+}
+
 // This binding is used in the template of a component to allow to show the custom markup passed to the component as content.
 // It allows to define where in your component template the content defined in the component must be displayed.
 // You can specify a jquery selector indicating wich part of the component content to show. For example:
@@ -521,12 +557,12 @@ function createContentAccesor(element, valueAccessor, allBindingsAccessor, viewM
 ko.bindingHandlers.content = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        var newContext = context.$parentContext.extend({ $child: viewModel.model, $childContext: context });
+        var newContext = createContentContext(context);
         return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var newAccesor = createContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        var newContext = context.$parentContext.extend({ $child: viewModel.model, $childContext: context });
+        var newContext = createContentContext(context);
         return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     }
 };
