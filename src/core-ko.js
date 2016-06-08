@@ -366,12 +366,16 @@ function createComponentScopeContext(context) {
         $component: viewModel.getModel(),
         $componentTemplateNodes: context.$parentContext.$componentTemplateNodes,
         $data: viewModel.getScope(),
-        $parent: context.$parentContext.$parent,
+        $parent: context.$parentContext.$parent ? context.$parentContext.$parent.model : undefined,
         $parentContext: context.$parentContext.$parentContext,
         $parents: context.$parentContext.$parents,
-        $rawData: viewModel.getScope(),
+        $rawData: context.$parentContext.$parent ? context.$parentContext.$parent.model : undefined,
         $root: context.$parentContext.$root
     });
+
+    if (newContext.$parents && newContext.$parents[0] && newContext.$parents[0].model) {
+        newContext.$parents[0] = newContext.$parents[0].model;
+    }
 
     return newContext;
 }
