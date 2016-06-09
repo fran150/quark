@@ -34,16 +34,36 @@ ko.bindingProvider.instance.preprocessNode = function(node) {
 
             return node;
         }
+    }
 
-        // Allows component use with <!-- $$ 'componentName', params: { paramsArray } -->
-        var match = node.nodeValue.match(/^\s*\$\$[\s\S]+}/);
-        if (match) {
-            node.data = node.data.replace(match, " ko component: { name:" + match.toString().replace("$$", "").trim() + " }");
+    if (node && node.nodeName && ko.components.isRegistered(node.nodeName.toLowerCase())) {
+        if (node.attributes['virtual']) {
+            var params = node.attributes['params'];
+            var bind = node.attributes['data-bind'];
 
-            var closeTag = document.createComment("/ko");
+            var comment = " ko component: { name: '" + node.nodeName.toLowerCase() + "' ";
+
+            if (params) {
+                comment += ", params: { " + params.value + " } ";
+            }
+
+            comment += " } ";
+
+            if (bind) {
+                comment += ", " + bind.value + " ";
+            }
+
+            var openTag = document.createComment(comment);
+            var closeTag = document.createComment(" /ko ");
+
             node.parentNode.insertBefore(closeTag, node.nextSibling);
+            node.parentNode.replaceChild(openTag, node);
 
-            return [node, closeTag];
+            while (node.childNodes.length > 0) {
+                openTag.parentNode.insertBefore(node.childNodes[0], closeTag);
+            }
+
+            return [openTag, closeTag];
         }
     }
 }
@@ -369,7 +389,7 @@ function createComponentScopeContext(context) {
         $parent: context.$parentContext.$parent ? context.$parentContext.$parent.model : undefined,
         $parentContext: context.$parentContext.$parentContext,
         $parents: context.$parentContext.$parents,
-        $rawData: context.$parentContext.$parent ? context.$parentContext.$parent.model : undefined,
+        $rawData: viewModel.getScope(),
         $root: context.$parentContext.$root
     });
 
