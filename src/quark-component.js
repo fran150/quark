@@ -3,6 +3,29 @@ ko.components.register('quark-component', {
     template: "<!-- ko componentScope --><!-- /ko --><!-- ko modelBinder --><!-- /ko -->"
 });
 
+// The component scope creates the context for the component and bind its template to the specified $scope,
+// effectively separating the scope and model.
+// The binding also overrides the context hiding the references to the quark-component object
+ko.bindingHandlers.componentScope = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        // Get the new accesor and context
+        var newAccesor = createComponentScopeAccesor(context);
+        var newContext = createComponentScopeContext(context);
+
+        // Basically the binding is an extension of the template binding with an altered context
+        return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, newContext.$data, newContext);
+    },
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        // Get the new accesor and context
+        var newAccesor = createComponentScopeAccesor(context);
+        var newContext = createComponentScopeContext(context);
+
+        // Basically the binding is an extension of the template binding with an altered context
+        return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, newContext.$data, newContext);
+    }
+};
+ko.virtualElements.allowedBindings.componentScope = true;
+
 // Creates the component scope accesor with the DOM nodes of the component.
 function createComponentScopeAccesor(context) {
     var newAccesor = function () {
@@ -13,7 +36,7 @@ function createComponentScopeAccesor(context) {
 }
 
 // Alters the binding context for the component scope.
-// The component must bind at the parent level using the scope as binding data, but all other reference
+// The component must bind at the parent level using it's scope as binding data, but all other reference
 // must be to the component's model.
 function createComponentScopeContext(context) {
     // The model and context is at parent level
@@ -42,28 +65,29 @@ function createComponentScopeContext(context) {
     return newContext;
 }
 
-// The component scope creates the context for the component and bind its template to the specified $scope,
-// effectively separating the scope and model.
-// The binding also overrides the context hiding the quark-component object references
-ko.bindingHandlers.componentScope = {
+// Quark allows to specify the model-bind attribute in the component's custom tag.
+// This bindings are applied to the component when it's contents are bound and are bound at the parent's context level
+// The modelBinder searchs for the model-bind attribute and creates a virtual element inside the quark-component that
+// applies the specified bindings when the element loads
+ko.bindingHandlers.modelBinder = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        // Get the new accesor and context
-        var newAccesor = createComponentScopeAccesor(context);
-        var newContext = createComponentScopeContext(context);
+        // Get the new accessor and context for the binding
+        var newAccesor = createModelBinderAccessor(element);
+        var newContext = createModelBinderContext(context);
 
-        // Basically the binding is an extension of the template binding with an altered context
-        return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, newContext.$data, newContext);
+        // Basically the model binder is an extension of the template component
+        return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        // Get the new accesor and context
-        var newAccesor = createComponentScopeAccesor(context);
-        var newContext = createComponentScopeContext(context);
+        // Get the new accessor and context for the binding
+        var newAccesor = createModelBinderAccessor(element);
+        var newContext = createModelBinderContext(context);
 
-        // Basically the binding is an extension of the template binding with an altered context
-        return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, newContext.$data, newContext);
+        // Basically the model binder is an extension of the template component
+        return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     }
 };
-ko.virtualElements.allowedBindings.componentScope = true;
+ko.virtualElements.allowedBindings.modelBinder = true;
 
 // Returns if the specified element is child of the "search" element,
 // taking into account even virtual elements.
@@ -104,60 +128,69 @@ function findParent(element) {
     }
 }
 
-// The model exporter accesor searchs the tag wich defines the component to find the qk- attributes,
-// and for each attribute find create a binding in it's template wich binds to a custom context with has the child model on
-// the $child property.
-// As the export binding executes in here it doesn't export the scope of the object
-function createModelBinderAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context) {
-    var newAccesor = function() {
-        var nodes = Array();
+function findModelBinderAttribute(element) {
+   // Given the type of tag we search the model-bind attribute in different ways.
+    if (element.nodeType == 8) {
+        // If node is virtual find the model-bind="<your binding here>" string
+        var match = element.nodeValue.match(/model-bind[\s]*=[\s]*[\'\"][\s\S]+?[\'\"]/);
 
-        // Find the elements defining tag. It's the grandparent because it's parents is the quark-object tag.
-        var parent = findParent(element);
-        parent = findParent(parent);
+        // If a match is found create the binding in the model space
+        if (match) {
+            var content = match.match(/[\'\"][\s\S]+?[\'\"]/);
 
-        // Given the type of tag we search the qk attributes in different ways.
-        if (parent.nodeType == 8) {
-            // If node is virtual find the qk-yourBindingHere="yourBindingContentHere" values
-            var matches = parent.nodeValue.match(/model-bind[\s]*=[\s]*[\'\"][\s\S]+?[\'\"]/g);
-
-            // For each match create the binding tag in the modelExporter template
-            if (matches) {
-                for (var i = 0; i < matches.length; i++) {
-                    var match = matches[i];
-
-                    var parts = match.split('=');
-
-                    var name = parts[0].toString().trim().replace('qk-', '');
-                    var value = parts[1].toString().trim();
-
-                    nodes.push(document.createComment("ko " + name + ": " + value));
-                    nodes.push(document.createComment("/ko"));
-                }
+            if (content) {
+                return content;
             }
-        } else {
-            // Find the qk attributes along the elements attributes, for each found create the binding tag in
-            // the modelExporter template
-            if (parent.attributes) {
-                for (var i = 0; i < parent.attributes.length; i++) {
-                    var attrib = parent.attributes[i];
-                    if (attrib.specified) {
-                        if (attrib.name.indexOf('qk-') === 0) {
-                            nodes.push(document.createComment("ko " + attrib.name.replace('qk-', '') + ": " + attrib.value));
-                            nodes.push(document.createComment("/ko"));
-                        }
+        }
+    } else {
+        // If node is a normal tag, check if it has attributes
+        if (element.attributes) {
+            // Then search along the element's attributes and trying to find the "model-bind" attribute.
+            for (var i = 0; i < element.attributes.length; i++) {
+                var attrib = element.attributes[i];
+
+                // If found create the binding in the model space
+                if (attrib.specified) {
+                    if (attrib.name == "model-bind") {
+                        return attrib.value;
                     }
                 }
             }
+        }
+    }
+
+    return false;
+}
+
+// The model binder allows to define bindings in the component's custom tag that binds when the component content
+// loads. It's accessor searchs on the element's tag for the model-bind attribute and creates a knockout binding
+// inside the element that will be bound when the element content loads.
+function createModelBinderAccessor(element) {
+    var newAccesor = function() {
+        var nodes = Array();
+
+        // Find the element's defining tag. It's the grandparent because the parent is the quark-object tag.
+        var parent = findParent(element);
+        parent = findParent(parent);
+
+        var modelBind = findModelBinderAttribute(element);
+
+        if (modelBind) {
+            nodes.push(document.createComment(" ko " + attrib.value + " "));
+            nodes.push(document.createComment(" /ko "));
         }
 
         // Add the bindings to the template
         return { nodes: nodes, if: nodes.length > 0 };
     };
 
+    // Return the new accessor
     return newAccesor;
 }
 
+// The model binder operates at the component parent's level
+// To bind at this level it has to use the grand parent's context because the parent is the quark-component.
+// It also extends this context with a property named $child wich contains the component's model
 function createModelBinderContext(context) {
     var seniorContext = context.$parentContext.$parentContext;
     var viewModel = context.$parent;
@@ -168,22 +201,3 @@ function createModelBinderContext(context) {
 
     return newContext;
 }
-
-// The model exporter searchs for qk attributes defined in the components custom tag, then it creates a binding with each
-// attribute found, this produces that each binding be executed when the component loads, also this binding creates a custom
-// context wich is at the level of the component parent, and has a property $child with the childs model and a $childContext
-// with the child context.
-// This $child property is used by the export binding to extract the childs model and send it to the parent.
-ko.bindingHandlers.modelBinder = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createModelBinderAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        var newContext = createModelBinderContext(context);
-        return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
-    },
-    update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createModelBinderAccessor(element, valueAccessor, allBindingsAccessor, viewModel, context);
-        var newContext = createModelBinderContext(context);
-        return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
-    }
-};
-ko.virtualElements.allowedBindings.modelBinder = true;
