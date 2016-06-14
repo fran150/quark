@@ -132,11 +132,11 @@ function findModelBinderAttribute(element) {
    // Given the type of tag we search the model-bind attribute in different ways.
     if (element.nodeType == 8) {
         // If node is virtual find the model-bind="<your binding here>" string
-        var match = element.nodeValue.match(/model-bind[\s]*:[\s]*[\"][\s\S]+?[\"]/);
+        var match = element.nodeValue.match(/model-bind[\s]*:[\s]*\"[\s\S]*?\"/);
 
         // If a match is found create the binding in the model space
         if (match) {
-            var content = match[0].match(/[\"][\s\S]+?[\"]/);
+            var content = match[0].match(/\"[\s\S]*?\"/);
 
             if (content) {
                 var start = content[0].indexOf('\"') + 1;

@@ -1946,11 +1946,11 @@ function findModelBinderAttribute(element) {
    // Given the type of tag we search the model-bind attribute in different ways.
     if (element.nodeType == 8) {
         // If node is virtual find the model-bind="<your binding here>" string
-        var match = element.nodeValue.match(/model-bind[\s]*:[\s]*[\"][\s\S]+?[\"]/);
+        var match = element.nodeValue.match(/model-bind[\s]*:[\s]*\"[\s\S]*?\"/);
 
         // If a match is found create the binding in the model space
         if (match) {
-            var content = match[0].match(/[\"][\s\S]+?[\"]/);
+            var content = match[0].match(/\"[\s\S]*?\"/);
 
             if (content) {
                 var start = content[0].indexOf('\"') + 1;
@@ -2173,19 +2173,27 @@ function addExportBinding(element, name) {
     // If the element is virtual
     if (element.nodeType == 8) {
         // Search for the model-bind attribute in the virtual tag
-        var match = element.nodeValue.match(/model-bind[\s]*:[\s]*[\"][\s\S]+?[\"]/);
+        var match = element.nodeValue.match(/model-bind[\s]*:[\s]*\"[\s\S]*?\"/);
 
         // If a match is found
         if (match) {
             // Get the content of the binding
-            var content = match[0].match(/[\"][\s\S]+?[\"]/);
+            var content = match[0].match(/\"[\s\S]*?\"/);
 
             // If content is found add the export binding to the existing
             if (content) {
                 var start = content[0].indexOf('\"') + 1;
                 var end = content[0].indexOf('\"', start);
 
-                var newContent = "\"" + content[0].substring(start, end) + ", export: '" + name + "'\"";
+                var value = content[0].substring(start, end);
+
+                var newContent = "\"" + value;
+
+                if (value) {
+                    newContent += ", ";
+                }
+
+                newContent += "export: '" + name + "'\"";
                 element.nodeValue = element.nodeValue.replace(content[0], newContent);
             }
         } else {
@@ -2204,7 +2212,11 @@ function addExportBinding(element, name) {
                 // If found create the binding in the model space
                 if (attrib.specified) {
                     if (attrib.name == "model-bind") {
-                        attrib.value += ", export: '" + name + "'";
+                        if (attrib.value) {
+                            attrib.value += ", ";
+                        }
+
+                        attrib.value += "export: '" + name + "'";
                         found = true;
                     }
                 }
