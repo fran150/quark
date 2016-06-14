@@ -1,4 +1,5 @@
-// Marks the object as ready and inform its parent (if is tracking dependencies)
+// Calls the ready method on the model and marks as ready on the parent if is tracking dependencies, then calls the function
+// to reevaluate the parent's readiness
 function markReadyAndInformParent(model, imports) {
     // Calls the object ready method and unlocks the readyLock
     callReady(model);
@@ -17,6 +18,7 @@ function markReadyAndInformParent(model, imports) {
     }
 }
 
+// Check if the object is ready verifying that all tracked childs are loaded and ready
 function checkObjectReady(imports) {
     // If any dependency is not loaded or ready then exit
     // !! OPTIMIZE !! by using a counter and not iterating all array over and over
@@ -29,7 +31,7 @@ function checkObjectReady(imports) {
     return true;
 }
 
-// Calls the object's readied function and signals
+// Calls the object's readied function and signals passing the property name and model
 function callReadied(object, propertyName, vm) {
     // If theres a readied function on the object call it passing the dependency name and model
     if ($$.isDefined(object['readied'])) {
@@ -42,7 +44,7 @@ function callReadied(object, propertyName, vm) {
     }
 }
 
-// Calls the object's loaded function and signals
+// Calls the object's loaded function and signals passing the property name and model
 function callLoaded(object, propertyName, vm) {
     // If theres a loaded function on the object call it passing the dependency name and model
     if ($$.isDefined(object['loaded'])) {
@@ -55,7 +57,7 @@ function callLoaded(object, propertyName, vm) {
     }
 }
 
-// Call Ready function and signals on the object
+// Call Ready function and open lock on the object
 function callReady(object) {
     // If there´s a ready callback on the object invoke it
     if ($$.isFunction(object['ready'])) {
@@ -145,23 +147,33 @@ function initTracking(model, imports, name) {
     }
 }
 
+// Add the export binding to the model-bindings of this component.
 function addExportBinding(element, name) {
-    if (element.nodeType != 8) {
+    // If the element is virtual
+    if (element.nodeType == 8) {
         // Search for the model-bind attribute in the virtual tag
-        var match = element.nodeValue.match(/model-bind[\s]*=[\s]*[\'\"][\s\S]+?[\'\"]/);
+        var match = element.nodeValue.match(/model-bind[\s]*:[\s]*[\"][\s\S]+?[\"]/);
 
-        // If a match is found create the binding in the model space
+        // If a match is found
         if (match) {
-            var content = match.match(/[\'\"][\s\S]+?[\'\"]/);
+            // Get the content of the binding
+            var content = match[0].match(/[\"][\s\S]+?[\"]/);
 
+            // If content is found add the export binding to the existing
             if (content) {
-                var newContent = content + ", export: '" + name + "'";
-                content.replace(content, newContent);
+                var start = content[0].indexOf('\"') + 1;
+                var end = content[0].indexOf('\"', start);
+
+                var newContent = "\"" + content[0].substring(start, end) + ", export: '" + name + "'\"";
+                element.nodeValue = element.nodeValue.replace(content[0], newContent);
             }
         } else {
-            element.nodeValue += "model-bind=\"export: '" + name + "'\"";
+            // If the model-bind attribute is not found create it with the export binding
+            element.nodeValue += "model-bind: \"export: \'" + name + "\'\"";
         }
     } else {
+        var found = false;
+
         // If node is a normal tag, check if it has attributes
         if (element.attributes) {
             // Then search along the element's attributes and trying to find the "model-bind" attribute.
@@ -171,18 +183,20 @@ function addExportBinding(element, name) {
                 // If found create the binding in the model space
                 if (attrib.specified) {
                     if (attrib.name == "model-bind") {
-                        attrib.value += ", export='" + name + "'";
-                        return;
+                        attrib.value += ", export: '" + name + "'";
+                        found = true;
                     }
                 }
             }
         }
 
-        var attrib = document.createAttribute("model-bind");
-        attrib.value += "export='" + name + "'";
+        // If the model-bind tag is not found create it with the export tag
+        if (!found) {
+            var attrib = element.setAttribute("model-bind", "export: '" + name + "'");
+        }
     }
 }
-
+// Imports the component to its parent
 ko.bindingHandlers.import = {
     init: function(element, valueAccessor, allBindings, viewModel, context) {
         // Gets the name of the property in wich to import the viewmodel
@@ -207,66 +221,53 @@ ko.bindingHandlers.import = {
         // Init the dependency property in the target object
         imports[name] = {};
 
+        // Adds the export binding to the element
         addExportBinding(element, name);
     }
 }
 ko.virtualElements.allowedBindings.import = true;
 
-// Exports the component viewmodel to the parent object
-// This binding is used with the qk- attributes. You can define bindings that executes when the components is used as attributes
-// in the components tag. For example <some-component qk-export="'test'"> calls the binding "export" when the component is loaded
-// passing the 'test' string as value. The bindings defined in this way executes in the modelExporter wich binds in a custom context
-// that has the child model on the $child property.
-// This binding is the other leg of the import binding, the "import" begins to track the dependencies and sets a qk-export attribute
-// on the object's element. This is a binding that executes when the child component is loaded and marks the component as loaded
-// on the parent using the functions created by the import binding.
+function callLoadMethod(property, viewModel, context) {
+    // Check if the viewmodel is tracking childs properties
+    if ($$.isDefined(viewModel.$support) && $$.isDefined(viewModel.$support.tracking)) {
+        if ($$.isDefined(viewModel.$support.tracking['childs'])) {
+            // If the viewmodel is tracking a model to be loaded in a property with the specified name
+            if ($$.isDefined(viewModel.$support.tracking.childs[property])) {
+                // Call the load method of the tracking object passing the child object with the viewModel of the child component
+                viewModel.$support.tracking.childs[property]['load'](property, context.$child);
+            } else {
+                throw 'The specified object doesn´t have a property named ' + property + '. Verify that the object has a property defined with the .components method with the name defined in the vm binding.';
+            }
+        } else {
+            throw 'The specified object doesn´t have the tracking property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
+        }
+    } else {
+        throw 'The specified object doesn´t have the tracking.childs property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
+    }
+}
+
+
 ko.bindingHandlers.export = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
         var value;
+
         // Get's the binded value
         value = ko.unwrap(valueAccessor());
 
-        // If the binding model has a model (is a quark-component's scope), the binding will be against the model.
+        // If the binding model has "model" and "imports" properties we assume that is a quark-component's scope.
         if (viewModel && viewModel.imports) {
             viewModel = viewModel.imports;
         }
 
         var property;
 
-        // If the binding value is a string then is the name of a property in the viewmodel,
-        // if not, must be an object indicating the target viewModel and the property in wich to set the dependency model
-        if (!$$.isString(value)) {
-            if ($$.isObject(value)) {
-                if ($$.isString(value['property'])) {
-                    property = value['property'];
-                }
-
-                if ($$.isDefined(value['model'])) {
-                    viewModel = value['model'];
-                }
-            }
-        } else {
+        if ($$.isString(value)) {
             property = value;
-        }
-
-        // Validates objects and calls the load function on the parent (marking this component as loaded on the parent)
-        if ($$.isString(property)) {
-            if ($$.isDefined(viewModel.$support) && $$.isDefined(viewModel.$support.tracking)) {
-                if ($$.isDefined(viewModel.$support.tracking['childs'])) {
-                    if ($$.isDefined(viewModel.$support.tracking.childs[property])) {
-                        viewModel.$support.tracking.childs[property]['load'](property, context.$child);
-                    } else {
-                        throw 'The specified object doesn´t have a property named ' + value + '. Verify that the object has a property defined with the .components method with the name defined in the vm binding.';
-                    }
-                } else {
-                    throw 'The specified object doesn´t have the tracking property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
-                }
-            } else {
-                throw 'The specified object doesn´t have the tracking.childs property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
-            }
         } else {
             throw 'The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component';
         }
+
+        callLoadMethod(property, viewModel, context);
     }
 }
 ko.virtualElements.allowedBindings.export = true;
@@ -274,11 +275,14 @@ ko.virtualElements.allowedBindings.export = true;
 ko.bindingHandlers.exporttocontroller = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
         var value;
+
         // Get's the binded value
         value = ko.unwrap(valueAccessor());
 
+        // Get the current route
         var current = $$.routing.current();
 
+        // If theres a controller on the current route
         if (current && current.controller) {
             viewModel = current.controller;
 

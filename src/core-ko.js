@@ -35,6 +35,7 @@ ko.bindingProvider.instance.preprocessNode = function(node) {
         if (node.attributes['virtual']) {
             var params = node.attributes['params'];
             var bind = node.attributes['data-bind'];
+            var modelBind = node.attributes['model-bind'];
 
             var comment = " ko component: { name: '" + node.nodeName.toLowerCase() + "' ";
 
@@ -46,6 +47,10 @@ ko.bindingProvider.instance.preprocessNode = function(node) {
 
             if (bind) {
                 comment += ", " + bind.value + " ";
+            }
+
+            if (modelBind) {
+                comment += ", model-bind: \"" + modelBind.value + "\"";
             }
 
             var openTag = document.createComment(comment);
