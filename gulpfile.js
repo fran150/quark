@@ -59,6 +59,8 @@ gulp.task('js', function () {
         './src/core-ko.js',
         './src/quark-component.js',
         './src/import-export.js',
+        './src/content-bindings.js',
+        './src/page-bindings.js',
         './src/core-routing.js',
         './src/libs/validation.js',
         './src/wrap.end'

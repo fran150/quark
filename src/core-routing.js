@@ -195,7 +195,7 @@ function QuarkRouter() {
 
                     if (routeObject && $$.isObject(routeObject.components)) {
                         for (var name in routeObject.components) {
-                            initTracking(controller, name);
+                            initTracking(controller, controller, name);
                         }
                     }
 
