@@ -2240,6 +2240,7 @@ ko.bindingHandlers.hasNotContent = {
     }
 };
 ko.virtualElements.allowedBindings.hasNotContent = true;
+
 // This binding works in conjunction with the routing system.
 // When configuring the routes you can define a page name and the component that must be shown when that route is matched.
 // The specified component is shown inside a component that has a page binding with the matching name.
@@ -2254,7 +2255,7 @@ ko.bindingHandlers.page = {
             parameters: ko.observable()
         };
 
-        // This computed updates the current component and parameters when route changes
+        // This computed observable updates the current component and parameters when route changes
         var updater = ko.computed(function() {
             // Gets the current route
             var currentRoute = $$.routing.current();
@@ -2265,9 +2266,9 @@ ko.bindingHandlers.page = {
             if (currentRoute) {
                 // If the current component is specified as an array the assume it contains the
                 // component name and the parameters to pass to the component
-                if ($$.isArray(currentRoute.route.components[name])) {
-                    component = currentRoute.route.components[name][0];
-                    var componentParams = currentRoute.route.components[name][1];
+                if ($$.isArray(currentRoute.config.components[name])) {
+                    component = currentRoute.config.components[name][0];
+                    var componentParams = currentRoute.config.components[name][1];
 
                     if ($$.isString(componentParams)) {
                         eval("params = {" + componentParams + "}");
@@ -2278,7 +2279,7 @@ ko.bindingHandlers.page = {
                     }
 
                 } else {
-                    component = currentRoute.route.components[name];
+                    component = currentRoute.config.components[name];
                     params = currentRoute;
                 }
 
@@ -2382,125 +2383,129 @@ function QuarkRouter() {
     function Route(locationName, routeName, config) {
         var routeObject = this;
 
-        // Add route in crossroad.
-        // The actual routing in quark is performed by crossroads.js.
-        // Foreach location defined, quark creates a crossroad router and adds all defined routes to it.
-        var csRoute = routers[locationName].router.addRoute(hash, function(requestParams) {
-            // Set the value for all the parameters defined in the route
-            for (var index in routeObject.params) {
-                routeObject.params[index](requestParams[index]);
-            }
+        var controllerImports = {};
 
-            // Changes the current route
-            function changeCurrent(routeController) {
-                var current = self.current();
+        // Changes the current route
+        function changeCurrent(routeController) {
+            var current = self.current();
 
-                // If the current route and the new route hasn't got the same controller object,
-                // proceed to clear the old one
-                if (current && current.route.controller != routeController) {
-                    // If the current route has a controller defined and the controller has a "leaving" method call it to allow
-                    // controller cleanup, if controller result is false do not reroute
-                    if (current.controller && current.controller.leaving) {
+            // If the current route and the new route hasn't got the same controller object,
+            // proceed to clear the old one
+            if (current && current.controller != routeController) {
+                // If the current route has a controller defined and the controller has a "leaving" method call it to allow
+                // controller cleanup, if controller result is false do not reroute
+                if (current.controller) {
+                    if (current.controller.leaving) {
                         if (current.controller.leaving() === false) {
                             return;
                         }
                     }
 
-                    // If theres an error handler defined in the controller clear it
-                    if (current.controller) {
-                        if (current.controller.componentErrors) {
-                            current.controller.componentErrors.clear();
-                        }
+                    if (current.controller.componentErrors) {
+                        current.controller.componentErrors.clear();
+                    }
 
-                        if (!current.route.persistent) {
-                            // Delete the old controller
-                            delete current.controller;
-                            delete current.route.controller;
-                        }
+                    if (!current.route.persistent) {
+                        // Delete the old controller
+                        delete current.controller;
+                        delete current.route.controller;
                     }
                 }
-
-                // Change the current route
-                self.current({
-                    route: routeObject,
-                    params: routeObject.params,
-                    controller: routeController
-                });
-
-                // If the controller is defined and has a show method invoke it
-                if (routeController && routeController.show) {
-                    routeController.show();
-                }
-
-                // Dispatch the routed signal
-                self.routed.dispatch();
-
-                // Unlock the first routing lock
-                self.firstRouting.unlock();
             }
 
-            function initController(controller) {
-                // Store the controller object on the associated route
-                routeObject.controller = controller;
+            // Change the current route
+            self.current({
+                location: locationName,
+                routeName: routeName,
+                config: config,
+                params: config.params,
+                controller: routeController
+            });
 
-                // If theres a route controller defined and it doesn't have an error handler created
-                // create one.
-                if (controller) {
-                    // If property will be overwritten warn the user
-                    if (controller.componentErrors) {
-                        console.warn('This controller already have a property named componentErrors, wich will be replaced by the error handler.');
+            // If the controller is defined and has a show method invoke it
+            if (routeController && routeController.show) {
+                routeController.show();
+            }
+
+            // Dispatch the routed signal
+            self.routed.dispatch();
+
+            // Unlock the first routing lock
+            self.firstRouting.unlock();
+        }
+
+        // Initialize a controller creating the componentErrors property and initializing
+        // the tracking of route components
+        function initController(controller) {
+            // If theres a route controller defined and it doesn't have an error handler created
+            // create one.
+            if (controller) {
+                // If property will be overwritten warn the user
+                if (controller.componentErrors) {
+                    console.warn('This controller already have a property named componentErrors, wich will be replaced by the error handler.');
+                }
+
+                // Create the error handler
+                controller.componentErrors = new ComponentErrors(controller);
+
+                if ($$.isObject(config.components)) {
+                    for (var name in config.components) {
+                        initTracking(controller, controllerImports, name);
                     }
-
-                    // Create the error handler
-                    controller.componentErrors = new ComponentErrors(controller);
-
-                    if (routeObject && $$.isObject(routeObject.components)) {
-                        for (var name in routeObject.components) {
-                            initTracking(controller, controller, name);
-                        }
-                    }
-
                 }
             }
+        }
+
+        // Create the controller passing the route data and imports object
+        function createController(controllerCreated) {
+            var routeController;
 
             // If the controller is a string then assume its a js module name
-            if ($$.isString(controller)) {
+            if ($$.isString(config.controller)) {
                 // Require the controller file
-                require([controller], function(controllerObject) {
-                    var routeController;
-
-                    // If theres a controller created for the route use it if not initialize one and assign it to the route
-                    if (routeObject.controller) {
-                        routeController = routeObject.controller;
+                require([config.controller], function(controllerObject) {
+                    // Check that the returned js module is the controller's constructor function
+                    if ($$.isFunction(controllerObject)) {
+                        // Create the controller passing the route config and import object
+                        routeController = new controllerObject(config, controllerImports);
+                        routeObject.controller = routeController;
+                        controllerCreated(routeController);
                     } else {
-                        // If the module returns a constructor create an object, if not use it as is
-                        routeController = $$.isFunction(controllerObject) ? new controllerObject(routeObject) : controllerObject;
-
-                        // Intializes the controller
-                        initController(routeController);
+                        throw 'The specified controller file ' + config.controller + ' must return the controller\'s constructor';
                     }
-
-                    // Change current route using the loaded controller
-                    changeCurrent(routeController);
                 });
             } else {
-                // If controller is a function, the function must create the controller object and
-                // invoke the callback passed as first parameter
-                if ($$.isFunction(controller)) {
-                    controller(function(param) {
-                        initController(param);
-                        changeCurrent(param);
-                    });
+                // If controller is a function it must be the controller's constructor function
+                if ($$.isFunction(config.controller)) {
+                    // Create the controller passing the route config and import object
+                    routeController = new config.controller(config, controllerImports);
+                    routeObject.controller = routeController;
+                    controllerCreated(routeController);
                 } else {
-                    // If the controller is not an string nor function then use it as specified
-                    initController(controller);
-                    changeCurrent(controller);
+                    throw 'The specified controller file ' + config.controller + ' must return the controller\'s constructor';
                 }
             }
-        });
+        }
 
-        // Initialize the object of configured parameters
-        config.params = {};
+        // Add route in crossroad.
+        // The actual routing in quark is performed by crossroads.js.
+        // Foreach location defined, quark creates a crossroad router and adds all defined routes to it.
+        var csRoute = routers[locationName].csRouter.addRoute(config.hash, function(requestParams) {
+            // Set the value for all the parameters defined in the route
+            for (var index in config.params) {
+                config.params[index](requestParams[index]);
+            }
+
+            // If theres a controller created for the route use it if not initialize one and assign it to the route
+            if (routeObject.controller) {
+                changeCurrent(routeObject.controller);
+            } else {
+                createController(function(routeController) {
+                    initController(routeController);
+                    changeCurrent(routeController);
+                });
+            }
+        });
 
         // Read the route configuration and store in the route object the parameters used by this route
         for (var index in csRoute._paramsIds) {
@@ -2510,6 +2515,33 @@ function QuarkRouter() {
         // Interpolate the hash using configured routes hash and the specified values for the route variables
         routeObject.interpolate = function(values) {
             return csRoute.interpolate(values);
+        }
+    }
+
+    // Get the route with the specified name (in the form locationName/routeName)
+    function getRoute(name) {
+        // Extract location and routeName
+        var location = name.substr(0, name.indexOf('/'));
+        var routeName = name.substr(name.indexOf('/') + 1);
+
+        // Validate parameter
+        if (!routeName) {
+            throw new 'You must specifiy route name in the form location/routeName.';
+        }
+
+        // If there isn't a location with the specified name warn on console
+        if (!self.configuration[location]) {
+            console.warn('The location specified as ' + name + ' was not found in the routing configuration.');
+        } else {
+            // if there isn't a route in the location with the specified name warn on console
+            if (!self.configuration[location]['routes'][routeName]) {
+                console.warn('The route name specified as ' + name + ' was not found in the routing configuration for the ' + location + ' location.');
+            }
+        }
+
+        // If the specified location and route exists return it
+        if (routers[location] && routers[location]['routes'][routeName]) {
+            return routers[location]['routes'][routeName];
         }
     }
 
@@ -2572,7 +2604,8 @@ function QuarkRouter() {
                     fullName: locationName + '/' + routeName,
                     controller: routeConfig.controller,
                     persistent: routeConfig.persistent,
-                    components: components
+                    components: components,
+                    params: {}
                 };
 
                 // If there isn't a previously configured router in the location configuration create a new one
@@ -2582,6 +2615,11 @@ function QuarkRouter() {
 
                     routers[locationName].csRouter.normalizeFn = crossroads.NORM_AS_OBJECT;
                     routers[locationName].csRouter.ignoreState = true;
+                }
+
+                // If not previously created, init the router object to store all routes configuration
+                if (!routers[locationName].routes) {
+                    routers[locationName].routes = {};
                 }
 
                 // Creates the new route
@@ -2602,9 +2640,9 @@ function QuarkRouter() {
             var finder = self.locationFinders[index];
 
             // Call the finder to get the actual location, if found call the crossroad parser passing the hash
-            finder(function(locationConfig) {
+            finder(function(locationName) {
                 found = true;
-                locationConfig.csRouter.parse(hash);
+                routers[locationName].csRouter.parse(hash);
             });
 
             // If location is found stop iterating
@@ -2612,38 +2650,11 @@ function QuarkRouter() {
         }
     }
 
-    // Get the route with the specified name (in the form locationName/routeName)
-    this.getRoute = function(name) {
-        // Extract location and routeName
-        var location = name.substr(0, name.indexOf('/'));
-        var routeName = name.substr(name.indexOf('/') + 1);
-
-        // Validate parameter
-        if (!routeName) {
-            throw new 'You must specifiy route name in the form location/routeName.';
-        }
-
-        // If there isn't a location with the specified name warn on console
-        if (!self.configuration[location]) {
-            console.warn('The location specified as ' + name + ' was not found in the routing configuration.');
-        } else {
-            // if there isn't a route in the location with the specified name warn on console
-            if (!self.configuration[location]['routes'][routeName]) {
-                console.warn('The route name specified as ' + name + ' was not found in the routing configuration for the ' + location + ' location.');
-            }
-        }
-
-        // If the specified location and route exists return it
-        if (self.configuration[location] && self.configuration[location]['routes'][routeName]) {
-            return self.configuration[location]['routes'][routeName];
-        }
-    }
-
     // Returns a hash for the specified route and configuration.
     // Routes can have variables, you can define a value for this variables using the config parameter
     this.hash = function(name, config) {
         // Get the route with the specified name
-        var route = self.getRoute(name);
+        var route = getRoute(name);
 
         // If theres a route with the specified name use the crossroad router to interpolate the hash
         if (route) {
@@ -2694,6 +2705,32 @@ var controllerUpdater = ko.computed(function() {
             $$.controller = current.controller;
         } else {
             $$.controller = {};
+        }
+    }
+});
+
+// A location finder is a function used by the quark routing system to resolve the location.
+// The function receives a callback and if it understands the current location it invoke the callback
+// passing the route configuration extracted from self.configuration.
+// This is the default location finder, it matches allows to specify a regular expression in the location
+// that must match the window.location.pathname
+// The location finders defined are called in order until one understands the location and invoke the callback.
+$$.routing.locationFinders.push(function(callback) {
+    // Get the windolw location pathname
+    var path = window.location.pathname;
+
+    // Iterate over the defined locations trying to find one that has a regular expression wich matches the
+    // path
+    for (var locationName in $$.routing.configuration) {
+        // Get the location data
+        var location = $$.routing.configuration[locationName];
+
+        // Create a regular expression object with the location configuration string
+        var exp = RegExp(location.config.path);
+
+        // If there's a match invoke the callback with the matching location
+        if (path.match(exp)) {
+            callback(locationName);
         }
     }
 });

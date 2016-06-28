@@ -9,7 +9,7 @@ ko.bindingHandlers.page = {
         // Current component and parameters
         var current = {
             component: ko.observable(),
-            parameters: ko.obsservable()
+            parameters: ko.observable()
         };
 
         // This computed observable updates the current component and parameters when route changes
@@ -23,9 +23,9 @@ ko.bindingHandlers.page = {
             if (currentRoute) {
                 // If the current component is specified as an array the assume it contains the
                 // component name and the parameters to pass to the component
-                if ($$.isArray(currentRoute.route.components[name])) {
-                    component = currentRoute.route.components[name][0];
-                    var componentParams = currentRoute.route.components[name][1];
+                if ($$.isArray(currentRoute.config.components[name])) {
+                    component = currentRoute.config.components[name][0];
+                    var componentParams = currentRoute.config.components[name][1];
 
                     if ($$.isString(componentParams)) {
                         eval("params = {" + componentParams + "}");
@@ -36,7 +36,7 @@ ko.bindingHandlers.page = {
                     }
 
                 } else {
-                    component = currentRoute.route.components[name];
+                    component = currentRoute.config.components[name];
                     params = currentRoute;
                 }
 

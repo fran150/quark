@@ -1,18 +1,18 @@
 // Node modules
-var fs = require('fs'), 
-        vm = require('vm'), 
-        merge = require('deeply'), 
-        chalk = require('chalk'), 
+var fs = require('fs'),
+        vm = require('vm'),
+        merge = require('deeply'),
+        chalk = require('chalk'),
         es = require('event-stream');
 
 // Gulp and plugins
-var gulp = require('gulp'), 
-        rjs = require('gulp-requirejs-bundler'), 
+var gulp = require('gulp'),
+        rjs = require('gulp-requirejs-bundler'),
         concat = require('gulp-concat'),
         rename = require('gulp-rename'),
         clean = require('gulp-clean'),
-        replace = require('gulp-replace'), 
-        uglify = require('gulp-uglify'), 
+        replace = require('gulp-replace'),
+        uglify = require('gulp-uglify'),
         htmlreplace = require('gulp-html-replace'),
         gulpCopy = require('gulp-copy');
 
@@ -62,6 +62,7 @@ gulp.task('js', function () {
         './src/content-bindings.js',
         './src/page-bindings.js',
         './src/core-routing.js',
+        './src/default-locationFinder.js',
         './src/libs/validation.js',
         './src/wrap.end'
         ])

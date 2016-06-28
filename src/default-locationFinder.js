@@ -4,22 +4,22 @@
 // This is the default location finder, it matches allows to specify a regular expression in the location
 // that must match the window.location.pathname
 // The location finders defined are called in order until one understands the location and invoke the callback.
-this.locationFinders.push(function(callback) {
+$$.routing.locationFinders.push(function(callback) {
     // Get the windolw location pathname
     var path = window.location.pathname;
 
     // Iterate over the defined locations trying to find one that has a regular expression wich matches the
     // path
-    for (var locationName in self.configuration) {
+    for (var locationName in $$.routing.configuration) {
         // Get the location data
-        var location = self.configuration[locationName];
+        var location = $$.routing.configuration[locationName];
 
         // Create a regular expression object with the location configuration string
-        var exp = RegExp(location.config);
+        var exp = RegExp(location.config.path);
 
         // If there's a match invoke the callback with the matching location
         if (path.match(exp)) {
-            callback(location);
+            callback(locationName);
         }
     }
 });
