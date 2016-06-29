@@ -42,11 +42,11 @@ function QuarkRouter() {
                         current.controller.componentErrors.clear();
                     }
 
-                    if (!current.route.persistent) {
-                        // Delete the old controller
-                        delete current.controller;
-                        delete current.route.controller;
+                    if (!current.config.persistent) {
+                        delete routeObject.controller;
                     }
+
+                    delete current.controller;
                 }
             }
 
