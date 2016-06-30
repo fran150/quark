@@ -2405,7 +2405,7 @@ function QuarkRouter() {
                         current.controller.componentErrors.clear();
                     }
 
-                    if (!current.config.persistent) {
+                    if (routeController && !current.config.persistent) {
                         delete routeObject.controller;
                     }
 
@@ -2500,10 +2500,13 @@ function QuarkRouter() {
             if (routeObject.controller) {
                 changeCurrent(routeObject.controller);
             } else {
-                createController(function(routeController) {
-                    initController(routeController);
-                    changeCurrent(routeController);
-                });
+                if ($$.isDefined(config.controller)) {
+                    createController(function(routeController) {
+                        initController(routeController);
+                    });
+                }
+
+                changeCurrent(routeController);
             }
         });
 
