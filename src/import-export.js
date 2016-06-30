@@ -148,7 +148,7 @@ function initTracking(model, imports, name) {
 }
 
 // Add the export binding to the model-bindings of this component.
-function addExportBinding(element, name) {
+function addExportBinding(element, name, bindName) {
     // If the element is virtual
     if (element.nodeType == 8) {
         // Search for the model-bind attribute in the virtual tag
@@ -159,7 +159,7 @@ function addExportBinding(element, name) {
             // Get the content of the binding
             var content = match[0].match(/\"[\s\S]*?\"/);
 
-            // If content is found add the export binding to the existing
+            // If content is found add the specified binding to the existing
             if (content) {
                 var start = content[0].indexOf('\"') + 1;
                 var end = content[0].indexOf('\"', start);
@@ -172,12 +172,12 @@ function addExportBinding(element, name) {
                     newContent += ", ";
                 }
 
-                newContent += "export: '" + name + "'\"";
+                newContent += bindName + ": '" + name + "'\"";
                 element.nodeValue = element.nodeValue.replace(content[0], newContent);
             }
         } else {
-            // If the model-bind attribute is not found create it with the export binding
-            element.nodeValue += "model-bind: \"export: \'" + name + "\'\"";
+            // If the model-bind attribute is not found create it with the specified binding
+            element.nodeValue += "model-bind: \"" + bindName + ": \'" + name + "\'\"";
         }
     } else {
         var found = false;
@@ -195,16 +195,16 @@ function addExportBinding(element, name) {
                             attrib.value += ", ";
                         }
 
-                        attrib.value += "export: '" + name + "'";
+                        attrib.value += bindName + ": '" + name + "'";
                         found = true;
                     }
                 }
             }
         }
 
-        // If the model-bind tag is not found create it with the export tag
+        // If the model-bind tag is not found create it with the specified tag
         if (!found) {
-            var attrib = element.setAttribute("model-bind", "export: '" + name + "'");
+            var attrib = element.setAttribute("model-bind", bindName + ": '" + name + "'");
         }
     }
 }
@@ -234,7 +234,7 @@ ko.bindingHandlers.import = {
         imports[name] = {};
 
         // Adds the export binding to the element
-        addExportBinding(element, name);
+        addExportBinding(element, name, 'export');
     }
 }
 ko.virtualElements.allowedBindings.import = true;
@@ -284,7 +284,7 @@ ko.bindingHandlers.export = {
 }
 ko.virtualElements.allowedBindings.export = true;
 
-ko.bindingHandlers.exporttocontroller = {
+ko.bindingHandlers.exportToController = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
         var value;
 
@@ -296,46 +296,26 @@ ko.bindingHandlers.exporttocontroller = {
 
         // If theres a controller on the current route
         if (current && current.controller) {
-            viewModel = current.controller;
+            var value;
 
+            // Get's the binded value
+            value = ko.unwrap(valueAccessor());
+
+            // If the binding model has "model" and "imports" properties we assume that is a quark-component's scope.
+            if (routers[current.locationName].routes[current.routeName].controllerImports) {
+                viewModel = routers[current.locationName].routes[current.routeName].controllerImports;
+            }
 
             var property;
 
-            // If the binding value is a string then is the name of a property in the viewmodel,
-            // if not, must be an object indicating the target viewModel and the property in wich to set the dependency model
-            if (!$$.isString(value)) {
-                if ($$.isObject(value)) {
-                    if ($$.isString(value['property'])) {
-                        property = value['property'];
-                    }
-
-                    if ($$.isDefined(value['model'])) {
-                        viewModel = value['model'];
-                    }
-                }
-            } else {
+            if ($$.isString(value)) {
                 property = value;
-            }
-
-            // Validates objects and calls the load function on the parent (marking this component as loaded on the parent)
-            if ($$.isString(property)) {
-                if ($$.isDefined(viewModel.$support) && $$.isDefined(viewModel.$support.tracking)) {
-                    if ($$.isDefined(viewModel.$support.tracking['childs'])) {
-                        if ($$.isDefined(viewModel.$support.tracking.childs[property])) {
-                            viewModel.$support.tracking.childs[property]['load'](property, context.$child);
-                        } else {
-                            throw 'The specified object doesn´t have a property named ' + value + '. Verify that the object has a property defined with the .components method with the name defined in the vm binding.';
-                        }
-                    } else {
-                        throw 'The specified object doesn´t have the tracking property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
-                    }
-                } else {
-                    throw 'The specified object doesn´t have the tracking.childs property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
-                }
             } else {
                 throw 'The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component';
             }
+
+            callLoadMethod(property, viewModel, context);
         }
     }
 }
-ko.virtualElements.allowedBindings.exporttocontroller = true;
+ko.virtualElements.allowedBindings.exportToController = true;

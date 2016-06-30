@@ -1,3 +1,7 @@
+// Initialize the crossroads routers for each location
+var routers = {};
+
+
 // Quark router object
 function QuarkRouter() {
     var self = this;
@@ -13,23 +17,22 @@ function QuarkRouter() {
     // Each "location" have a set of routes defined independent of other.
     this.locationFinders = [];
 
-    // Initialize the crossroads routers for each location
-    var routers = {};
-
     // Specific route configuration, contains all route data and register the route in crossroads.js
     function Route(locationName, routeName, config) {
         var routeObject = this;
 
-        var controllerImports = {};
+        // Create the controller imports, this object holds the reference to the models
+        // of the components defined in the route
+        routeObject.controllerImports = {};
 
-        // Changes the current route
+        // Changes the current route and sets the specified controller
         function changeCurrent(routeController) {
             var current = self.current();
 
-            // If the current route and the new route hasn't got the same controller object,
-            // proceed to clear the old one
+            // If the controller of the current route is different from the new one
+            // proceed to some cleanup
             if (current && current.controller != routeController) {
-                // If the current route has a controller defined and the controller has a "leaving" method call it to allow
+                // If the controller has a "leaving" method call it to allow
                 // controller cleanup, if controller result is false do not reroute
                 if (current.controller) {
                     if (current.controller.leaving) {
@@ -38,21 +41,26 @@ function QuarkRouter() {
                         }
                     }
 
+                    // If the current controller contains a componentErrors variable
+                    // clear the errors
                     if (current.controller.componentErrors) {
                         current.controller.componentErrors.clear();
                     }
 
-                    if (routeController && !current.config.persistent) {
+                    // If the controller is not persistent clear the saved controller
+                    // from the route configuration
+                    if (routeController && current.config.controller.charAt(0) != "!") {
                         delete routeObject.controller;
                     }
 
+                    // Clear the actual controller reference
                     delete current.controller;
                 }
             }
 
             // Change the current route
             self.current({
-                location: locationName,
+                locationName: locationName,
                 routeName: routeName,
                 config: config,
                 params: config.params,
@@ -85,9 +93,11 @@ function QuarkRouter() {
                 // Create the error handler
                 controller.componentErrors = new ComponentErrors(controller);
 
+                // If there's components defined in the component config init tracking in all of them
+                // passing the controller imports object
                 if ($$.isObject(config.components)) {
                     for (var name in config.components) {
-                        initTracking(controller, controllerImports, name);
+                        initTracking(controller, routeObject.controllerImports, name);
                     }
                 }
             }
@@ -99,12 +109,21 @@ function QuarkRouter() {
 
             // If the controller is a string then assume its a js module name
             if ($$.isString(config.controller)) {
+                var controllerFile;
+
+                // If the controller is persistent, extract the ! from the filename begining
+                if (config.controller.charAt(0) == "!") {
+                    controllerFile = config.controller.substr(1);
+                } else {
+                    controllerFile = config.controller;
+                }
+
                 // Require the controller file
-                require([config.controller], function(controllerObject) {
+                require([controllerFile], function(controllerObject) {
                     // Check that the returned js module is the controller's constructor function
                     if ($$.isFunction(controllerObject)) {
                         // Create the controller passing the route config and import object
-                        routeController = new controllerObject(config, controllerImports);
+                        routeController = new controllerObject(config, routeObject.controllerImports);
                         routeObject.controller = routeController;
                         controllerCreated(routeController);
                     } else {
@@ -115,7 +134,7 @@ function QuarkRouter() {
                 // If controller is a function it must be the controller's constructor function
                 if ($$.isFunction(config.controller)) {
                     // Create the controller passing the route config and import object
-                    routeController = new config.controller(config, controllerImports);
+                    routeController = new config.controller(config, routeObject.controllerImports);
                     routeObject.controller = routeController;
                     controllerCreated(routeController);
                 } else {
@@ -137,13 +156,19 @@ function QuarkRouter() {
             if (routeObject.controller) {
                 changeCurrent(routeObject.controller);
             } else {
+                // If theres a controller defined in this route's configuration
                 if ($$.isDefined(config.controller)) {
+                    // Creates the controller and invoke the callback when ready
                     createController(function(routeController) {
+                        // Initialize the new controller and change the actual route
                         initController(routeController);
+                        changeCurrent(routeController);
                     });
+                } else {
+                    // If there isn't a configured controller change the route
+                    // without a controller
+                    changeCurrent();
                 }
-
-                changeCurrent(routeController);
             }
         });
 
@@ -235,15 +260,16 @@ function QuarkRouter() {
                 // Replace this route configuration to have precedence over all previous configuration
                 $.extend(components, routeConfig.components);
 
+                // If the current location doesn't have the routes property create it
                 if (!dest.routes) {
                     dest.routes = {};
                 }
 
+                // Add the route to the routes configuration
                 dest.routes[routeName] = {
                     hash: routeConfig.hash,
                     fullName: locationName + '/' + routeName,
                     controller: routeConfig.controller,
-                    persistent: routeConfig.persistent,
                     components: components,
                     params: {}
                 };

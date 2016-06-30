@@ -72,12 +72,7 @@ ko.bindingHandlers.page = {
             }
         };
 
-        if (element.nodeType != 8) {
-            //element.setAttribute('qk-exporttocontroller', "\'" + name + "\'");
-        } else {
-            //element.data += " qk-exporttocontroller=\'" + name + "\'";
-        }
-
+        addExportBinding(element, name, 'exportToController');
 
         // When disposing the page element (and this binding) dispose the computed observable
         ko.utils.domNodeDisposal.addDisposeCallback(element, function() {

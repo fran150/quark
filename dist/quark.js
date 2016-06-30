@@ -1964,7 +1964,7 @@ function initTracking(model, imports, name) {
 }
 
 // Add the export binding to the model-bindings of this component.
-function addExportBinding(element, name) {
+function addExportBinding(element, name, bindName) {
     // If the element is virtual
     if (element.nodeType == 8) {
         // Search for the model-bind attribute in the virtual tag
@@ -1975,7 +1975,7 @@ function addExportBinding(element, name) {
             // Get the content of the binding
             var content = match[0].match(/\"[\s\S]*?\"/);
 
-            // If content is found add the export binding to the existing
+            // If content is found add the specified binding to the existing
             if (content) {
                 var start = content[0].indexOf('\"') + 1;
                 var end = content[0].indexOf('\"', start);
@@ -1988,12 +1988,12 @@ function addExportBinding(element, name) {
                     newContent += ", ";
                 }
 
-                newContent += "export: '" + name + "'\"";
+                newContent += bindName + ": '" + name + "'\"";
                 element.nodeValue = element.nodeValue.replace(content[0], newContent);
             }
         } else {
-            // If the model-bind attribute is not found create it with the export binding
-            element.nodeValue += "model-bind: \"export: \'" + name + "\'\"";
+            // If the model-bind attribute is not found create it with the specified binding
+            element.nodeValue += "model-bind: \"" + bindName + ": \'" + name + "\'\"";
         }
     } else {
         var found = false;
@@ -2011,16 +2011,16 @@ function addExportBinding(element, name) {
                             attrib.value += ", ";
                         }
 
-                        attrib.value += "export: '" + name + "'";
+                        attrib.value += bindName + ": '" + name + "'";
                         found = true;
                     }
                 }
             }
         }
 
-        // If the model-bind tag is not found create it with the export tag
+        // If the model-bind tag is not found create it with the specified tag
         if (!found) {
-            var attrib = element.setAttribute("model-bind", "export: '" + name + "'");
+            var attrib = element.setAttribute("model-bind", bindName + ": '" + name + "'");
         }
     }
 }
@@ -2050,7 +2050,7 @@ ko.bindingHandlers.import = {
         imports[name] = {};
 
         // Adds the export binding to the element
-        addExportBinding(element, name);
+        addExportBinding(element, name, 'export');
     }
 }
 ko.virtualElements.allowedBindings.import = true;
@@ -2100,7 +2100,7 @@ ko.bindingHandlers.export = {
 }
 ko.virtualElements.allowedBindings.export = true;
 
-ko.bindingHandlers.exporttocontroller = {
+ko.bindingHandlers.exportToController = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
         var value;
 
@@ -2112,49 +2112,29 @@ ko.bindingHandlers.exporttocontroller = {
 
         // If theres a controller on the current route
         if (current && current.controller) {
-            viewModel = current.controller;
+            var value;
 
+            // Get's the binded value
+            value = ko.unwrap(valueAccessor());
+
+            // If the binding model has "model" and "imports" properties we assume that is a quark-component's scope.
+            if (routers[current.locationName].routes[current.routeName].controllerImports) {
+                viewModel = routers[current.locationName].routes[current.routeName].controllerImports;
+            }
 
             var property;
 
-            // If the binding value is a string then is the name of a property in the viewmodel,
-            // if not, must be an object indicating the target viewModel and the property in wich to set the dependency model
-            if (!$$.isString(value)) {
-                if ($$.isObject(value)) {
-                    if ($$.isString(value['property'])) {
-                        property = value['property'];
-                    }
-
-                    if ($$.isDefined(value['model'])) {
-                        viewModel = value['model'];
-                    }
-                }
-            } else {
+            if ($$.isString(value)) {
                 property = value;
-            }
-
-            // Validates objects and calls the load function on the parent (marking this component as loaded on the parent)
-            if ($$.isString(property)) {
-                if ($$.isDefined(viewModel.$support) && $$.isDefined(viewModel.$support.tracking)) {
-                    if ($$.isDefined(viewModel.$support.tracking['childs'])) {
-                        if ($$.isDefined(viewModel.$support.tracking.childs[property])) {
-                            viewModel.$support.tracking.childs[property]['load'](property, context.$child);
-                        } else {
-                            throw 'The specified object doesn´t have a property named ' + value + '. Verify that the object has a property defined with the .components method with the name defined in the vm binding.';
-                        }
-                    } else {
-                        throw 'The specified object doesn´t have the tracking property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
-                    }
-                } else {
-                    throw 'The specified object doesn´t have the tracking.childs property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
-                }
             } else {
                 throw 'The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component';
             }
+
+            callLoadMethod(property, viewModel, context);
         }
     }
 }
-ko.virtualElements.allowedBindings.exporttocontroller = true;
+ko.virtualElements.allowedBindings.exportToController = true;
 
 // Uses jquery to select the nodes to show from the componentTemplateNodes
 function createContentAccesor(valueAccessor, context) {
@@ -2315,12 +2295,7 @@ ko.bindingHandlers.page = {
             }
         };
 
-        if (element.nodeType != 8) {
-            //element.setAttribute('qk-exporttocontroller', "\'" + name + "\'");
-        } else {
-            //element.data += " qk-exporttocontroller=\'" + name + "\'";
-        }
-
+        addExportBinding(element, name, 'exportToController');
 
         // When disposing the page element (and this binding) dispose the computed observable
         ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
@@ -2361,6 +2336,10 @@ ko.bindingHandlers.hasPage = {
 }
 ko.virtualElements.allowedBindings.hasPage = true;
 
+// Initialize the crossroads routers for each location
+var routers = {};
+
+
 // Quark router object
 function QuarkRouter() {
     var self = this;
@@ -2376,23 +2355,22 @@ function QuarkRouter() {
     // Each "location" have a set of routes defined independent of other.
     this.locationFinders = [];
 
-    // Initialize the crossroads routers for each location
-    var routers = {};
-
     // Specific route configuration, contains all route data and register the route in crossroads.js
     function Route(locationName, routeName, config) {
         var routeObject = this;
 
-        var controllerImports = {};
+        // Create the controller imports, this object holds the reference to the models
+        // of the components defined in the route
+        routeObject.controllerImports = {};
 
-        // Changes the current route
+        // Changes the current route and sets the specified controller
         function changeCurrent(routeController) {
             var current = self.current();
 
-            // If the current route and the new route hasn't got the same controller object,
-            // proceed to clear the old one
+            // If the controller of the current route is different from the new one
+            // proceed to some cleanup
             if (current && current.controller != routeController) {
-                // If the current route has a controller defined and the controller has a "leaving" method call it to allow
+                // If the controller has a "leaving" method call it to allow
                 // controller cleanup, if controller result is false do not reroute
                 if (current.controller) {
                     if (current.controller.leaving) {
@@ -2401,21 +2379,26 @@ function QuarkRouter() {
                         }
                     }
 
+                    // If the current controller contains a componentErrors variable
+                    // clear the errors
                     if (current.controller.componentErrors) {
                         current.controller.componentErrors.clear();
                     }
 
-                    if (routeController && !current.config.persistent) {
+                    // If the controller is not persistent clear the saved controller
+                    // from the route configuration
+                    if (routeController && current.config.controller.charAt(0) != "!") {
                         delete routeObject.controller;
                     }
 
+                    // Clear the actual controller reference
                     delete current.controller;
                 }
             }
 
             // Change the current route
             self.current({
-                location: locationName,
+                locationName: locationName,
                 routeName: routeName,
                 config: config,
                 params: config.params,
@@ -2448,9 +2431,11 @@ function QuarkRouter() {
                 // Create the error handler
                 controller.componentErrors = new ComponentErrors(controller);
 
+                // If there's components defined in the component config init tracking in all of them
+                // passing the controller imports object
                 if ($$.isObject(config.components)) {
                     for (var name in config.components) {
-                        initTracking(controller, controllerImports, name);
+                        initTracking(controller, routeObject.controllerImports, name);
                     }
                 }
             }
@@ -2462,12 +2447,21 @@ function QuarkRouter() {
 
             // If the controller is a string then assume its a js module name
             if ($$.isString(config.controller)) {
+                var controllerFile;
+
+                // If the controller is persistent, extract the ! from the filename begining
+                if (config.controller.charAt(0) == "!") {
+                    controllerFile = config.controller.substr(1);
+                } else {
+                    controllerFile = config.controller;
+                }
+
                 // Require the controller file
-                require([config.controller], function(controllerObject) {
+                require([controllerFile], function(controllerObject) {
                     // Check that the returned js module is the controller's constructor function
                     if ($$.isFunction(controllerObject)) {
                         // Create the controller passing the route config and import object
-                        routeController = new controllerObject(config, controllerImports);
+                        routeController = new controllerObject(config, routeObject.controllerImports);
                         routeObject.controller = routeController;
                         controllerCreated(routeController);
                     } else {
@@ -2478,7 +2472,7 @@ function QuarkRouter() {
                 // If controller is a function it must be the controller's constructor function
                 if ($$.isFunction(config.controller)) {
                     // Create the controller passing the route config and import object
-                    routeController = new config.controller(config, controllerImports);
+                    routeController = new config.controller(config, routeObject.controllerImports);
                     routeObject.controller = routeController;
                     controllerCreated(routeController);
                 } else {
@@ -2500,13 +2494,19 @@ function QuarkRouter() {
             if (routeObject.controller) {
                 changeCurrent(routeObject.controller);
             } else {
+                // If theres a controller defined in this route's configuration
                 if ($$.isDefined(config.controller)) {
+                    // Creates the controller and invoke the callback when ready
                     createController(function(routeController) {
+                        // Initialize the new controller and change the actual route
                         initController(routeController);
+                        changeCurrent(routeController);
                     });
+                } else {
+                    // If there isn't a configured controller change the route
+                    // without a controller
+                    changeCurrent();
                 }
-
-                changeCurrent(routeController);
             }
         });
 
@@ -2598,15 +2598,16 @@ function QuarkRouter() {
                 // Replace this route configuration to have precedence over all previous configuration
                 $.extend(components, routeConfig.components);
 
+                // If the current location doesn't have the routes property create it
                 if (!dest.routes) {
                     dest.routes = {};
                 }
 
+                // Add the route to the routes configuration
                 dest.routes[routeName] = {
                     hash: routeConfig.hash,
                     fullName: locationName + '/' + routeName,
                     controller: routeConfig.controller,
-                    persistent: routeConfig.persistent,
                     components: components,
                     params: {}
                 };
