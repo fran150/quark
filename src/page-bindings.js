@@ -18,31 +18,40 @@ ko.bindingHandlers.page = {
             var currentRoute = $$.routing.current();
 
             var component;
-            var params;
+            var params = {};
 
+            // If there's a current route
             if (currentRoute) {
-                // If the current component is specified as an array the assume it contains the
-                // component name and the parameters to pass to the component
-                if ($$.isArray(currentRoute.config.components[name])) {
-                    component = currentRoute.config.components[name][0];
-                    var componentParams = currentRoute.config.components[name][1];
-
-                    if ($$.isString(componentParams)) {
-                        eval("params = {" + componentParams + "}");
-                    }
-
-                    if ($$.isObject(componentParams) && $$.isString(componentParams.controller)) {
-                        eval("params = $$.controller." + componentParams.controller + "()");
-                    }
-
-                } else {
-                    component = currentRoute.config.components[name];
-                    params = currentRoute;
+                // If a component is not defined for the current route throw an error
+                if (!currentRoute.config.components[name]) {
+                    throw 'No component defined for page ' + name + ' in route ' + currentRoute.config.fullName;
                 }
 
+                // Get the component name
+                component = currentRoute.config.components[name];
+
+                // If the currentRoute has a controller defined
+                if (currentRoute.controller) {
+                    // Get the imports object of the controller
+                    var imports = routers[currentRoute.locationName].routes[currentRoute.routeName].controllerImports;
+
+                    // If the controller has a imports variable created
+                    if (imports && imports.configPage) {
+                        // Call the configPage method to get an object to pass as parameters
+                        // for this page's component
+                        params = imports.configPage(name);
+
+                        // If the returned variable is not an object replace it by an empty
+                        // object
+                        if (!$$.isObject(params)) {
+                            params = {};
+                        }
+                    }
+                }
 
                 // Set persistent flag to false
-                // A persistent flag indicates that if the route changes, but the same component is applied to this page then do not redraw it,
+                // A persistent flag indicates that if the route changes, but the same component
+                // is applied to this page then do not redraw it,
                 // just change the parameters
                 var persistent = false;
 
@@ -55,7 +64,7 @@ ko.bindingHandlers.page = {
                 }
 
                 // If its a diferent component name or the component is not persistent update component name and parameters
-                // If its a persistent component the routing system will update the parameters
+                // If its a persistent component the routing system will update the parameters values
                 if (current.component() != component || !persistent) {
                     current.component(component);
                     current.parameters(params);
