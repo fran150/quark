@@ -2,7 +2,7 @@
 // to reevaluate the parent's readiness
 function markReadyAndInformParent(model, imports) {
     // Calls the object ready method and unlocks the readyLock
-    callReady(model);
+    callReady(model, imports);
 
     // If the object is tracked and has a parent, mark itself as ready on the parent
     // and call the function on the parent to reevaluate readiness.
@@ -58,15 +58,15 @@ function callLoaded(object, propertyName, vm) {
 }
 
 // Call Ready function and open lock on the object
-function callReady(object) {
+function callReady(model, imports) {
     // If there´s a ready callback on the object invoke it
-    if ($$.isFunction(object['ready'])) {
-        object['ready']();
+    if ($$.isFunction(imports['ready'])) {
+        imports['ready']();
     }
 
     // If theres a ready lock on the object unlock it
-    if ($$.isDefined(object['readyLock'])) {
-        object.readyLock.unlock();
+    if ($$.isDefined(model['readyLock'])) {
+        model.readyLock.unlock();
     }
 }
 
@@ -218,13 +218,12 @@ ko.bindingHandlers.import = {
         var imports;
 
         // If the target object has "model" and "imports" properties, then assume that is a quark scope and
-        // extract the model and imports object, if it's not a quark scope use the same object as both model and imports
+        // extract the model and imports object
         if (viewModel && viewModel.imports && viewModel.model) {
             model = viewModel.model;
             imports = viewModel.imports;
         } else {
-            model = viewModel;
-            imports = viewModel;
+            throw 'The import target must be a quark object';
         }
 
         // Start tracking the loading of imported childs

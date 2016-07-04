@@ -1684,7 +1684,7 @@ function createModelBinderContext(context) {
 // to reevaluate the parent's readiness
 function markReadyAndInformParent(model, imports) {
     // Calls the object ready method and unlocks the readyLock
-    callReady(model);
+    callReady(model, imports);
 
     // If the object is tracked and has a parent, mark itself as ready on the parent
     // and call the function on the parent to reevaluate readiness.
@@ -1740,15 +1740,15 @@ function callLoaded(object, propertyName, vm) {
 }
 
 // Call Ready function and open lock on the object
-function callReady(object) {
+function callReady(model, imports) {
     // If there´s a ready callback on the object invoke it
-    if ($$.isFunction(object['ready'])) {
-        object['ready']();
+    if ($$.isFunction(imports['ready'])) {
+        imports['ready']();
     }
 
     // If theres a ready lock on the object unlock it
-    if ($$.isDefined(object['readyLock'])) {
-        object.readyLock.unlock();
+    if ($$.isDefined(model['readyLock'])) {
+        model.readyLock.unlock();
     }
 }
 
@@ -1900,13 +1900,12 @@ ko.bindingHandlers.import = {
         var imports;
 
         // If the target object has "model" and "imports" properties, then assume that is a quark scope and
-        // extract the model and imports object, if it's not a quark scope use the same object as both model and imports
+        // extract the model and imports object
         if (viewModel && viewModel.imports && viewModel.model) {
             model = viewModel.model;
             imports = viewModel.imports;
         } else {
-            model = viewModel;
-            imports = viewModel;
+            throw 'The import target must be a quark object';
         }
 
         // Start tracking the loading of imported childs
@@ -2107,31 +2106,40 @@ ko.bindingHandlers.page = {
             var currentRoute = $$.routing.current();
 
             var component;
-            var params;
+            var params = {};
 
+            // If there's a current route
             if (currentRoute) {
-                // If the current component is specified as an array the assume it contains the
-                // component name and the parameters to pass to the component
-                if ($$.isArray(currentRoute.config.components[name])) {
-                    component = currentRoute.config.components[name][0];
-                    var componentParams = currentRoute.config.components[name][1];
-
-                    if ($$.isString(componentParams)) {
-                        eval("params = {" + componentParams + "}");
-                    }
-
-                    if ($$.isObject(componentParams) && $$.isString(componentParams.controller)) {
-                        eval("params = $$.controller." + componentParams.controller + "()");
-                    }
-
-                } else {
-                    component = currentRoute.config.components[name];
-                    params = currentRoute;
+                // If a component is not defined for the current route throw an error
+                if (!currentRoute.config.components[name]) {
+                    throw 'No component defined for page ' + name + ' in route ' + currentRoute.config.fullName;
                 }
 
+                // Get the component name
+                component = currentRoute.config.components[name];
+
+                // If the currentRoute has a controller defined
+                if (currentRoute.controller) {
+                    // Get the imports object of the controller
+                    var imports = routers[currentRoute.locationName].routes[currentRoute.routeName].controllerImports;
+
+                    // If the controller has a imports variable created
+                    if (imports && imports.configPage) {
+                        // Call the configPage method to get an object to pass as parameters
+                        // for this page's component
+                        params = imports.configPage(name);
+
+                        // If the returned variable is not an object replace it by an empty
+                        // object
+                        if (!$$.isObject(params)) {
+                            params = {};
+                        }
+                    }
+                }
 
                 // Set persistent flag to false
-                // A persistent flag indicates that if the route changes, but the same component is applied to this page then do not redraw it,
+                // A persistent flag indicates that if the route changes, but the same component
+                // is applied to this page then do not redraw it,
                 // just change the parameters
                 var persistent = false;
 
@@ -2144,7 +2152,7 @@ ko.bindingHandlers.page = {
                 }
 
                 // If its a diferent component name or the component is not persistent update component name and parameters
-                // If its a persistent component the routing system will update the parameters
+                // If its a persistent component the routing system will update the parameters values
                 if (current.component() != component || !persistent) {
                     current.component(component);
                     current.parameters(params);
@@ -2471,6 +2479,8 @@ function QuarkRouter() {
 
                 // Add the route to the routes configuration
                 dest.routes[routeName] = {
+                    locationName: locationName,
+                    routeName: routeName,
                     hash: routeConfig.hash,
                     fullName: locationName + '/' + routeName,
                     controller: routeConfig.controller,

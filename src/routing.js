@@ -267,6 +267,8 @@ function QuarkRouter() {
 
                 // Add the route to the routes configuration
                 dest.routes[routeName] = {
+                    locationName: locationName,
+                    routeName: routeName,
                     hash: routeConfig.hash,
                     fullName: locationName + '/' + routeName,
                     controller: routeConfig.controller,
