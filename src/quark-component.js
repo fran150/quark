@@ -199,7 +199,8 @@ function createModelBinderContext(context) {
     var viewModel = context.$parent;
 
     var newContext = seniorContext.extend({
-        $child: viewModel.getModel()
+        $child: viewModel.getModel(),
+        $childContext: context.$parentContext
     });
 
     return newContext;

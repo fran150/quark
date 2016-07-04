@@ -1674,7 +1674,8 @@ function createModelBinderContext(context) {
     var viewModel = context.$parent;
 
     var newContext = seniorContext.extend({
-        $child: viewModel.getModel()
+        $child: viewModel.getModel(),
+        $childContext: context.$parentContext
     });
 
     return newContext;
@@ -1785,8 +1786,8 @@ function initTracking(model, imports, name) {
 
     // The child components uses this function to notify that it finished loading.
     // PropertyName contains the child name, and vm the corresponding viewmodel.
-    imports.$support.tracking.childs[name]['load'] = function(propertyName, vm) {
-        // Sets the child viemodel and marks it as loaded
+    imports.$support.tracking.childs[name]['load'] = function(propertyName, vm, imp) {
+        // Sets the child viewmodel and marks it as loaded
         imports[propertyName] = vm;
         imports.$support.tracking.childs[propertyName]['loaded'] = true;
 
@@ -1796,13 +1797,13 @@ function initTracking(model, imports, name) {
         imports.$support.tracking.childs[propertyName]['propertyName'] = propertyName;
 
         // If the child is tracking dependencies itself...
-        if ($$.isDefined(vm.$support) && $$.isDefined(vm.$support.tracking)) {
+        if ($$.isDefined(imp.$support) && $$.isDefined(imp.$support.tracking)) {
             // If the child has dependencies mark the dependency as not ready and save
             // the parent data (reference and state)
             imports.$support.tracking.childs[propertyName]['ready'] = false;
 
-            vm.$support.tracking.parent = imports;
-            vm.$support.tracking.parentState = imports.$support.tracking.childs[propertyName];
+            imp.$support.tracking.parent = imports;
+            imp.$support.tracking.parentState = imports.$support.tracking.childs[propertyName];
         } else {
             // If the child hasn't dependencies mark the dependency on parent as ready
             imports.$support.tracking.childs[propertyName]['ready'] = true;
@@ -1905,7 +1906,8 @@ ko.bindingHandlers.import = {
             model = viewModel.model;
             imports = viewModel.imports;
         } else {
-            throw 'The import target must be a quark object';
+            model = viewModel;
+            imports = viewModel;
         }
 
         // Start tracking the loading of imported childs
@@ -1920,14 +1922,14 @@ ko.bindingHandlers.import = {
 }
 ko.virtualElements.allowedBindings.import = true;
 
-function callLoadMethod(property, viewModel, context) {
+function callLoadMethod(property, imports, context) {
     // Check if the viewmodel is tracking childs properties
-    if ($$.isDefined(viewModel.$support) && $$.isDefined(viewModel.$support.tracking)) {
-        if ($$.isDefined(viewModel.$support.tracking['childs'])) {
+    if ($$.isDefined(imports.$support) && $$.isDefined(imports.$support.tracking)) {
+        if ($$.isDefined(imports.$support.tracking['childs'])) {
             // If the viewmodel is tracking a model to be loaded in a property with the specified name
-            if ($$.isDefined(viewModel.$support.tracking.childs[property])) {
+            if ($$.isDefined(imports.$support.tracking.childs[property])) {
                 // Call the load method of the tracking object passing the child object with the viewModel of the child component
-                viewModel.$support.tracking.childs[property]['load'](property, context.$child);
+                imports.$support.tracking.childs[property]['load'](property, context.$child, context.$childContext.$data.getImports());
             } else {
                 throw 'The specified object doesn´t have a property named ' + property + '. Verify that the object has a property defined with the .components method with the name defined in the vm binding.';
             }
@@ -1948,7 +1950,7 @@ ko.bindingHandlers.export = {
         value = ko.unwrap(valueAccessor());
 
         // If the binding model has "model" and "imports" properties we assume that is a quark-component's scope.
-        if (viewModel && viewModel.imports) {
+        if (viewModel && viewModel.model && viewModel.imports) {
             viewModel = viewModel.imports;
         }
 
