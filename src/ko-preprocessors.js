@@ -1,15 +1,3 @@
-// Modules List
-$$.modules = ko.associativeObservable({});
-
-// Returns an empty component template (useful when creating data components)
-$$.emptyTemplate = function(virtual) {
-    if (!virtual) {
-        return '<quark-component></quark-component>';
-    } else {
-        return '<!-- quark-component --><!-- /quark-component -->'
-    }
-}
-
 // Node Preproccesors, allows the use of custom tags
 ko.bindingProvider.instance.preprocessNode = function(node) {
     // Only react if this is a comment node of the form <!-- quark-component -->
@@ -67,67 +55,6 @@ ko.bindingProvider.instance.preprocessNode = function(node) {
         }
     }
 }
-
-
-
-
-
-
-
-// This binding is similar to the if binding, it shows and bind its content only when the specified dependency is ready
-ko.bindingHandlers.waitReady = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = valueAccessor();
-        var newAccessor = ko.observable(false);
-
-        if (viewModel && viewModel.readiedSignal) {
-            viewModel.readiedSignal.addOnce(function(propertyName) {
-                if (propertyName == value) {
-                    newAccessor(true);
-                }
-            });
-        }
-
-        return ko.bindingHandlers['if'].init(element, newAccessor, allBindingsAccessor, viewModel, context);
-    }
-}
-ko.virtualElements.allowedBindings.waitReady = true;
-
-ko.bindingHandlers.namespace = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        // Get the namespace value
-        var value = valueAccessor();
-
-        // Get the namespace alias
-        var alias = allBindings.get('alias') || 400;
-
-        // Validate data
-        if (!$$.isString(value)) {
-            throw 'Must specify namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
-        }
-
-        // If namespace alias is not defined throw error
-        if (!$$.isString(alias)) {
-            throw 'Must specify alias to namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
-        }
-
-        // Transform values to lowercase
-        var namespace = value.toLowerCase();
-        alias = alias.toLowerCase();
-
-        // If theres a context defined
-        if (context) {
-            // Check if theres a namespaces object defined in the context
-            if (!context.namespaces) {
-                context.namespaces = {};
-            }
-
-            // Add the alias to the list
-            context.namespaces[alias] = namespace;
-        }
-    }
-}
-ko.virtualElements.allowedBindings.namespace = true;
 
 // Custom node processor for custom components.
 // It allows to use namespaces

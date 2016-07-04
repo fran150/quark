@@ -40,16 +40,17 @@ $$.behaviour = function(name, behaviour, dispose) {
 }
 
 // Applies a behaviour to the object
-function applyBehaviour(object, behaviourName) {
+function applyBehaviour(behaviourName, object, config) {
     // Error if behaviour name is not a string
     if (!$$.isString(behaviourName)) {
         throw 'The behaviour name must be an string. If you specified an array check that all elements are valid behaviour names';
     }
 
-    // Chek if behaviour exists
+    // Check if behaviour exists
     if (behaviours[behaviourName]) {
-        // Apply new behaviour by calling the behaviour definition function
-        behaviours[behaviourName](object);
+        // Apply new behaviour by calling the behaviour definition function with the target object and
+        // the behaviour config
+        behaviours[behaviourName](object, config);
 
         // Check if there's a $support variable on the object and if not create one. (Used by quark to store metadata)
         if (!$$.isDefined(object.$support)) {
@@ -70,7 +71,7 @@ function applyBehaviour(object, behaviourName) {
 
 // Applies the behaviour to the object. You can specify a string with the name of a defined behaviour
 // or an array of behaviour names.
-$$.behave = function(object, behaviour) {
+$$.behave = function(behaviour, object, config) {
     // Validates object
     if (!$$.isObject(object)) {
         throw 'You must specifify a valid object to apply the behaviour.';
@@ -79,11 +80,11 @@ $$.behave = function(object, behaviour) {
     if ($$.isArray(behaviour)) {
         // If it's an array we iterate it applying each behaviour
         for (var i = 0; i < behaviour.length; i++) {
-            applyBehaviour(object, behaviour[i]);
+            applyBehaviour(behaviour[i], object, config);
         }
     } else if ($$.isString(behaviour)) {
         // If it's a string apply the named behaviour
-        applyBehaviour(object, behaviour);
+        applyBehaviour(behaviour, object, config);
     } else {
         // Everything else fails
         throw 'The behaviour name must be an string or an array of strings.';

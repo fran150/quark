@@ -1,3 +1,6 @@
+// Modules List
+$$.modules = ko.associativeObservable({});
+
 // Starts the quark application
 // You can specify a model to bind the page
 $$.start = function(model) {
@@ -9,15 +12,14 @@ $$.start = function(model) {
 
 // Allows to define a module in quark.
 // With this method you can encapsulate components, routes, css, and js dependencies in one module.
-// The module must be define like a quark component inside a require.js module. As dependency of this module you must define 'module'
+// The module must be defined as a require.js module. As dependency of this module you must define 'module'
 // in wich require.js will inject the module info.
 // Then you must pass this value as the first parameter to this function, this allows the quark module learn info about the associated
 // require.js module in wich is defined.
-// The config parameters allows to define, the components that includes your module, extra configuration for require to define your
-// module's dependencies and css files that your module uses.
+// The config parameters allows to define, the components that your module includes, extra configuration for require
+// to define your module's dependencies, css files that your module uses and extra routes you want to configure.
 // The mainConstructor parameter is optional, but allow to define a class that will be called when the module is instantiated.
 // This class will be called instantiated passing as parameter the name defined in require.js for this module.
-// In this class you can define extra routes, modules variables, etc.
 // If the class has a ready function defined it will be called when the module is loaded
 $$.module = function(moduleInfo, config, mainConstructor) {
     // Validate parameters
@@ -87,6 +89,11 @@ $$.module = function(moduleInfo, config, mainConstructor) {
                 r.register(componentName, path);
             }
         }
+    }
+
+    // If extra routes are defined call the configure method
+    if (config.routes) {
+        $$.routing.configure(config.routes);
     }
 
     // If there's a css configuration add links in the header
@@ -232,26 +239,6 @@ $$.component = function(viewModel, view) {
     }
 }
 
-// Register the component making it available to use with a custom tag.
-// You must specify the component's custom tag and the url to the definition.
-$$.registerComponent = function(tag, url) {
-    ko.components.register(tag, { require: url });
-}
-
-$$.onNamespace = function(namespace) {
-    var self = this;
-
-    var ns = namespace;
-
-    this.register = function(name, url) {
-        $$.registerComponent(ns + '-' + name, url);
-
-        return self;
-    }
-
-    return self;
-}
-
 // This function allows to define the accepted parameters of the quark component.
 // In the first parameter you must specify an object with parameters and the default value.
 // The second parameter must contain the parameters values, you can pass here the first parameter received in the component model
@@ -306,11 +293,7 @@ $$.parameters = function(params, values, objects) {
             if ($$.isDefined(values[name])) {
                 // If both target and source params are observable try to overwrite it
                 if (ko.isObservable(object[name]) && ko.isObservable(values[name])) {
-                    // If target parameter is a computed do not overwrite it, the computed function MUST use the parameter
-                    // directly (see ko.computedParameter)
-                    if (!ko.isComputed(object[name])) {
-                        object[name] = values[name];
-                    }
+                    object[name] = values[name];
                 // If target is observable and source is not, then set the targets content with the source value
                 } else if (ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
                     object[name](values[name]);
@@ -376,4 +359,41 @@ $$.inject = function (from, to, recursively) {
             }
         }
     }
+}
+
+// Returns an empty component template (useful when creating data components)
+$$.emptyTemplate = function(virtual) {
+    if (!virtual) {
+        return '<quark-component></quark-component>';
+    } else {
+        return '<!-- quark-component --><!-- /quark-component -->'
+    }
+}
+
+// Register the component making it available to use with a custom tag.
+// You must specify the component's custom tag and the url to the definition.
+$$.registerComponent = function(tag, url) {
+    ko.components.register(tag, { require: url });
+}
+
+// Allows to group components in namespaces. The final component name is
+// the namespace-component name. This method allows to chain calls to register
+// to register various components under the same namespace, ie:
+// $$.namespace('navbar')
+//      .register('link')
+//      .register('button')
+//      .register('dropdown')
+// Registers navbar-link, navbar-button and navbar-dropdown components.
+$$.onNamespace = function(namespace) {
+    var self = this;
+
+    var ns = namespace;
+
+    this.register = function(name, url) {
+        $$.registerComponent(ns + '-' + name, url);
+
+        return self;
+    }
+
+    return self;
 }

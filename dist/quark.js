@@ -175,6 +175,7 @@ $$.makeDate = function (value, useToday) {
     return value;
 }
 
+// Returns ISO date without time information
 $$.toShortISO = function(value) {
     if ($$.isDate(value)) {
         return value.toISOString().slice(0, 10);
@@ -223,6 +224,8 @@ $$.formatString = function() {
     return str;
 };
 
+// Replaces {propertyName} in the specified string for the value of the property with the same
+// name in the object
 $$.formatStringObj = function(string, object) {
     for (var name in object) {
         string = replaceAll(string, '{' + name + '}', object[name]);
@@ -230,7 +233,6 @@ $$.formatStringObj = function(string, object) {
 
     return string;
 }
-
 
 // This is an associative observable, it allows to maintain a collection of key -> values
 // To be able to track changes, modifications must be made using the provided methods
@@ -475,6 +477,25 @@ ko.bindingHandlers.formatValue = {
         ko.applyBindingsToNode(element, { value: interceptor });
     }
 }
+
+// This binding is similar to the if binding, it shows and bind its content only when the specified dependency is ready
+ko.bindingHandlers.waitReady = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = valueAccessor();
+        var newAccessor = ko.observable(false);
+
+        if (viewModel && viewModel.readiedSignal) {
+            viewModel.readiedSignal.addOnce(function(propertyName) {
+                if (propertyName == value) {
+                    newAccessor(true);
+                }
+            });
+        }
+
+        return ko.bindingHandlers['if'].init(element, newAccessor, allBindingsAccessor, viewModel, context);
+    }
+}
+ko.virtualElements.allowedBindings.waitReady = true;
 
 // Signals.js wrapper, returns a signal.
 $$.signal = function() {
@@ -917,6 +938,9 @@ function ComponentErrors(controller, component) {
 
 $$.globalErrors = new ComponentErrors();
 
+// Modules List
+$$.modules = ko.associativeObservable({});
+
 // Starts the quark application
 // You can specify a model to bind the page
 $$.start = function(model) {
@@ -928,15 +952,14 @@ $$.start = function(model) {
 
 // Allows to define a module in quark.
 // With this method you can encapsulate components, routes, css, and js dependencies in one module.
-// The module must be define like a quark component inside a require.js module. As dependency of this module you must define 'module'
+// The module must be defined as a require.js module. As dependency of this module you must define 'module'
 // in wich require.js will inject the module info.
 // Then you must pass this value as the first parameter to this function, this allows the quark module learn info about the associated
 // require.js module in wich is defined.
-// The config parameters allows to define, the components that includes your module, extra configuration for require to define your
-// module's dependencies and css files that your module uses.
+// The config parameters allows to define, the components that your module includes, extra configuration for require
+// to define your module's dependencies, css files that your module uses and extra routes you want to configure.
 // The mainConstructor parameter is optional, but allow to define a class that will be called when the module is instantiated.
 // This class will be called instantiated passing as parameter the name defined in require.js for this module.
-// In this class you can define extra routes, modules variables, etc.
 // If the class has a ready function defined it will be called when the module is loaded
 $$.module = function(moduleInfo, config, mainConstructor) {
     // Validate parameters
@@ -1006,6 +1029,11 @@ $$.module = function(moduleInfo, config, mainConstructor) {
                 r.register(componentName, path);
             }
         }
+    }
+
+    // If extra routes are defined call the configure method
+    if (config.routes) {
+        $$.routing.configure(config.routes);
     }
 
     // If there's a css configuration add links in the header
@@ -1151,26 +1179,6 @@ $$.component = function(viewModel, view) {
     }
 }
 
-// Register the component making it available to use with a custom tag.
-// You must specify the component's custom tag and the url to the definition.
-$$.registerComponent = function(tag, url) {
-    ko.components.register(tag, { require: url });
-}
-
-$$.onNamespace = function(namespace) {
-    var self = this;
-
-    var ns = namespace;
-
-    this.register = function(name, url) {
-        $$.registerComponent(ns + '-' + name, url);
-
-        return self;
-    }
-
-    return self;
-}
-
 // This function allows to define the accepted parameters of the quark component.
 // In the first parameter you must specify an object with parameters and the default value.
 // The second parameter must contain the parameters values, you can pass here the first parameter received in the component model
@@ -1225,11 +1233,7 @@ $$.parameters = function(params, values, objects) {
             if ($$.isDefined(values[name])) {
                 // If both target and source params are observable try to overwrite it
                 if (ko.isObservable(object[name]) && ko.isObservable(values[name])) {
-                    // If target parameter is a computed do not overwrite it, the computed function MUST use the parameter
-                    // directly (see ko.computedParameter)
-                    if (!ko.isComputed(object[name])) {
-                        object[name] = values[name];
-                    }
+                    object[name] = values[name];
                 // If target is observable and source is not, then set the targets content with the source value
                 } else if (ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
                     object[name](values[name]);
@@ -1297,6 +1301,43 @@ $$.inject = function (from, to, recursively) {
     }
 }
 
+// Returns an empty component template (useful when creating data components)
+$$.emptyTemplate = function(virtual) {
+    if (!virtual) {
+        return '<quark-component></quark-component>';
+    } else {
+        return '<!-- quark-component --><!-- /quark-component -->'
+    }
+}
+
+// Register the component making it available to use with a custom tag.
+// You must specify the component's custom tag and the url to the definition.
+$$.registerComponent = function(tag, url) {
+    ko.components.register(tag, { require: url });
+}
+
+// Allows to group components in namespaces. The final component name is
+// the namespace-component name. This method allows to chain calls to register
+// to register various components under the same namespace, ie:
+// $$.namespace('navbar')
+//      .register('link')
+//      .register('button')
+//      .register('dropdown')
+// Registers navbar-link, navbar-button and navbar-dropdown components.
+$$.onNamespace = function(namespace) {
+    var self = this;
+
+    var ns = namespace;
+
+    this.register = function(name, url) {
+        $$.registerComponent(ns + '-' + name, url);
+
+        return self;
+    }
+
+    return self;
+}
+
 // Loaded behaviours array
 var behaviours = {};
 
@@ -1339,16 +1380,17 @@ $$.behaviour = function(name, behaviour, dispose) {
 }
 
 // Applies a behaviour to the object
-function applyBehaviour(object, behaviourName) {
+function applyBehaviour(behaviourName, object, config) {
     // Error if behaviour name is not a string
     if (!$$.isString(behaviourName)) {
         throw 'The behaviour name must be an string. If you specified an array check that all elements are valid behaviour names';
     }
 
-    // Chek if behaviour exists
+    // Check if behaviour exists
     if (behaviours[behaviourName]) {
-        // Apply new behaviour by calling the behaviour definition function
-        behaviours[behaviourName](object);
+        // Apply new behaviour by calling the behaviour definition function with the target object and
+        // the behaviour config
+        behaviours[behaviourName](object, config);
 
         // Check if there's a $support variable on the object and if not create one. (Used by quark to store metadata)
         if (!$$.isDefined(object.$support)) {
@@ -1369,7 +1411,7 @@ function applyBehaviour(object, behaviourName) {
 
 // Applies the behaviour to the object. You can specify a string with the name of a defined behaviour
 // or an array of behaviour names.
-$$.behave = function(object, behaviour) {
+$$.behave = function(behaviour, object, config) {
     // Validates object
     if (!$$.isObject(object)) {
         throw 'You must specifify a valid object to apply the behaviour.';
@@ -1378,11 +1420,11 @@ $$.behave = function(object, behaviour) {
     if ($$.isArray(behaviour)) {
         // If it's an array we iterate it applying each behaviour
         for (var i = 0; i < behaviour.length; i++) {
-            applyBehaviour(object, behaviour[i]);
+            applyBehaviour(behaviour[i], object, config);
         }
     } else if ($$.isString(behaviour)) {
         // If it's a string apply the named behaviour
-        applyBehaviour(object, behaviour);
+        applyBehaviour(behaviour, object, config);
     } else {
         // Everything else fails
         throw 'The behaviour name must be an string or an array of strings.';
@@ -1428,182 +1470,6 @@ $$.disposeBehaviours = function(object) {
                 behaviour.dispose(object);
             }
         }
-    }
-}
-
-// Modules List
-$$.modules = ko.associativeObservable({});
-
-// Returns an empty component template (useful when creating data components)
-$$.emptyTemplate = function(virtual) {
-    if (!virtual) {
-        return '<quark-component></quark-component>';
-    } else {
-        return '<!-- quark-component --><!-- /quark-component -->'
-    }
-}
-
-// Node Preproccesors, allows the use of custom tags
-ko.bindingProvider.instance.preprocessNode = function(node) {
-    // Only react if this is a comment node of the form <!-- quark-component -->
-    if (node.nodeType == 8) {
-
-        // Allows component definition open with <!-- quark-component -->
-        var match = node.nodeValue.match(/^\s*(quark-component[\s\S]+)/);
-        if (match) {
-            node.data = " ko component: { name: \'quark-component\' } ";
-            return node;
-        }
-
-        // Allows component definition close with <!-- /quark-component -->
-        var match = node.nodeValue.match(/^\s*(\/quark-component[\s\S]+)/);
-        if (match) {
-            node.data = " /ko ";
-
-            return node;
-        }
-    }
-
-    if (node && node.nodeName && ko.components.isRegistered(node.nodeName.toLowerCase())) {
-        if (node.attributes['virtual']) {
-            var params = node.attributes['params'];
-            var bind = node.attributes['data-bind'];
-            var modelBind = node.attributes['model-bind'];
-
-            var comment = " ko component: { name: '" + node.nodeName.toLowerCase() + "' ";
-
-            if (params) {
-                comment += ", params: { " + params.value + " } ";
-            }
-
-            comment += " } ";
-
-            if (bind) {
-                comment += ", " + bind.value + " ";
-            }
-
-            if (modelBind) {
-                comment += ", model-bind: \"" + modelBind.value + "\"";
-            }
-
-            var openTag = document.createComment(comment);
-            var closeTag = document.createComment(" /ko ");
-
-            node.parentNode.insertBefore(closeTag, node.nextSibling);
-            node.parentNode.replaceChild(openTag, node);
-
-            while (node.childNodes.length > 0) {
-                openTag.parentNode.insertBefore(node.childNodes[0], closeTag);
-            }
-
-            return [openTag, closeTag];
-        }
-    }
-}
-
-
-
-
-
-
-
-// This binding is similar to the if binding, it shows and bind its content only when the specified dependency is ready
-ko.bindingHandlers.waitReady = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = valueAccessor();
-        var newAccessor = ko.observable(false);
-
-        if (viewModel && viewModel.readiedSignal) {
-            viewModel.readiedSignal.addOnce(function(propertyName) {
-                if (propertyName == value) {
-                    newAccessor(true);
-                }
-            });
-        }
-
-        return ko.bindingHandlers['if'].init(element, newAccessor, allBindingsAccessor, viewModel, context);
-    }
-}
-ko.virtualElements.allowedBindings.waitReady = true;
-
-ko.bindingHandlers.namespace = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        // Get the namespace value
-        var value = valueAccessor();
-
-        // Get the namespace alias
-        var alias = allBindings.get('alias') || 400;
-
-        // Validate data
-        if (!$$.isString(value)) {
-            throw 'Must specify namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
-        }
-
-        // If namespace alias is not defined throw error
-        if (!$$.isString(alias)) {
-            throw 'Must specify alias to namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
-        }
-
-        // Transform values to lowercase
-        var namespace = value.toLowerCase();
-        alias = alias.toLowerCase();
-
-        // If theres a context defined
-        if (context) {
-            // Check if theres a namespaces object defined in the context
-            if (!context.namespaces) {
-                context.namespaces = {};
-            }
-
-            // Add the alias to the list
-            context.namespaces[alias] = namespace;
-        }
-    }
-}
-ko.virtualElements.allowedBindings.namespace = true;
-
-// Custom node processor for custom components.
-// It allows to use namespaces
-ko.components.getComponentNameForNode = function(node) {
-    // Get the tag name and transform it to lower case
-    var tagNameLower = node.tagName && node.tagName.toLowerCase();
-
-    // If the tag has a component registered as is use the component directly
-    if (ko.components.isRegistered(tagNameLower)) {
-        // If the element's name exactly matches a preregistered
-        // component, use that component
-        return tagNameLower;
-    } else {
-        // If the tag name contains a colon indicating that is using an alias notation
-        if (tagNameLower.indexOf(':') !== -1) {
-            // Get the tag parts
-            var parts = tagNameLower.split(':');
-
-            // Extract the alias and the tag name
-            var alias = parts[0];
-            var tag = parts[1];
-
-            // Get the context for the node
-            var context = ko.contextFor(node);
-
-            // If there's namespaces alias defined in the context and...
-            if (context && $$.isObject(context.namespaces)) {
-                // If there's a matching alias on the context's list
-                if (context.namespaces[alias]) {
-                    // Get the namespace and form the component's full name
-                    var namespace = context.namespaces[alias];
-                    var fullName = namespace + '-' + tag;
-
-                    // If component with the full name is registered then return it
-                    if (ko.components.isRegistered(fullName)) {
-                        return fullName;
-                    }
-                }
-            }
-        }
-
-        // Treat anything else as not representing a component
-        return null;
     }
 }
 
@@ -2738,6 +2604,145 @@ $$.routing.locationFinders.push(function(callback) {
         }
     }
 });
+
+ko.bindingHandlers.namespace = {
+    init: function (element, valueAccessor, allBindings, viewModel, context) {
+        // Get the namespace value
+        var value = valueAccessor();
+
+        // Get the namespace alias
+        var alias = allBindings.get('alias') || 400;
+
+        // Validate data
+        if (!$$.isString(value)) {
+            throw 'Must specify namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
+        }
+
+        // If namespace alias is not defined throw error
+        if (!$$.isString(alias)) {
+            throw 'Must specify alias to namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
+        }
+
+        // Transform values to lowercase
+        var namespace = value.toLowerCase();
+        alias = alias.toLowerCase();
+
+        // If theres a context defined
+        if (context) {
+            // Check if theres a namespaces object defined in the context
+            if (!context.namespaces) {
+                context.namespaces = {};
+            }
+
+            // Add the alias to the list
+            context.namespaces[alias] = namespace;
+        }
+    }
+}
+ko.virtualElements.allowedBindings.namespace = true;
+
+// Node Preproccesors, allows the use of custom tags
+ko.bindingProvider.instance.preprocessNode = function(node) {
+    // Only react if this is a comment node of the form <!-- quark-component -->
+    if (node.nodeType == 8) {
+
+        // Allows component definition open with <!-- quark-component -->
+        var match = node.nodeValue.match(/^\s*(quark-component[\s\S]+)/);
+        if (match) {
+            node.data = " ko component: { name: \'quark-component\' } ";
+            return node;
+        }
+
+        // Allows component definition close with <!-- /quark-component -->
+        var match = node.nodeValue.match(/^\s*(\/quark-component[\s\S]+)/);
+        if (match) {
+            node.data = " /ko ";
+
+            return node;
+        }
+    }
+
+    if (node && node.nodeName && ko.components.isRegistered(node.nodeName.toLowerCase())) {
+        if (node.attributes['virtual']) {
+            var params = node.attributes['params'];
+            var bind = node.attributes['data-bind'];
+            var modelBind = node.attributes['model-bind'];
+
+            var comment = " ko component: { name: '" + node.nodeName.toLowerCase() + "' ";
+
+            if (params) {
+                comment += ", params: { " + params.value + " } ";
+            }
+
+            comment += " } ";
+
+            if (bind) {
+                comment += ", " + bind.value + " ";
+            }
+
+            if (modelBind) {
+                comment += ", model-bind: \"" + modelBind.value + "\"";
+            }
+
+            var openTag = document.createComment(comment);
+            var closeTag = document.createComment(" /ko ");
+
+            node.parentNode.insertBefore(closeTag, node.nextSibling);
+            node.parentNode.replaceChild(openTag, node);
+
+            while (node.childNodes.length > 0) {
+                openTag.parentNode.insertBefore(node.childNodes[0], closeTag);
+            }
+
+            return [openTag, closeTag];
+        }
+    }
+}
+
+// Custom node processor for custom components.
+// It allows to use namespaces
+ko.components.getComponentNameForNode = function(node) {
+    // Get the tag name and transform it to lower case
+    var tagNameLower = node.tagName && node.tagName.toLowerCase();
+
+    // If the tag has a component registered as is use the component directly
+    if (ko.components.isRegistered(tagNameLower)) {
+        // If the element's name exactly matches a preregistered
+        // component, use that component
+        return tagNameLower;
+    } else {
+        // If the tag name contains a colon indicating that is using an alias notation
+        if (tagNameLower.indexOf(':') !== -1) {
+            // Get the tag parts
+            var parts = tagNameLower.split(':');
+
+            // Extract the alias and the tag name
+            var alias = parts[0];
+            var tag = parts[1];
+
+            // Get the context for the node
+            var context = ko.contextFor(node);
+
+            // If there's namespaces alias defined in the context and...
+            if (context && $$.isObject(context.namespaces)) {
+                // If there's a matching alias on the context's list
+                if (context.namespaces[alias]) {
+                    // Get the namespace and form the component's full name
+                    var namespace = context.namespaces[alias];
+                    var fullName = namespace + '-' + tag;
+
+                    // If component with the full name is registered then return it
+                    if (ko.components.isRegistered(fullName)) {
+                        return fullName;
+                    }
+                }
+            }
+        }
+
+        // Treat anything else as not representing a component
+        return null;
+    }
+}
 
 // Initialize validators array
 // This an object containing a property for each validator that quark supports.

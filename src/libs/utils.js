@@ -156,6 +156,7 @@ $$.makeDate = function (value, useToday) {
     return value;
 }
 
+// Returns ISO date without time information
 $$.toShortISO = function(value) {
     if ($$.isDate(value)) {
         return value.toISOString().slice(0, 10);
@@ -204,6 +205,8 @@ $$.formatString = function() {
     return str;
 };
 
+// Replaces {propertyName} in the specified string for the value of the property with the same
+// name in the object
 $$.formatStringObj = function(string, object) {
     for (var name in object) {
         string = replaceAll(string, '{' + name + '}', object[name]);
@@ -211,4 +214,3 @@ $$.formatStringObj = function(string, object) {
 
     return string;
 }
-

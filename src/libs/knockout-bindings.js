@@ -121,3 +121,22 @@ ko.bindingHandlers.formatValue = {
         ko.applyBindingsToNode(element, { value: interceptor });
     }
 }
+
+// This binding is similar to the if binding, it shows and bind its content only when the specified dependency is ready
+ko.bindingHandlers.waitReady = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = valueAccessor();
+        var newAccessor = ko.observable(false);
+
+        if (viewModel && viewModel.readiedSignal) {
+            viewModel.readiedSignal.addOnce(function(propertyName) {
+                if (propertyName == value) {
+                    newAccessor(true);
+                }
+            });
+        }
+
+        return ko.bindingHandlers['if'].init(element, newAccessor, allBindingsAccessor, viewModel, context);
+    }
+}
+ko.virtualElements.allowedBindings.waitReady = true;
