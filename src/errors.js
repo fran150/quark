@@ -35,12 +35,20 @@ function ComponentErrors(controller, component) {
         component = '';
     }
 
-    var filtered = globalErrors.filter(function(x) {
-        if ((controller == '') && (component == '')) {
-            return true;
-        } else {
-            return x.controller == controller && x.component == component;
+    var filtered = ko.pureComputed(function() {
+        var result = [];
+
+        for (var x in globalErrors()) {
+            if ((controller == '') && (component == '')) {
+                result.push(x);
+            }
+
+            if (x.controller == controller && x.component == component) {
+                result.push(x);
+            }
         }
+
+        return result;
     });
 
     // Adds the error to the collection. Returns the key of the error in the collection.
@@ -72,8 +80,16 @@ function ComponentErrors(controller, component) {
     // Condition must be a function accepting an error object as parameter and returning true
     // If it must be part of the result.
     this.getBy = function(condition) {
-        return filtered.filter(function(x) {
-            return condition(x);
+        return ko.pureComputed(function() {
+            var result = [];
+
+            for (var x in filtered()) {
+                if (condition(x)) {
+                    result.push(x);
+                }
+            }
+
+            return result;
         });
     }
 
@@ -92,15 +108,31 @@ function ComponentErrors(controller, component) {
 
     // Returns a computed observable with all the errors with the specified type
     this.getByType = function(type) {
-        return filtered.filter(function(x) {
-            return x.type == type;
+        return ko.pureComputed(function() {
+            var result = [];
+
+            for (var x in filtered()) {
+                if (x.type == type) {
+                    result.push(x);
+                }
+            }
+
+            return result;
         });
     }
 
     // Returns a computed observable with all the errors in wich the level is between the specified values
     this.getByLevel = function(min, max) {
-        return filtered.filter(function(x) {
-            return x.level >= min && x.level <= max;
+        return ko.pureComputed(function() {
+            var result = [];
+
+            for (var x in filtered()) {
+                if (x.level >= min && x.level <= max) {
+                    result.push(x);
+                }
+            }
+
+            return result;
         });
     }
 
