@@ -8,7 +8,6 @@ function QuarkRequireConf(bowerDir) {
             "hasher":               bowerDir + "/hasher/dist/js/hasher",
             "jquery":               bowerDir + "/jquery/dist/jquery",
             "knockout":             bowerDir + "/knockout/dist/knockout",
-            "knockout-projections": bowerDir + "/knockout-projections/dist/knockout-projections",
             "signals":              bowerDir + "/js-signals/dist/signals.min",
 
             "knockout-mapping":     bowerDir + "/knockout-mapping/knockout.mapping",
