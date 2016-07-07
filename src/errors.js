@@ -37,14 +37,21 @@ function ComponentErrors(controller, component) {
 
     var filtered = ko.pureComputed(function() {
         var result = [];
+        var errors = globalErrors();
 
-        for (var x in globalErrors()) {
+        for (var index in errors) {
+            var error = errors[index];
+
             if ((controller == '') && (component == '')) {
-                result.push(x);
+                result.push(error);
             }
 
-            if (x.controller == controller && x.component == component) {
-                result.push(x);
+            if ((error.controller == controller) && (component == '')) {
+                result.push(error);
+            }
+
+            if (error.controller == controller && error.component == component) {
+                result.push(error);
             }
         }
 
@@ -82,10 +89,13 @@ function ComponentErrors(controller, component) {
     this.getBy = function(condition) {
         return ko.pureComputed(function() {
             var result = [];
+            var errors = filtered();
 
-            for (var x in filtered()) {
-                if (condition(x)) {
-                    result.push(x);
+            for (var index in errors) {
+                var error = errors[index];
+
+                if (condition(error)) {
+                    result.push(error);
                 }
             }
 
@@ -110,10 +120,13 @@ function ComponentErrors(controller, component) {
     this.getByType = function(type) {
         return ko.pureComputed(function() {
             var result = [];
+            var errors = filtered();
 
-            for (var x in filtered()) {
-                if (x.type == type) {
-                    result.push(x);
+            for (var index in errors) {
+                var error = errors[index];
+
+                if (error.type == type) {
+                    result.push(error);
                 }
             }
 
@@ -125,10 +138,13 @@ function ComponentErrors(controller, component) {
     this.getByLevel = function(min, max) {
         return ko.pureComputed(function() {
             var result = [];
+            var errors = filtered();
 
-            for (var x in filtered()) {
-                if (x.level >= min && x.level <= max) {
-                    result.push(x);
+            for (var index in errors) {
+                var error = errors[index];
+
+                if (error.level >= min && error.level <= max) {
+                    result.push(error);
                 }
             }
 
