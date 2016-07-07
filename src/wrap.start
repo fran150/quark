@@ -1,7 +1,7 @@
 (function (root, factory) {    
     if (typeof define === 'function' && define.amd) {
         // AMD.
-        define(['knockout', 'jquery', 'knockout-mapping', 'crossroads', 'hasher', 'signals', 'knockout-projections'], factory);
+        define(['knockout', 'jquery', 'knockout-mapping', 'crossroads', 'hasher', 'signals'], factory);
     } else {
         // Browser globals.
         root.komapping = ko.mapping;
