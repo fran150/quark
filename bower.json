@@ -14,7 +14,7 @@
     "knockout": "~3.3.0"
   },
   "authors": [
-    "fran150 <franllopez@yahoo.com.ar>"
+    "fran150 <panchi150@gmail.com>"
   ],
   "description": "Libreria para el desarrollo basado en componentes knockout",
   "main": "dist/quark.js",
