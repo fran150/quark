@@ -1221,7 +1221,7 @@ $$.component = function(viewModel, view) {
 
     // Return the module definition and viewmodel as needed by knockout.
     if (viewModel) {
-        return { template: view, viewModel: Model }
+        return { template: view, viewModel: Model, modelType: viewModel }
     } else {
         return { template: view }
     }
