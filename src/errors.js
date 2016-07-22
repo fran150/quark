@@ -9,13 +9,15 @@
 // The error level and error type must be specified as properties of the data object.
 function ComponentError(key, controller, component, text, data) {
     this.key = key;
-    this.text = text;
+    this.message = text;
     this.data = data;
     this.controller = controller;
     this.component = component;
 
     this.level = data && data.level ? data.level : 2000;
     this.type = data && data.type ? data.type : '';
+
+    this.constructor.prototype.__proto__ = Error.prototype;
 }
 
 // Last used key
@@ -71,7 +73,7 @@ function ComponentErrors(controller, component) {
     // Adds the error to the collection and throws an exception with the created error
     this.throw = function(text, data) {
         var key = self.add(text, data);
-        throw globalErrors()[key];
+        throw self.getByKey(key);
     }
 
     // Resolve the error with the specified key, removing it from the errors list

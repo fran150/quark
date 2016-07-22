@@ -193,14 +193,14 @@ function createModelBinderAccessor(element) {
 
 // The model binder operates at the component parent's level
 // To bind at this level it has to use the grand parent's context because the parent is the quark-component.
-// It also extends this context with a property named $child wich contains the component's model
+// It also extends this context with a property named $container wich contains the component's model
 function createModelBinderContext(context) {
     var seniorContext = context.$parentContext.$parentContext;
     var viewModel = context.$parent;
 
     var newContext = seniorContext.extend({
-        $child: viewModel.getModel(),
-        $childContext: context.$parentContext
+        $container: viewModel.getModel(),
+        $containerContext: context.$parentContext
     });
 
     return newContext;

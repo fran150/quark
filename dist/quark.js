@@ -831,13 +831,15 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
 // The error level and error type must be specified as properties of the data object.
 function ComponentError(key, controller, component, text, data) {
     this.key = key;
-    this.text = text;
+    this.message = text;
     this.data = data;
     this.controller = controller;
     this.component = component;
 
     this.level = data && data.level ? data.level : 2000;
     this.type = data && data.type ? data.type : '';
+
+    this.constructor.prototype.__proto__ = Error.prototype;
 }
 
 // Last used key
@@ -893,7 +895,7 @@ function ComponentErrors(controller, component) {
     // Adds the error to the collection and throws an exception with the created error
     this.throw = function(text, data) {
         var key = self.add(text, data);
-        throw globalErrors()[key];
+        throw self.getByKey(key);
     }
 
     // Resolve the error with the specified key, removing it from the errors list
@@ -1056,26 +1058,32 @@ $$.module = function(moduleInfo, config, mainConstructor) {
         }
     }
 
+    function configNamespace(namespace, components) {
+        for (var name in components) {
+            var item = components[name];
+
+            var fullName;
+
+            if (name) {
+                fullName = namespace + '-' + name;
+            } else {
+                fullName = namespace;
+            }
+
+            if ($$.isString(item)) {
+                $$.registerComponent(fullName, moduleName + '/' + item);
+            } else {
+                configNamespace(fullName, item);
+            }
+        }
+    }
+
     // If theres namespace component registrations
     if (config.namespaces) {
-        // Foreach namespace declared
-        for (var namespaceName in config.namespaces) {
-            var name;
-            if (config.prefix) {
-                name = config.prefix + "-" + namespaceName;
-            } else {
-                name = namespaceName;
-            }
-
-            // Get the register object
-            var r = $$.onNamespace(name);
-            var components = config.namespaces[namespaceName];
-
-            for (var componentName in components) {
-                var path = moduleName + '/' + components[componentName];
-
-                r.register(componentName, path);
-            }
+        if (config.prefix) {
+            configNamespace(config.prefix, config.namespaces);
+        } else {
+            configNamespace('', config.namespaces);
         }
     }
 
@@ -1156,8 +1164,8 @@ $$.component = function(viewModel, view) {
             }
 
             // Calls the function initComponent if exists
-            if (model && $$.isFunction(model.initComponent)) {
-                model.initComponent();
+            if ($imports && $$.isFunction($imports.initComponent)) {
+                $imports.initComponent();
             }
 
             // Adds the created model to the scope.
@@ -1381,6 +1389,10 @@ $$.onNamespace = function(namespace) {
         $$.registerComponent(ns + '-' + name, url);
 
         return self;
+    }
+
+    this.namespace = function(namespace) {
+        return new $$.onNamespace(ns + '-' + namespace);
     }
 
     return self;
@@ -1716,14 +1728,14 @@ function createModelBinderAccessor(element) {
 
 // The model binder operates at the component parent's level
 // To bind at this level it has to use the grand parent's context because the parent is the quark-component.
-// It also extends this context with a property named $child wich contains the component's model
+// It also extends this context with a property named $container wich contains the component's model
 function createModelBinderContext(context) {
     var seniorContext = context.$parentContext.$parentContext;
     var viewModel = context.$parent;
 
     var newContext = seniorContext.extend({
-        $child: viewModel.getModel(),
-        $childContext: context.$parentContext
+        $container: viewModel.getModel(),
+        $containerContext: context.$parentContext
     });
 
     return newContext;
@@ -1977,7 +1989,7 @@ function callLoadMethod(property, imports, context) {
             // If the viewmodel is tracking a model to be loaded in a property with the specified name
             if ($$.isDefined(imports.$support.tracking.childs[property])) {
                 // Call the load method of the tracking object passing the child object with the viewModel of the child component
-                imports.$support.tracking.childs[property]['load'](property, context.$child, context.$childContext.$data.getImports());
+                imports.$support.tracking.childs[property]['load'](property, context.$container, context.$containerContext.$data.getImports());
             } else {
                 throw 'The specified object doesn´t have a property named ' + property + '. Verify that the object has a property defined with the .components method with the name defined in the vm binding.';
             }
@@ -2077,7 +2089,8 @@ function createContentContext(context) {
     var viewModel = context.$data;
 
     var newContext = parentContext.extend({
-        $child: viewModel.model
+        $containerContext: context,
+        $container: viewModel.model
     });
 
     return newContext;

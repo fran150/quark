@@ -246,7 +246,7 @@ function callLoadMethod(property, imports, context) {
             // If the viewmodel is tracking a model to be loaded in a property with the specified name
             if ($$.isDefined(imports.$support.tracking.childs[property])) {
                 // Call the load method of the tracking object passing the child object with the viewModel of the child component
-                imports.$support.tracking.childs[property]['load'](property, context.$child, context.$childContext.$data.getImports());
+                imports.$support.tracking.childs[property]['load'](property, context.$container, context.$containerContext.$data.getImports());
             } else {
                 throw 'The specified object doesn´t have a property named ' + property + '. Verify that the object has a property defined with the .components method with the name defined in the vm binding.';
             }

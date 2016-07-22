@@ -68,26 +68,32 @@ $$.module = function(moduleInfo, config, mainConstructor) {
         }
     }
 
+    function configNamespace(namespace, components) {
+        for (var name in components) {
+            var item = components[name];
+
+            var fullName;
+
+            if (name) {
+                fullName = namespace + '-' + name;
+            } else {
+                fullName = namespace;
+            }
+
+            if ($$.isString(item)) {
+                $$.registerComponent(fullName, moduleName + '/' + item);
+            } else {
+                configNamespace(fullName, item);
+            }
+        }
+    }
+
     // If theres namespace component registrations
     if (config.namespaces) {
-        // Foreach namespace declared
-        for (var namespaceName in config.namespaces) {
-            var name;
-            if (config.prefix) {
-                name = config.prefix + "-" + namespaceName;
-            } else {
-                name = namespaceName;
-            }
-
-            // Get the register object
-            var r = $$.onNamespace(name);
-            var components = config.namespaces[namespaceName];
-
-            for (var componentName in components) {
-                var path = moduleName + '/' + components[componentName];
-
-                r.register(componentName, path);
-            }
+        if (config.prefix) {
+            configNamespace(config.prefix, config.namespaces);
+        } else {
+            configNamespace('', config.namespaces);
         }
     }
 
@@ -168,8 +174,8 @@ $$.component = function(viewModel, view) {
             }
 
             // Calls the function initComponent if exists
-            if (model && $$.isFunction(model.initComponent)) {
-                model.initComponent();
+            if ($imports && $$.isFunction($imports.initComponent)) {
+                $imports.initComponent();
             }
 
             // Adds the created model to the scope.
@@ -393,6 +399,10 @@ $$.onNamespace = function(namespace) {
         $$.registerComponent(ns + '-' + name, url);
 
         return self;
+    }
+
+    this.namespace = function(namespace) {
+        return new $$.onNamespace(ns + '-' + namespace);
     }
 
     return self;

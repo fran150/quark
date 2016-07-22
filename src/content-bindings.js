@@ -24,7 +24,8 @@ function createContentContext(context) {
     var viewModel = context.$data;
 
     var newContext = parentContext.extend({
-        $child: viewModel.model
+        $containerContext: context,
+        $container: viewModel.model
     });
 
     return newContext;
