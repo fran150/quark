@@ -2292,9 +2292,20 @@ function QuarkRouter() {
     // Each "location" have a set of routes defined independent of other.
     this.locationFinders = [];
 
+    // List of defined location generators
+    // Quark allows to define functions that given a location configuration return an url that
+    // matches.
+    this.urlGenerators = [];
+
     // Specific route configuration, contains all route data and register the route in crossroads.js
     function Route(locationName, routeName, config) {
         var routeObject = this;
+
+        // Store the route's location name
+        routeObject.locationName = locationName;
+
+        // Store the route's route name
+        routeObject.routeName = routeName;
 
         // Create the controller imports, this object holds the reference to the models
         // of the components defined in the route
@@ -2599,9 +2610,22 @@ function QuarkRouter() {
         // Get the route with the specified name
         var route = getRoute(name);
 
-        // If theres a route with the specified name use the crossroad router to interpolate the hash
+        // If theres a  route with the specified name use the crossroad router to interpolate the hash
         if (route) {
             return route.interpolate(config);
+        }
+    }
+
+    this.link = function(name, config) {
+        var route = getRoute(name);
+
+        if (route) {
+            for (var index in self.urlGenerators) {
+                var url = self.urlGenerators[index](route, config);
+                if (url) {
+                    return url;
+                }
+            }
         }
     }
 
@@ -2655,8 +2679,8 @@ var controllerUpdater = ko.computed(function() {
 // A location finder is a function used by the quark routing system to resolve the location.
 // The function receives a callback and if it understands the current location it invoke the callback
 // passing the route configuration extracted from self.configuration.
-// This is the default location finder, it matches allows to specify a regular expression in the location
-// that must match the window.location.pathname
+// This is the default location finder, it search the location config for the path thah matches the
+// window.location.pathname
 // The location finders defined are called in order until one understands the location and invoke the callback.
 $$.routing.locationFinders.push(function(callback) {
     // Get the windolw location pathname
@@ -2668,13 +2692,21 @@ $$.routing.locationFinders.push(function(callback) {
         // Get the location data
         var location = $$.routing.configuration[locationName];
 
-        // Create a regular expression object with the location configuration string
-        var exp = RegExp(location.config.path);
-
         // If there's a match invoke the callback with the matching location
-        if (path.match(exp)) {
+        if (path.toUpperCase() == location.config.path.toUpperCase()) {
             callback(locationName);
         }
+    }
+});
+
+// A url generator is a function used by the quark routing system to create a link given a route name.
+// The function receives the route and config and tries to create a link with the given route, if its able it returns
+// The generated url
+$$.routing.urlGenerators.push(function(route, config) {
+    var location = $$.routing.configuration[route.locationName];
+
+    if (location && location.config && location.config.path) {
+        return location.config.path + "#" + route.interpolate(config);
     }
 });
 

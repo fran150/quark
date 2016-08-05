@@ -17,9 +17,20 @@ function QuarkRouter() {
     // Each "location" have a set of routes defined independent of other.
     this.locationFinders = [];
 
+    // List of defined location generators
+    // Quark allows to define functions that given a location configuration return an url that
+    // matches.
+    this.urlGenerators = [];
+
     // Specific route configuration, contains all route data and register the route in crossroads.js
     function Route(locationName, routeName, config) {
         var routeObject = this;
+
+        // Store the route's location name
+        routeObject.locationName = locationName;
+
+        // Store the route's route name
+        routeObject.routeName = routeName;
 
         // Create the controller imports, this object holds the reference to the models
         // of the components defined in the route
@@ -324,9 +335,22 @@ function QuarkRouter() {
         // Get the route with the specified name
         var route = getRoute(name);
 
-        // If theres a route with the specified name use the crossroad router to interpolate the hash
+        // If theres a  route with the specified name use the crossroad router to interpolate the hash
         if (route) {
             return route.interpolate(config);
+        }
+    }
+
+    this.link = function(name, config) {
+        var route = getRoute(name);
+
+        if (route) {
+            for (var index in self.urlGenerators) {
+                var url = self.urlGenerators[index](route, config);
+                if (url) {
+                    return url;
+                }
+            }
         }
     }
 

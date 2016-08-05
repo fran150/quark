@@ -62,6 +62,7 @@ gulp.task('js', function () {
         './src/page-bindings.js',
         './src/routing.js',
         './src/default-locationFinder.js',
+        './src/default-urlGenerator.js',
         './src/namespaces.js',
         './src/ko-preprocessors.js',
         './src/libs/validation.js',
