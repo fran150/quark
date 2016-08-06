@@ -367,7 +367,7 @@ ko.bindingHandlers.href = {
 
         var newAccesor = function() {
             if ($$.isString(value)) {
-                return { href: '#' + $$.routing.hash(value) }
+                return { href: '#' + $$.routing.link(value) }
             } else if ($$.isObject(value)) {
                 var url;
 
@@ -376,7 +376,7 @@ ko.bindingHandlers.href = {
                 }
 
                 if (value.routeName) {
-                    url += "#" + $$.routing.hash(value.routeName, value.routeConfig);
+                    url += "#" + $$.routing.link(value.routeName, value.routeConfig);
                 }
 
                 return { href: url }
@@ -2142,7 +2142,7 @@ ko.virtualElements.allowedBindings.hasContent = true;
 // The inverse of the hasContent binding.
 ko.bindingHandlers.hasNotContent = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createHasContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+        var newAccesor = createHasContentAccesor(valueAccessor, context);
 
         return ko.bindingHandlers['ifnot'].init(element, newAccesor, allBindingsAccessor, context, context);
     }

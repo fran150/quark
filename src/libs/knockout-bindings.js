@@ -11,19 +11,9 @@ ko.bindingHandlers.href = {
 
         var newAccesor = function() {
             if ($$.isString(value)) {
-                return { href: '#' + $$.routing.hash(value) }
-            } else if ($$.isObject(value)) {
-                var url;
-
-                if (value.page) {
-                    url = value.page;
-                }
-
-                if (value.routeName) {
-                    url += "#" + $$.routing.hash(value.routeName, value.routeConfig);
-                }
-
-                return { href: url }
+                return { href: $$.routing.link(value) }
+            } else if ($$.isObject(value) && value && value.routeName && value.routeConfig) {
+                return { href: $$.routing.link(value.routeName, value.routeConfig) }
             }
         }
         return ko.bindingHandlers.attr.update(element, newAccesor, allBindingsAccessor, viewModel, context);

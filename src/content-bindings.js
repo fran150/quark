@@ -77,7 +77,7 @@ ko.virtualElements.allowedBindings.hasContent = true;
 // The inverse of the hasContent binding.
 ko.bindingHandlers.hasNotContent = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createHasContentAccesor(element, valueAccessor, allBindingsAccessor, viewModel, context);
+        var newAccesor = createHasContentAccesor(valueAccessor, context);
 
         return ko.bindingHandlers['ifnot'].init(element, newAccesor, allBindingsAccessor, context, context);
     }
