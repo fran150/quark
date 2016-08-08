@@ -2054,15 +2054,23 @@ ko.bindingHandlers.exportToController = {
 ko.virtualElements.allowedBindings.exportToController = true;
 
 // Uses jquery to select the nodes to show from the componentTemplateNodes
-function createContentAccesor(valueAccessor, context) {
+function createContentAccesor(valueAccessor, allBindingsAccessor, context) {
     // Gets the value
     var value = ko.unwrap(valueAccessor());
+    // Get the namespace alias
+    var replace = allBindingsAccessor.get('replace') || false;
 
     // New Accesor
     var newAccesor = function () {
         // If a value is specified use it as a jquery filter, if not use all the nodes.
         if ($$.isDefined(value)) {
-            return { nodes: $(context.$componentTemplateNodes).filter(value).html() };
+            var nodes = $(context.$componentTemplateNodes).filter(value);
+
+            if (replace) {
+                nodes = nodes.contents();
+            }
+
+            return { nodes: nodes };
         } else {
             return { nodes: context.$componentTemplateNodes };
         }
@@ -2092,13 +2100,13 @@ function createContentContext(context) {
 // content is shown
 ko.bindingHandlers.content = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createContentAccesor(valueAccessor, context);
+        var newAccesor = createContentAccesor(valueAccessor, allBindingsAccessor, context);
         var newContext = createContentContext(context);
 
         return ko.bindingHandlers.template.init(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
     },
     update: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createContentAccesor(valueAccessor, context);
+        var newAccesor = createContentAccesor(valueAccessor, allBindingsAccessor, context);
         var newContext = createContentContext(context);
 
         return ko.bindingHandlers.template.update(element, newAccesor, allBindingsAccessor, context.$parent, newContext);
