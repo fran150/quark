@@ -3,21 +3,44 @@ function createContentAccesor(valueAccessor, allBindingsAccessor, context) {
     // Gets the value
     var value = ko.unwrap(valueAccessor());
     // Get the namespace alias
-    var replace = allBindingsAccessor.get('replace') || false;
+    var virtual = allBindingsAccessor.get('virtual') || false;
 
     // New Accesor
     var newAccesor = function () {
-        // If a value is specified use it as a jquery filter, if not use all the nodes.
-        if ($$.isDefined(value)) {
-            var nodes = $(context.$componentTemplateNodes).filter(value);
+        if (virtual) {
+            var result = [];
+            var found = 0;
 
-            if (replace) {
-                nodes = nodes.contents();
+            for (var i = 0; i < context.$componentTemplateNodes.length; i++) {
+                var node = context.$componentTemplateNodes[i];
+
+                if (node.nodeType == 8) {
+                    if (node.nodeValue.trim().toUpperCase() == value.toUpperCase()) {
+                        found++;
+                    }
+                }
+
+                if (found > 0) {
+                    result.push(node);
+
+                    if (node.nodeType == 8) {
+                        if (node.nodeValue.trim().toUpperCase() == "/" + value.toUpperCase()) {
+                            found--;
+                        }
+                    }
+                }
             }
 
-            return { nodes: nodes };
+            return { nodes: result };
         } else {
-            return { nodes: context.$componentTemplateNodes };
+            // If a value is specified use it as a jquery filter, if not use all the nodes.
+            if ($$.isDefined(value)) {
+                var nodes = $(context.$componentTemplateNodes).filter(value);
+
+                return { nodes: nodes };
+            } else {
+                return { nodes: context.$componentTemplateNodes };
+            }
         }
     };
 
@@ -61,11 +84,26 @@ ko.virtualElements.allowedBindings.content = true;
 
 // Creates an accesor that returns true if there are elements that matches
 // the specified jquery selector inside the component's content
-function createHasContentAccesor(valueAccessor, context) {
+function createHasContentAccesor(valueAccessor, allBindings, context) {
     var value = ko.unwrap(valueAccessor());
+    var virtual = allBindings.get('virtual') || false;
 
     var newAccesor = function () {
-        return $(context.$componentTemplateNodes).filter(value).length > 0;
+        if (virtual) {
+            for (var i = 0; i < context.$componentTemplateNodes.length; i++) {
+                var node = context.$componentTemplateNodes[i];
+
+                if (node.nodeType == 8) {
+                    if (node.nodeValue.trim().toUpperCase() == value.toUpperCase()) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        } else {
+            return $(context.$componentTemplateNodes).filter(value).length > 0;
+        }
     };
 
     return newAccesor;
@@ -75,7 +113,7 @@ function createHasContentAccesor(valueAccessor, context) {
 // matches the specified jquery selector in the component's content
 ko.bindingHandlers.hasContent = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createHasContentAccesor(valueAccessor, context);
+        var newAccesor = createHasContentAccesor(valueAccessor, allBindingsAccessor, context);
 
         return ko.bindingHandlers['if'].init(element, newAccesor, allBindingsAccessor, context, context);
     }
@@ -85,7 +123,7 @@ ko.virtualElements.allowedBindings.hasContent = true;
 // The inverse of the hasContent binding.
 ko.bindingHandlers.hasNotContent = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var newAccesor = createHasContentAccesor(valueAccessor, context);
+        var newAccesor = createHasContentAccesor(valueAccessor, allBindingsAccessor, context);
 
         return ko.bindingHandlers['ifnot'].init(element, newAccesor, allBindingsAccessor, context, context);
     }
