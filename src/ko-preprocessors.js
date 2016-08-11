@@ -29,6 +29,8 @@ ko.bindingProvider.instance.preprocessNode = function(node) {
 
             if (params) {
                 comment += ", params: { " + params.value + " } ";
+            } else {
+                comment += ", params: {}";
             }
 
             comment += " } ";
