@@ -1370,7 +1370,7 @@ $$.registerComponent = function(tag, url) {
 //      .register('button')
 //      .register('dropdown')
 // Registers navbar-link, navbar-button and navbar-dropdown components.
-$$.onNamespace = function(namespace) {
+$$.onNamespace = function(namespace, previous) {
     var self = this;
 
     var ns = namespace;
@@ -1382,7 +1382,11 @@ $$.onNamespace = function(namespace) {
     }
 
     this.namespace = function(namespace) {
-        return new $$.onNamespace(ns + '-' + namespace);
+        return new $$.onNamespace(ns + '-' + namespace, self);
+    }
+
+    this.endNamespace = function() {
+        return previous;
     }
 
     return self;
