@@ -129,3 +129,12 @@ ko.bindingHandlers.hasNotContent = {
     }
 };
 ko.virtualElements.allowedBindings.hasNotContent = true;
+
+
+ko.bindingHandlers.show = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+        var value = ko.unwrap(valueAccessor());
+        $(element).html(value);
+    }
+};
+ko.virtualElements.allowedBindings.show = true;
