@@ -2190,13 +2190,13 @@ ko.bindingHandlers.hasNotContent = {
 ko.virtualElements.allowedBindings.hasNotContent = true;
 
 
-ko.bindingHandlers.show = {
+ko.bindingHandlers.innerHtml = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var value = ko.unwrap(valueAccessor());
         $(element).html(value);
     }
 };
-ko.virtualElements.allowedBindings.show = true;
+ko.virtualElements.allowedBindings.innerHtml = true;
 
 // This binding works in conjunction with the routing system.
 // When configuring the routes you can define a page name and the component that must be shown when that route is matched.

@@ -131,10 +131,10 @@ ko.bindingHandlers.hasNotContent = {
 ko.virtualElements.allowedBindings.hasNotContent = true;
 
 
-ko.bindingHandlers.show = {
+ko.bindingHandlers.innerHtml = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         var value = ko.unwrap(valueAccessor());
         $(element).html(value);
     }
 };
-ko.virtualElements.allowedBindings.show = true;
+ko.virtualElements.allowedBindings.innerHtml = true;
