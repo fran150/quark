@@ -387,6 +387,8 @@ $$.registerComponent = function(tag, url) {
     ko.components.register(tag, { require: url });
 }
 
+ko.components.register('empty', { template: ''});
+
 // Allows to group components in namespaces. The final component name is
 // the namespace-component name. This method allows to chain calls to register
 // to register various components under the same namespace, ie:

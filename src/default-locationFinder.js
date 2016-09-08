@@ -4,7 +4,7 @@
 // This is the default location finder, it search the location config for the path thah matches the
 // window.location.pathname
 // The location finders defined are called in order until one understands the location and invoke the callback.
-$$.routing.locationFinders.push(function(callback) {
+/*$$.routing.locationFinders.push(function(callback) {
     // Get the windolw location pathname
     var path = window.location.pathname;
 
@@ -20,3 +20,4 @@ $$.routing.locationFinders.push(function(callback) {
         }
     }
 });
+*/
