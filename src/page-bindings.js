@@ -81,7 +81,7 @@ ko.bindingHandlers.page = {
             }
         };
 
-        addExportBinding(element, name, 'exportToController');
+        //addExportBinding(element, name, 'exportToController');
 
         // When disposing the page element (and this binding) dispose the computed observable
         ko.utils.domNodeDisposal.addDisposeCallback(element, function() {

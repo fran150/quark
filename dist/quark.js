@@ -1142,15 +1142,15 @@ $$.component = function(viewModel, view) {
             model = new viewModel(p, $scope, $imports);
 
             // Creates an error handler for the component
-            var componentErrors = new ComponentErrors($$.controller, model);
+            //var componentErrors = new ComponentErrors($$.controller, model);
 
             // Adds the componentErrors property
             if (model) {
                 // Warns if the property already exists
-                if (model.componentErrors) {
-                    console.warn('This component already have a property named componentErrors, wich will be replaced by the quark component error list.')
-                }
-                model.componentErrors = componentErrors;
+                //if (model.componentErrors) {
+                //    console.warn('This component already have a property named componentErrors, wich will be replaced by the quark component error list.')
+                //}
+                //model.componentErrors = componentErrors;
             }
 
             // Calls the function initComponent if exists
@@ -1163,7 +1163,7 @@ $$.component = function(viewModel, view) {
             // Add the imported objects to the scope
             $scope.imports = $imports;
             // Adds the defined error handler to the scope
-            $scope.componentErrors = componentErrors;
+            //$scope.componentErrors = componentErrors;
             // Adds a reference to the controller to the scope
             $scope.controller = $$.controller;
         }
@@ -1184,19 +1184,19 @@ $$.component = function(viewModel, view) {
 
             // If there's a ready lock defined undefine it
             if ($imports && $imports.readyLock) {
-                $$.undefine($imports.readyLock);
+                delete $imports.readyLock;
             }
 
             // If there's a readiedSignal defined clear all listeners and undefine it
             if ($imports && $imports.readiedSignal) {
                 $$.signalClear($imports.readiedSignal);
-                $$.undefine($imports.readiedSignal);
+                delete $imports.readiedSignal;
             }
 
             // If there's a loadedSignal defined clear all listeners and undefine it
             if ($imports && $imports.loadedSignal) {
                 $$.signalClear($imports.loadedSignal);
-                $$.undefine($imports.loadedSignal);
+                delete $imports.loadedSignal;
             }
 
             // If theres an scope defined and has a dispose method call it
@@ -1204,16 +1204,21 @@ $$.component = function(viewModel, view) {
                 $scope.dispose();
             }
 
-            // If theres an componentErrors property clear it and remove it
-            if (model && model.componentErrors) {
-                model.componentErrors.clear();
-                $$.undefine(model.componentErrors);
+            if ($scope.controller) {
+                delete $scope.controller;
             }
 
+
+            // If theres an componentErrors property clear it and remove it
+            /*if (model && model.componentErrors) {
+                model.componentErrors.clear();
+                delete model.componentErrors;
+            }*/
+
             // Undefine all internal variables.
-            $$.undefine(model);
-            $$.undefine($scope);
-            $$.undefine($imports);
+            delete model;
+            delete $scope;
+            delete $imports;
         }
     }
 
@@ -2281,7 +2286,7 @@ ko.bindingHandlers.page = {
             }
         };
 
-        addExportBinding(element, name, 'exportToController');
+        //addExportBinding(element, name, 'exportToController');
 
         // When disposing the page element (and this binding) dispose the computed observable
         ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
@@ -2378,15 +2383,17 @@ function QuarkRouter() {
 
                     // If the current controller contains a componentErrors variable
                     // clear the errors
-                    if (current.controller.componentErrors) {
-                        current.controller.componentErrors.clear();
-                    }
+                    //if (current.controller.componentErrors) {
+                    //    current.controller.componentErrors.clear();
+                    //    delete current.controller.componentErrors;
+                    //}
 
                     // If the controller is not persistent clear the saved controller
                     // from the route configuration
-                    if (routeController && current.config.controller.charAt(0) != "!") {
-                        delete routeObject.controller;
-                    }
+                    //if (routeController && current.config.controller.charAt(0) != "!") {
+                    //    delete routeObject.controller.componentErrors;
+                    //    delete routeObject.controller;
+                    //}
 
                     // Clear the actual controller reference
                     delete current.controller;
@@ -2421,20 +2428,20 @@ function QuarkRouter() {
             // create one.
             if (controller) {
                 // If property will be overwritten warn the user
-                if (controller.componentErrors) {
-                    console.warn('This controller already have a property named componentErrors, wich will be replaced by the error handler.');
-                }
+                //if (controller.componentErrors) {
+                //    console.warn('This controller already have a property named componentErrors, wich will be replaced by the error handler.');
+                //}
 
                 // Create the error handler
-                controller.componentErrors = new ComponentErrors(controller);
+                //controller.componentErrors = new ComponentErrors(controller);
 
                 // If there's components defined in the component config init tracking in all of them
                 // passing the controller imports object
-                if ($$.isObject(config.components)) {
+                /*if ($$.isObject(config.components)) {
                     for (var name in config.components) {
                         initTracking(controller, routeObject.controllerImports, name);
                     }
-                }
+                }*/
             }
         }
 
@@ -2459,7 +2466,7 @@ function QuarkRouter() {
                     if ($$.isFunction(controllerObject)) {
                         // Create the controller passing the route config and import object
                         routeController = new controllerObject(config, routeObject.controllerImports);
-                        routeObject.controller = routeController;
+                        //routeObject.controller = routeController;
                         controllerCreated(routeController);
                     } else {
                         throw 'The specified controller file ' + config.controller + ' must return the controller\'s constructor';
@@ -2470,7 +2477,7 @@ function QuarkRouter() {
                 if ($$.isFunction(config.controller)) {
                     // Create the controller passing the route config and import object
                     routeController = new config.controller(config, routeObject.controllerImports);
-                    routeObject.controller = routeController;
+                    //routeObject.controller = routeController;
                     controllerCreated(routeController);
                 } else {
                     throw 'The specified controller file ' + config.controller + ' must return the controller\'s constructor';

@@ -162,15 +162,15 @@ $$.component = function(viewModel, view) {
             model = new viewModel(p, $scope, $imports);
 
             // Creates an error handler for the component
-            var componentErrors = new ComponentErrors($$.controller, model);
+            //var componentErrors = new ComponentErrors($$.controller, model);
 
             // Adds the componentErrors property
             if (model) {
                 // Warns if the property already exists
-                if (model.componentErrors) {
-                    console.warn('This component already have a property named componentErrors, wich will be replaced by the quark component error list.')
-                }
-                model.componentErrors = componentErrors;
+                //if (model.componentErrors) {
+                //    console.warn('This component already have a property named componentErrors, wich will be replaced by the quark component error list.')
+                //}
+                //model.componentErrors = componentErrors;
             }
 
             // Calls the function initComponent if exists
@@ -183,7 +183,7 @@ $$.component = function(viewModel, view) {
             // Add the imported objects to the scope
             $scope.imports = $imports;
             // Adds the defined error handler to the scope
-            $scope.componentErrors = componentErrors;
+            //$scope.componentErrors = componentErrors;
             // Adds a reference to the controller to the scope
             $scope.controller = $$.controller;
         }
@@ -204,19 +204,19 @@ $$.component = function(viewModel, view) {
 
             // If there's a ready lock defined undefine it
             if ($imports && $imports.readyLock) {
-                $$.undefine($imports.readyLock);
+                delete $imports.readyLock;
             }
 
             // If there's a readiedSignal defined clear all listeners and undefine it
             if ($imports && $imports.readiedSignal) {
                 $$.signalClear($imports.readiedSignal);
-                $$.undefine($imports.readiedSignal);
+                delete $imports.readiedSignal;
             }
 
             // If there's a loadedSignal defined clear all listeners and undefine it
             if ($imports && $imports.loadedSignal) {
                 $$.signalClear($imports.loadedSignal);
-                $$.undefine($imports.loadedSignal);
+                delete $imports.loadedSignal;
             }
 
             // If theres an scope defined and has a dispose method call it
@@ -224,16 +224,21 @@ $$.component = function(viewModel, view) {
                 $scope.dispose();
             }
 
-            // If theres an componentErrors property clear it and remove it
-            if (model && model.componentErrors) {
-                model.componentErrors.clear();
-                $$.undefine(model.componentErrors);
+            if ($scope.controller) {
+                delete $scope.controller;
             }
 
+
+            // If theres an componentErrors property clear it and remove it
+            /*if (model && model.componentErrors) {
+                model.componentErrors.clear();
+                delete model.componentErrors;
+            }*/
+
             // Undefine all internal variables.
-            $$.undefine(model);
-            $$.undefine($scope);
-            $$.undefine($imports);
+            delete model;
+            delete $scope;
+            delete $imports;
         }
     }
 
