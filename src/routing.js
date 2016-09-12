@@ -9,7 +9,7 @@ function QuarkRouter() {
     csRouter.ignoreState = true;
 
     this.current = {
-        name: ko.observable(''),
+        name: ko.observable(),
         components: []
     };
 
@@ -22,76 +22,161 @@ function QuarkRouter() {
         $.extend(pages, pagesConfig);
     }
 
-    function clear(index) {
-        // Get all parts in name
-        var names = self.current.name().split('/');
-        var fullName = "";
-        var finalName = "";
+    // Gets the index and full path name of the shared parts
+    // between the old and the new page
+    function findPosition(newPage) {
+        // Get the current page name
+        var currentName = self.current.name();
 
-        // Iterate over all name parts
-        for (var i = 0; i < names.length; i++) {
-            // Get the name and full name
-            var name = names[i];
-            fullName = fullName ? fullName + '/' + name : name;
-
-            // Passing index it starts to delete
-            if (i >= index) {
-                var components = pages[fullName];
-
-                for (var item in components) {
-                    self.current.components[item]('empty');
-                }
-            } else {
-                finalName = fullName;
-            }
+        // If theres a current page, split its components
+        // If not return the first position
+        var oldNames;
+        if (currentName) {
+            oldNames = currentName.split('/')
+        } else {
+            return { index: 0 }
         }
 
-        self.current.name(finalName);
-    }
-
-    function findIndex(newPage) {
-        var oldNames = self.current.name().split('/');
-        var newNames = newPage.split('/');
-
-        for (var i = 0; i < newNames.length; i++) {
-            if (oldNames[i] != newNames[i]) {
-                return i;
-            }
-        }
-    }
-
-    function add(newPage, index) {
+        // Split the new name parts
         var newNames = newPage.split('/');
         var fullName;
 
+        // Compare each route and return the position where
+        // they diverge
         for (var i = 0; i < newNames.length; i++) {
+            if (oldNames[i] != newNames[i]) {
+                return { index: i, fullName: fullName };
+            } else {
+                fullName = fullName ? fullName + '/' + oldNames[i] : oldNames[i];
+            }
+        }
+
+        // The page is the same, return the last index and the full name
+        return { index: newNames.length - 1, fullName: fullName }
+    }
+
+    function addControllers(controller, page, position, callback) {
+        var names = [];
+
+        if (page) {
+            names = page.split('/');
+        }
+
+        if (!controller) {
+            controller = {};
+        }
+
+        if (position.index < names.length) {
+            var name = names[position.index];
+            var fullName = position.fullName ? position.fullName + '/' + name : name;
+
+            require([self.controllersBase + '/' + fullName], function(ControllerClass) {
+                controller[name] = new ControllerClass();
+
+                var newPosition = { index: position.index + 1, fullName: fullName };
+                addControllers(controller[name], page, newPosition, callback);
+            }, function(error) {
+                controller[name] = {};
+
+                var newPosition = { index: position.index + 1, fullName: fullName };
+                addControllers(controller[name], page, newPosition, callback);
+            });
+        } else {
+            callback();
+        }
+    }    
+
+    // Clears the components defined in the current routes
+    // passing the specified position
+    function clearComponents(position) {
+        // Get the current page name
+        var currentName = self.current.name();
+
+        // If theres a current page, split its components, if not
+        // init an empty array
+        var names;
+        if (currentName) {
+            names = currentName.split('/');
+        } else {
+            names = [];
+        }
+
+        var fullName = position.fullName;
+        var finalName = fullName;
+
+        // Iterate over all name parts starting in the specified position
+        for (var i = position.index; i < names.length; i++) {
+            // Get the name and fullName
+            var name = names[i];
+            fullName = fullName ? fullName + "/" + name : name;
+
+            // Get the part components
+            var components = pages[fullName];
+
+            // Iterate over part componentes and set the empty template
+            for (var item in components) {
+                self.current.components[item]('empty');
+            }
+        }
+
+        // Set the current page name to the last shared position
+        // between the old and new pages
+        self.current.name(finalName);
+    }
+
+    // Add all componentes defined in the page parts passing the specified
+    // position
+    function addComponents(newPage, position) {
+        var newNames;
+
+        // If theres a new page defined split it's parts
+        // if not init with and empty array
+        if (newPage) {
+            newNames = newPage.split('/');
+        } else {
+            newNames = [];
+        }
+
+        // Init the full name at the specified position
+        var fullName = position.fullName;
+
+        // Iterate over all name parts stating on the specified position
+        for (var i = position.index; i < newNames.length; i++) {
             // Get the name and full name
             var name = newNames[i];
-            fullName = fullName ? fullName + '/' + name : name;
+            fullName = fullName ? fullName + "/" + name : name;
 
-            // Passing index it starts to add or change components
-            if (i >= index) {
-                var componentsValues = pages[fullName];
+            // Get all components name for the current position index
+            var componentsValues = pages[fullName];
 
-                for (var item in componentsValues) {
-                    if (self.current.components[item]) {
-                        self.current.components[item](componentsValues[item]);
-                    } else {
-                        self.current.components[item] = ko.observable(componentsValues[item]);
-                    }
+            // Iterate over all components and add the to current route
+            for (var item in componentsValues) {
+                // If an observable exists change its value, if not create it
+                if (self.current.components[item]) {
+                    self.current.components[item](componentsValues[item]);
+                } else {
+                    self.current.components[item] = ko.observable(componentsValues[item]);
                 }
             }
         }
 
+        // Set the new page name
         self.current.name(newPage);
     }
 
+    // Creates a new crossroad route for each specified page map
     function createRoute(page, hash) {
         // Create a route for the page and hash
         routes[page] = csRouter.addRoute(hash, function(parameters) {
-            var index = findIndex(page);
-            clear(index);
-            add(page, index);
+            // Get's the shared position between the old and new page
+            var position = findPosition(page);
+
+            addControllers(self.current.controller, page, position, function() {
+                // Delete all components of the old page
+                clearComponents(position);
+                // Add the componentes of the new page
+                addComponents(page, position);
+            });
         });
     }
 
