@@ -2205,9 +2205,6 @@ ko.bindingHandlers.innerHtml = {
 };
 ko.virtualElements.allowedBindings.innerHtml = true;
 
-// This binding works in conjunction with the routing system.
-// When configuring the routes you can define a page name and the component that must be shown when that route is matched.
-// The specified component is shown inside a component that has a page binding with the matching name.
 ko.bindingHandlers.page = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
         // Page name on the route
@@ -2220,17 +2217,6 @@ ko.bindingHandlers.page = {
         }
 
         ko.applyBindingsToNode(element, { 'component': { 'name': current[value] } });
-
-/*
-        // Create an accessor for the component binding
-        var newAccesor = function () {
-            // Return the accesor for the component binding
-            return {
-                name: current[name]
-            }
-        };
-
-        return ko.bindingHandlers.component.init(element, newAccesor, allBindingsAccessor, viewModel, context);*/
     }
 }
 ko.virtualElements.allowedBindings.page = true;
@@ -2247,7 +2233,8 @@ function QuarkRouter() {
 
     this.current = {
         name: ko.observable(),
-        components: []
+        components: {},
+        controllers: {}
     };
 
     var pages = {};
@@ -2289,7 +2276,54 @@ function QuarkRouter() {
         }
 
         // The page is the same, return the last index and the full name
-        return { index: newNames.length - 1, fullName: fullName }
+        return { index: newNames.length, fullName: fullName }
+    }
+
+    function addControllers(page, position, callback) {
+        var names = [];
+
+        if (page) {
+            names = page.split('/');
+        }
+
+        if (position.index < names.length) {
+            var name = names[position.index];
+            var fullName = position.fullName ? position.fullName + '/' + name : name;
+
+            require([self.controllersBase + '/' + fullName], function(ControllerClass) {
+                self.current.controllers[name] = new ControllerClass();
+
+                var newPosition = { index: position.index + 1, fullName: fullName };
+                addControllers(page, newPosition, callback);
+            }, function(error) {
+                self.current.controllers[name] = {};
+
+                var newPosition = { index: position.index + 1, fullName: fullName };
+                addControllers(page, newPosition, callback);
+            });
+        } else {
+            callback();
+        }
+    }
+
+    function clearControllers(position) {
+        // Get the current page name
+        var currentName = self.current.name();
+
+        // If theres a current page, split its components, if not
+        // init an empty array
+        var names = [];
+        if (currentName) {
+            names = currentName.split('/');
+        }
+
+        // Iterate over all name parts starting in the specified position
+        for (var i = position.index; i < names.length; i++) {
+            // Get the name and fullName
+            var name = names[i];
+
+            delete self.current.controllers[name];
+        }
     }
 
     // Clears the components defined in the current routes
@@ -2328,37 +2362,6 @@ function QuarkRouter() {
         // Set the current page name to the last shared position
         // between the old and new pages
         self.current.name(finalName);
-    }
-
-    function addControllers(controller, page, position, callback) {
-        var names = [];
-
-        if (page) {
-            names = page.split('/');
-        }
-
-        if (!controller) {
-            controller = {};
-        }
-
-        if (position.index < names.length) {
-            var name = names[position.index];
-            var fullName = position.fullName ? position.fullName + '/' + name : name;
-
-            require([self.controllersBase + '/' + fullName], function(ControllerClass) {
-                controller[name] = new ControllerClass();
-
-                var newPosition = { index: position.index + 1, fullName: fullName };
-                addControllers(controller[name], page, newPosition, callback);
-            }, function(error) {
-                controller[name] = {};
-
-                var newPosition = { index: position.index + 1, fullName: fullName };
-                addControllers(controller[name], page, newPosition, callback);
-            });
-        } else {
-            callback();
-        }
     }
 
     // Add all componentes defined in the page parts passing the specified
@@ -2408,7 +2411,9 @@ function QuarkRouter() {
             // Get's the shared position between the old and new page
             var position = findPosition(page);
 
-            addControllers(self.current.controller, page, position, function() {
+            clearControllers(position);
+
+            addControllers(page, position, function() {
                 // Delete all components of the old page
                 clearComponents(position);
                 // Add the componentes of the new page

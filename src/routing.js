@@ -10,7 +10,8 @@ function QuarkRouter() {
 
     this.current = {
         name: ko.observable(),
-        components: []
+        components: {},
+        controllers: {}
     };
 
     var pages = {};
@@ -52,18 +53,14 @@ function QuarkRouter() {
         }
 
         // The page is the same, return the last index and the full name
-        return { index: newNames.length - 1, fullName: fullName }
+        return { index: newNames.length, fullName: fullName }
     }
 
-    function addControllers(controller, page, position, callback) {
+    function addControllers(page, position, callback) {
         var names = [];
 
         if (page) {
             names = page.split('/');
-        }
-
-        if (!controller) {
-            controller = {};
         }
 
         if (position.index < names.length) {
@@ -71,20 +68,40 @@ function QuarkRouter() {
             var fullName = position.fullName ? position.fullName + '/' + name : name;
 
             require([self.controllersBase + '/' + fullName], function(ControllerClass) {
-                controller[name] = new ControllerClass();
+                self.current.controllers[name] = new ControllerClass();
 
                 var newPosition = { index: position.index + 1, fullName: fullName };
-                addControllers(controller[name], page, newPosition, callback);
+                addControllers(page, newPosition, callback);
             }, function(error) {
-                controller[name] = {};
+                self.current.controllers[name] = {};
 
                 var newPosition = { index: position.index + 1, fullName: fullName };
-                addControllers(controller[name], page, newPosition, callback);
+                addControllers(page, newPosition, callback);
             });
         } else {
             callback();
         }
-    }    
+    }
+
+    function clearControllers(position) {
+        // Get the current page name
+        var currentName = self.current.name();
+
+        // If theres a current page, split its components, if not
+        // init an empty array
+        var names = [];
+        if (currentName) {
+            names = currentName.split('/');
+        }
+
+        // Iterate over all name parts starting in the specified position
+        for (var i = position.index; i < names.length; i++) {
+            // Get the name and fullName
+            var name = names[i];
+
+            delete self.current.controllers[name];
+        }
+    }
 
     // Clears the components defined in the current routes
     // passing the specified position
@@ -171,7 +188,9 @@ function QuarkRouter() {
             // Get's the shared position between the old and new page
             var position = findPosition(page);
 
-            addControllers(self.current.controller, page, position, function() {
+            clearControllers(position);
+
+            addControllers(page, position, function() {
                 // Delete all components of the old page
                 clearComponents(position);
                 // Add the componentes of the new page
