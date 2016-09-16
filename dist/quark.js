@@ -2205,21 +2205,64 @@ ko.bindingHandlers.innerHtml = {
 };
 ko.virtualElements.allowedBindings.innerHtml = true;
 
-ko.bindingHandlers.page = {
+ko.bindingHandlers.outlet = {
     init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        // Page name on the route
+        // Get outlet name
         var value = ko.unwrap(valueAccessor());
+        // Current controller name
+        var currentController;
+        // Component name to show on this outlet
+        var componentName = ko.observable('empty');
 
-        var current = $$.routing.current.components;
+        // Subscribe to name changes (routing)
+        var subscription = $$.routing.current.name.subscribe(function(newValue) {
+            var names = [];
 
-        if (!current[value]) {
-            current[value] = ko.observable('empty');
-        }
+            if (newValue) {
+                names = newValue.split('/');
+            }
 
-        ko.applyBindingsToNode(element, { 'component': { 'name': current[value] } });
+            var controller;
+            var fullName;
+
+            var newComponentName;
+            var newController;
+
+            for (var i = 0; i < names.length; i++) {
+                var name = names[i];
+                fullName = fullName ? fullName + '/' + name : name;
+
+                var controller = $$.routing.current.controllers[fullName];
+
+                for (var outletName in controller.outlets) {
+                    if (outletName == value) {
+                        newComponentName = controller.outlets[outletName];
+                        newController = controller;
+                    }
+                }
+            }
+
+            if (newComponentName) {
+                if (newComponentName != componentName() || newController != currentController) {
+                    currentController = newController;
+                    componentName(newComponentName);
+                }
+            } else {
+                $$.undefine(currentController);
+                componentName('empty');
+            }
+        });
+
+        // Destroy subscription on element disposal
+        ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
+            subscription.dispose();
+            $$.undefine(currentController);
+        });
+
+        ko.applyBindingsToNode(element, { 'component': { 'name': componentName } });
     }
 }
-ko.virtualElements.allowedBindings.page = true;
+ko.virtualElements.allowedBindings.outlet = true;
 
 function QuarkRouter() {
     var self = this;
@@ -2233,7 +2276,6 @@ function QuarkRouter() {
 
     this.current = {
         name: ko.observable(),
-        components: {},
         controllers: {}
     };
 
@@ -2290,15 +2332,13 @@ function QuarkRouter() {
             var name = names[position.index];
             var fullName = position.fullName ? position.fullName + '/' + name : name;
 
-            require([self.controllersBase + '/' + fullName], function(ControllerClass) {
-                self.current.controllers[name] = new ControllerClass();
+            var newPosition = { index: position.index + 1, fullName: fullName };
 
-                var newPosition = { index: position.index + 1, fullName: fullName };
+            require([self.controllersBase + '/' + fullName], function(ControllerClass) {
+                self.current.controllers[fullName] = new ControllerClass();
                 addControllers(page, newPosition, callback);
             }, function(error) {
-                self.current.controllers[name] = {};
-
-                var newPosition = { index: position.index + 1, fullName: fullName };
+                self.current.controllers[fullName] = {};
                 addControllers(page, newPosition, callback);
             });
         } else {
@@ -2317,12 +2357,16 @@ function QuarkRouter() {
             names = currentName.split('/');
         }
 
+        // Get the position full name
+        var fullName = position.fullName
+
         // Iterate over all name parts starting in the specified position
         for (var i = position.index; i < names.length; i++) {
             // Get the name and fullName
             var name = names[i];
+            fullName = fullName ? fullName + '/' + name : name;
 
-            delete self.current.controllers[name];
+            delete self.current.controllers[fullName];
         }
     }
 
@@ -2353,15 +2397,13 @@ function QuarkRouter() {
             // Get the part components
             var components = pages[fullName];
 
+            var controller = self.current.controllers[fullName];
+
             // Iterate over part componentes and set the empty template
             for (var item in components) {
-                self.current.components[item]('empty');
+                controller.outlets[item] = 'empty';
             }
         }
-
-        // Set the current page name to the last shared position
-        // between the old and new pages
-        self.current.name(finalName);
     }
 
     // Add all componentes defined in the page parts passing the specified
@@ -2389,14 +2431,15 @@ function QuarkRouter() {
             // Get all components name for the current position index
             var componentsValues = pages[fullName];
 
+            var controller = self.current.controllers[fullName];
+
+            if (!controller.outlets) {
+                controller.outlets = {};
+            }
+
             // Iterate over all components and add the to current route
             for (var item in componentsValues) {
-                // If an observable exists change its value, if not create it
-                if (self.current.components[item]) {
-                    self.current.components[item](componentsValues[item]);
-                } else {
-                    self.current.components[item] = ko.observable(componentsValues[item]);
-                }
+                controller.outlets[item] = componentsValues[item];
             }
         }
 
@@ -2411,11 +2454,12 @@ function QuarkRouter() {
             // Get's the shared position between the old and new page
             var position = findPosition(page);
 
+            // Delete all components of the old page
+            clearComponents(position);
+            // Clear the old controllers
             clearControllers(position);
 
             addControllers(page, position, function() {
-                // Delete all components of the old page
-                clearComponents(position);
                 // Add the componentes of the new page
                 addComponents(page, position);
             });

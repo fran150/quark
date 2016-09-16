@@ -10,7 +10,6 @@ function QuarkRouter() {
 
     this.current = {
         name: ko.observable(),
-        components: {},
         controllers: {}
     };
 
@@ -67,15 +66,13 @@ function QuarkRouter() {
             var name = names[position.index];
             var fullName = position.fullName ? position.fullName + '/' + name : name;
 
-            require([self.controllersBase + '/' + fullName], function(ControllerClass) {
-                self.current.controllers[name] = new ControllerClass();
+            var newPosition = { index: position.index + 1, fullName: fullName };
 
-                var newPosition = { index: position.index + 1, fullName: fullName };
+            require([self.controllersBase + '/' + fullName], function(ControllerClass) {
+                self.current.controllers[fullName] = new ControllerClass();
                 addControllers(page, newPosition, callback);
             }, function(error) {
-                self.current.controllers[name] = {};
-
-                var newPosition = { index: position.index + 1, fullName: fullName };
+                self.current.controllers[fullName] = {};
                 addControllers(page, newPosition, callback);
             });
         } else {
@@ -94,12 +91,16 @@ function QuarkRouter() {
             names = currentName.split('/');
         }
 
+        // Get the position full name
+        var fullName = position.fullName
+
         // Iterate over all name parts starting in the specified position
         for (var i = position.index; i < names.length; i++) {
             // Get the name and fullName
             var name = names[i];
+            fullName = fullName ? fullName + '/' + name : name;
 
-            delete self.current.controllers[name];
+            delete self.current.controllers[fullName];
         }
     }
 
@@ -130,15 +131,13 @@ function QuarkRouter() {
             // Get the part components
             var components = pages[fullName];
 
+            var controller = self.current.controllers[fullName];
+
             // Iterate over part componentes and set the empty template
             for (var item in components) {
-                self.current.components[item]('empty');
+                controller.outlets[item] = 'empty';
             }
         }
-
-        // Set the current page name to the last shared position
-        // between the old and new pages
-        self.current.name(finalName);
     }
 
     // Add all componentes defined in the page parts passing the specified
@@ -166,14 +165,15 @@ function QuarkRouter() {
             // Get all components name for the current position index
             var componentsValues = pages[fullName];
 
+            var controller = self.current.controllers[fullName];
+
+            if (!controller.outlets) {
+                controller.outlets = {};
+            }
+
             // Iterate over all components and add the to current route
             for (var item in componentsValues) {
-                // If an observable exists change its value, if not create it
-                if (self.current.components[item]) {
-                    self.current.components[item](componentsValues[item]);
-                } else {
-                    self.current.components[item] = ko.observable(componentsValues[item]);
-                }
+                controller.outlets[item] = componentsValues[item];
             }
         }
 
@@ -188,11 +188,12 @@ function QuarkRouter() {
             // Get's the shared position between the old and new page
             var position = findPosition(page);
 
+            // Delete all components of the old page
+            clearComponents(position);
+            // Clear the old controllers
             clearControllers(position);
 
             addControllers(page, position, function() {
-                // Delete all components of the old page
-                clearComponents(position);
                 // Add the componentes of the new page
                 addComponents(page, position);
             });
