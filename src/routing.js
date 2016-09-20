@@ -16,10 +16,15 @@ function QuarkRouter() {
     var pages = {};
     var mappings = {};
     var routes = {};
+    var params = {};
 
     // Adds defined pages to the collection
-    this.pages = function(pagesConfig) {
+    this.pages = function(pagesConfig, paramsConfig) {
         $.extend(pages, pagesConfig);
+
+        if (paramsConfig) {
+            $.extend(params, paramsConfig);
+        }
     }
 
     // Gets the index and full path name of the shared parts
@@ -162,10 +167,10 @@ function QuarkRouter() {
             var name = newNames[i];
             fullName = fullName ? fullName + "/" + name : name;
 
+            var controller = self.current.controllers[fullName];
+
             // Get all components name for the current position index
             var componentsValues = pages[fullName];
-
-            var controller = self.current.controllers[fullName];
 
             if (!controller.outlets) {
                 controller.outlets = {};
@@ -175,10 +180,17 @@ function QuarkRouter() {
             for (var item in componentsValues) {
                 controller.outlets[item] = componentsValues[item];
             }
-        }
 
-        // Set the new page name
-        self.current.name(newPage);
+            var parameters = params[fullName];
+
+            if (!controller.params) {
+                controller.params = {};
+            }
+
+            for (var paramName in parameters) {
+                controller.params[paramName] = ko.observable();
+            }
+        }
     }
 
     // Creates a new crossroad route for each specified page map
@@ -196,6 +208,9 @@ function QuarkRouter() {
             addControllers(page, position, function() {
                 // Add the componentes of the new page
                 addComponents(page, position);
+
+                // Set the new page name
+                self.current.name(page);
             });
         });
     }
