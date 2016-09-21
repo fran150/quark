@@ -8,10 +8,12 @@ function QuarkRouter() {
     csRouter.normalizeFn = crossroads.NORM_AS_OBJECT;
     csRouter.ignoreState = true;
 
-    this.current = {
+    var current = {
         name: ko.observable(),
         controllers: {}
     };
+
+    this.current = current.name;
 
     var pages = {};
     var mappings = {};
@@ -31,7 +33,7 @@ function QuarkRouter() {
     // between the old and the new page
     function findPosition(newPage) {
         // Get the current page name
-        var currentName = self.current.name();
+        var currentName = current.name();
 
         // If theres a current page, split its components
         // If not return the first position
@@ -69,15 +71,26 @@ function QuarkRouter() {
 
         if (position.index < names.length) {
             var name = names[position.index];
+            var previousName = position.fullName;
             var fullName = position.fullName ? position.fullName + '/' + name : name;
 
             var newPosition = { index: position.index + 1, fullName: fullName };
 
             require([self.controllersBase + '/' + fullName], function(ControllerClass) {
-                self.current.controllers[fullName] = new ControllerClass();
+                current.controllers[fullName] = new ControllerClass();
+
+                if (previousName && current.controllers[previousName]) {
+                    current.controllers[fullName].parent = current.controllers[previousName];
+                }
+
                 addControllers(page, newPosition, callback);
             }, function(error) {
-                self.current.controllers[fullName] = {};
+                current.controllers[fullName] = {};
+
+                if (previousName && current.controllers[previousName]) {
+                    current.controllers[fullName].parent = current.controllers[previousName];
+                }
+
                 addControllers(page, newPosition, callback);
             });
         } else {
@@ -87,7 +100,7 @@ function QuarkRouter() {
 
     function clearControllers(position) {
         // Get the current page name
-        var currentName = self.current.name();
+        var currentName = current.name();
 
         // If theres a current page, split its components, if not
         // init an empty array
@@ -105,7 +118,7 @@ function QuarkRouter() {
             var name = names[i];
             fullName = fullName ? fullName + '/' + name : name;
 
-            delete self.current.controllers[fullName];
+            delete current.controllers[fullName];
         }
     }
 
@@ -113,7 +126,7 @@ function QuarkRouter() {
     // passing the specified position
     function clearComponents(position) {
         // Get the current page name
-        var currentName = self.current.name();
+        var currentName = current.name();
 
         // If theres a current page, split its components, if not
         // init an empty array
@@ -136,7 +149,7 @@ function QuarkRouter() {
             // Get the part components
             var components = pages[fullName];
 
-            var controller = self.current.controllers[fullName];
+            var controller = current.controllers[fullName];
 
             // Iterate over part componentes and set the empty template
             for (var item in components) {
@@ -167,7 +180,7 @@ function QuarkRouter() {
             var name = newNames[i];
             fullName = fullName ? fullName + "/" + name : name;
 
-            var controller = self.current.controllers[fullName];
+            var controller = current.controllers[fullName];
 
             // Get all components name for the current position index
             var componentsValues = pages[fullName];
@@ -187,8 +200,35 @@ function QuarkRouter() {
                 controller.params = {};
             }
 
-            for (var paramName in parameters) {
-                controller.params[paramName] = ko.observable();
+            if (parameters) {
+                for (var j = 0; j < parameters.length; j++) {
+                    controller.params[parameters[j]] = ko.observable();
+                }
+            }
+        }
+    }
+
+    function setParameters(parameterValues, page) {
+        var names = [];
+        var fullName;
+
+        if (page) {
+            names = page.split('/');
+        }
+
+        for (var i = 0; i < names.length; i++) {
+            var name = names[i];
+            fullName = fullName ? fullName + '/' + name : name;
+
+            if (params[fullName]) {
+                var controller = current.controllers[fullName];
+
+                if (controller && controller.params) {
+                    for (var paramName in controller.params) {
+                        var value = parameterValues[paramName];
+                        controller.params[paramName](value);
+                    }
+                }
             }
         }
     }
@@ -209,8 +249,11 @@ function QuarkRouter() {
                 // Add the componentes of the new page
                 addComponents(page, position);
 
+                // Set the new set of parameters
+                setParameters(parameters, page);
+
                 // Set the new page name
-                self.current.name(page);
+                current.name(page);
             });
         });
     }
@@ -243,6 +286,76 @@ function QuarkRouter() {
         hasher.changed.add(parseHash);
         hasher.init();
     }
+
+
+    ko.bindingHandlers.outlet = {
+        init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
+            // Get outlet name
+            var value = ko.unwrap(valueAccessor());
+            // Current controller name
+            var currentController;
+            // Component name to show on this outlet
+            var componentData = ko.observable({ name: 'empty' });
+
+            // Subscribe to name changes (routing)
+            var subscription = current.name.subscribe(function(newValue) {
+                var names = [];
+
+                if (newValue) {
+                    names = newValue.split('/');
+                }
+
+                var controller;
+                var fullName;
+
+                var newComponentName;
+                var newController;
+
+                for (var i = 0; i < names.length; i++) {
+                    var name = names[i];
+                    fullName = fullName ? fullName + '/' + name : name;
+
+                    var controller = current.controllers[fullName];
+
+                    for (var outletName in controller.outlets) {
+                        if (outletName == value) {
+                            newComponentName = controller.outlets[outletName];
+                            newController = controller;
+                        }
+                    }
+                }
+
+                if (newComponentName) {
+                    if (newComponentName != componentData().name || newController != currentController) {
+
+                        var data = { name: newComponentName };
+
+                        if (newController && newController.initComponent) {
+                            data.params = newController.initComponent(value, newComponentName);
+                        } else {
+                            data.params = {};
+                        }
+
+                        currentController = newController;
+                        componentData(data);
+                    }
+                } else {
+                    $$.undefine(currentController);
+                    componentData({ name: 'empty' });
+                }
+            });
+
+            // Destroy subscription on element disposal
+            ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
+                subscription.dispose();
+                $$.undefine(currentController);
+            });
+
+            ko.applyBindingsToNode(element, { 'component': componentData });
+        }
+    }
+    ko.virtualElements.allowedBindings.outlet = true;
+
 }
 
 // Create the quark router

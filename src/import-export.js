@@ -283,39 +283,3 @@ ko.bindingHandlers.export = {
     }
 }
 ko.virtualElements.allowedBindings.export = true;
-
-ko.bindingHandlers.exportToController = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value;
-
-        // Get's the binded value
-        value = ko.unwrap(valueAccessor());
-
-        // Get the current route
-        var current = $$.routing.current();
-
-        // If theres a controller on the current route
-        if (current && current.controller) {
-            var value;
-
-            // Get's the binded value
-            value = ko.unwrap(valueAccessor());
-
-            // If the binding model has "model" and "imports" properties we assume that is a quark-component's scope.
-            if (routers[current.locationName].routes[current.routeName].controllerImports) {
-                viewModel = routers[current.locationName].routes[current.routeName].controllerImports;
-            }
-
-            var property;
-
-            if ($$.isString(value)) {
-                property = value;
-            } else {
-                throw 'The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component';
-            }
-
-            callLoadMethod(property, viewModel, context);
-        }
-    }
-}
-ko.virtualElements.allowedBindings.exportToController = true;
