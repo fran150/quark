@@ -148,30 +148,17 @@ $$.component = function(viewModel, view) {
     function Model(p) {
         // Component's model
         var model;
-        var self = model;
         // Creates empty scope
         var $scope = {
         };
         // Creates an empty imports object
         var $imports = {
-        }
+        };
 
         // If theres a model defined
         if (viewModel && !model) {
             // Creates the model passing the received parameters an empty scope
             model = new viewModel(p, $scope, $imports);
-
-            // Creates an error handler for the component
-            //var componentErrors = new ComponentErrors($$.controller, model);
-
-            // Adds the componentErrors property
-            if (model) {
-                // Warns if the property already exists
-                //if (model.componentErrors) {
-                //    console.warn('This component already have a property named componentErrors, wich will be replaced by the quark component error list.')
-                //}
-                //model.componentErrors = componentErrors;
-            }
 
             // Calls the function initComponent if exists
             if ($imports && $$.isFunction($imports.initComponent)) {
@@ -182,10 +169,6 @@ $$.component = function(viewModel, view) {
             $scope.model = model;
             // Add the imported objects to the scope
             $scope.imports = $imports;
-            // Adds the defined error handler to the scope
-            //$scope.componentErrors = componentErrors;
-            // Adds a reference to the controller to the scope
-            $scope.controller = $$.controller;
         }
 
         // Creates model, scope and error handlers getters.
@@ -223,17 +206,6 @@ $$.component = function(viewModel, view) {
             if ($scope && $scope.dispose) {
                 $scope.dispose();
             }
-
-            if ($scope.controller) {
-                delete $scope.controller;
-            }
-
-
-            // If theres an componentErrors property clear it and remove it
-            /*if (model && model.componentErrors) {
-                model.componentErrors.clear();
-                delete model.componentErrors;
-            }*/
 
             // Undefine all internal variables.
             delete model;
