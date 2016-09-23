@@ -4,7 +4,7 @@ ko.bindingHandlers.namespace = {
         var value = valueAccessor();
 
         // Get the namespace alias
-        var alias = allBindings.get('alias') || 400;
+        var alias = allBindings.get('alias');
 
         // Validate data
         if (!$$.isString(value)) {

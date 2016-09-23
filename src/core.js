@@ -151,18 +151,22 @@ $$.component = function(viewModel, view) {
         // Creates empty scope
         var $scope = {
         };
+
         // Creates an empty imports object
-        var $imports = {
-        };
+        var $imports = new Tracker();
 
         // If theres a model defined
         if (viewModel && !model) {
-            // Creates the model passing the received parameters an empty scope
+            // Creates the model passing the received parameters an empty scope and the
+            // tracker object
             model = new viewModel(p, $scope, $imports);
 
+            // Sets the tracker main model
+            $imports.setMainModel(model);
+
             // Calls the function initComponent if exists
-            if ($imports && $$.isFunction($imports.initComponent)) {
-                $imports.initComponent();
+            if (model && $$.isFunction(model.initComponent)) {
+                model.initComponent();
             }
 
             // Adds the created model to the scope.
@@ -185,26 +189,18 @@ $$.component = function(viewModel, view) {
                 model.dispose();
             }
 
-            // If there's a ready lock defined undefine it
-            if ($imports && $imports.readyLock) {
-                delete $imports.readyLock;
-            }
-
-            // If there's a readiedSignal defined clear all listeners and undefine it
-            if ($imports && $imports.readiedSignal) {
-                $$.signalClear($imports.readiedSignal);
-                delete $imports.readiedSignal;
-            }
-
-            // If there's a loadedSignal defined clear all listeners and undefine it
-            if ($imports && $imports.loadedSignal) {
-                $$.signalClear($imports.loadedSignal);
-                delete $imports.loadedSignal;
-            }
-
             // If theres an scope defined and has a dispose method call it
             if ($scope && $scope.dispose) {
                 $scope.dispose();
+            }
+
+            // If there's an imports object dispose it
+            if ($imports) {
+                $imports.dispose();
+            }
+
+            if (model && model.ready) {
+                
             }
 
             // Undefine all internal variables.

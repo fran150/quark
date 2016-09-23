@@ -538,6 +538,11 @@ function SyncLock() {
             });
         }
     }
+
+    // Dispose locks
+    this.dispose = function() {
+        $$.signalClear(signal);
+    }
 }
 
 // Returns a lock
@@ -1128,44 +1133,31 @@ $$.component = function(viewModel, view) {
     function Model(p) {
         // Component's model
         var model;
-        var self = model;
         // Creates empty scope
         var $scope = {
         };
+
         // Creates an empty imports object
-        var $imports = {
-        }
+        var $imports = new Tracker();
 
         // If theres a model defined
         if (viewModel && !model) {
-            // Creates the model passing the received parameters an empty scope
+            // Creates the model passing the received parameters an empty scope and the
+            // tracker object
             model = new viewModel(p, $scope, $imports);
 
-            // Creates an error handler for the component
-            //var componentErrors = new ComponentErrors($$.controller, model);
-
-            // Adds the componentErrors property
-            if (model) {
-                // Warns if the property already exists
-                //if (model.componentErrors) {
-                //    console.warn('This component already have a property named componentErrors, wich will be replaced by the quark component error list.')
-                //}
-                //model.componentErrors = componentErrors;
-            }
+            // Sets the tracker main model
+            $imports.setMainModel(model);
 
             // Calls the function initComponent if exists
-            if ($imports && $$.isFunction($imports.initComponent)) {
-                $imports.initComponent();
+            if (model && $$.isFunction(model.initComponent)) {
+                model.initComponent();
             }
 
             // Adds the created model to the scope.
             $scope.model = model;
             // Add the imported objects to the scope
             $scope.imports = $imports;
-            // Adds the defined error handler to the scope
-            //$scope.componentErrors = componentErrors;
-            // Adds a reference to the controller to the scope
-            $scope.controller = $$.controller;
         }
 
         // Creates model, scope and error handlers getters.
@@ -1182,38 +1174,19 @@ $$.component = function(viewModel, view) {
                 model.dispose();
             }
 
-            // If there's a ready lock defined undefine it
-            if ($imports && $imports.readyLock) {
-                delete $imports.readyLock;
-            }
-
-            // If there's a readiedSignal defined clear all listeners and undefine it
-            if ($imports && $imports.readiedSignal) {
-                $$.signalClear($imports.readiedSignal);
-                delete $imports.readiedSignal;
-            }
-
-            // If there's a loadedSignal defined clear all listeners and undefine it
-            if ($imports && $imports.loadedSignal) {
-                $$.signalClear($imports.loadedSignal);
-                delete $imports.loadedSignal;
-            }
-
             // If theres an scope defined and has a dispose method call it
             if ($scope && $scope.dispose) {
                 $scope.dispose();
             }
 
-            if ($scope.controller) {
-                delete $scope.controller;
+            // If there's an imports object dispose it
+            if ($imports) {
+                $imports.dispose();
             }
 
-
-            // If theres an componentErrors property clear it and remove it
-            /*if (model && model.componentErrors) {
-                model.componentErrors.clear();
-                delete model.componentErrors;
-            }*/
+            if (model && model.ready) {
+                
+            }
 
             // Undefine all internal variables.
             delete model;
@@ -1735,164 +1708,173 @@ function createModelBinderContext(context) {
     var viewModel = context.$parent;
 
     var newContext = seniorContext.extend({
-        $container: viewModel.getModel(),
-        $containerContext: context.$parentContext
+        $child: viewModel.getModel(),
+        $childContext: context.$parentContext
     });
 
     return newContext;
 }
 
-// Calls the ready method on the model and marks as ready on the parent if is tracking dependencies, then calls the function
-// to reevaluate the parent's readiness
-function markReadyAndInformParent(model, imports) {
-    // Calls the object ready method and unlocks the readyLock
-    callReady(model, imports);
+function Tracker() {
+    var self = this;
 
-    // If the object is tracked and has a parent, mark itself as ready on the parent
-    // and call the function on the parent to reevaluate readiness.
-    if ($$.isDefined(imports.$support) && $$.isDefined(imports.$support.tracking) && $$.isDefined(imports.$support.tracking.parent)) {
-        // Mark the object ready on the parent
-        imports.$support.tracking.parentState['ready'] = true;
+    var mainModel;
 
-        // Call the readied method and signal
-        callReadied(imports.$support.tracking.parent, imports.$support.tracking.parentState.propertyName, imports);
+    // Tracked dependencies
+    var dependencies = {};
 
-        // Inform to the tracking system on the parent that a child is ready
-        imports.$support.tracking.parent.$support.tracking.childReady();
+    // Reference to this tracker's parent and the name on the parent
+    var parent;
+    var nameOnParent;
+
+    // Stores dependency data
+    function DependencyData(name) {
+        this.name = name;
+        this.loaded = false;
+        this.ready = false;
+        this.model = undefined;
+        this.tracker = undefined;
     }
-}
 
-// Check if the object is ready verifying that all tracked childs are loaded and ready
-function checkObjectReady(imports) {
-    // If any dependency is not loaded or ready then exit
-    // !! OPTIMIZE !! by using a counter and not iterating all array over and over
-    for (var property in imports.$support.tracking.childs) {
-        if (!imports.$support.tracking.childs[property]['loaded'] || !imports.$support.tracking.childs[property]['ready']) {
-            return false;
+    // Lock to be released when the tracker readies
+    this.ready = $$.lock();
+    // Signal fired when a dependency loads
+    this.loaded = $$.signal();
+    // Signal fired when a dependency is ready
+    this.readied = $$.signal();
+
+    // Return if this tracker is ready
+    this.isReady = function() {
+        return !$$.isLocked(self.ready);
+    }
+
+    // Adds a dependency to this tracker
+    this.addDependency = function(name) {
+        // Lock the ready property
+        self.ready.lock();
+
+        // Start tracking the dependency state by adding it to the list
+        dependencies[name] = new DependencyData(name);
+    }
+
+    // Delete the dependency with the specified name
+    this.removeDependency = function(name) {
+        // If the dependency exists..
+        if (dependencies[name]) {
+            // Get the dependency's tracker
+            var tracker = dependencies[name].tracker;
+
+            // If it has a tracker delete the parent reference
+            if (tracker) {
+                $$.undefine(tracker.parent);
+            }
+
+            // Delete the dependency from this tracker
+            delete dependencies[name];
         }
     }
 
-    return true;
-}
+    // Used to indicate that a dependency has loaded
+    this.loadDependency = function(name, model, tracker) {
+        // Save the model and mark the dependency as loaded
+        dependencies[name].model = model;
+        dependencies[name].tracker = tracker;
+        dependencies[name].loaded = true;
 
-// Calls the object's readied function and signals passing the property name and model
-function callReadied(object, propertyName, vm) {
-    // If theres a readied function on the object call it passing the dependency name and model
-    if ($$.isDefined(object['readied'])) {
-        object.readied(propertyName, vm);
-    }
+        // Signal the load of this dependency
+        self.loaded.dispatch(name, model);
 
-    // If theres a readied signal on the object dispatch it with the readied object
-    if ($$.isDefined(object['readiedSignal'])) {
-        object.readiedSignal.dispatch(propertyName, vm);
-    }
-}
+        // If the dependency is tracking itself..
+        if (tracker) {
+            // Check the dependency state and set it on this tracker
+            if (tracker.isReady()) {
+                self.readyDependency(name);
+            } else {
+                dependencies[name].ready = false;
+            }
 
-// Calls the object's loaded function and signals passing the property name and model
-function callLoaded(object, propertyName, vm) {
-    // If theres a loaded function on the object call it passing the dependency name and model
-    if ($$.isDefined(object['loaded'])) {
-        object.loaded(propertyName, vm);
-    }
-
-    // If theres a loaded signal on the object dispatch it with the readied object
-    if ($$.isDefined(object['loadedSignal'])) {
-        object.loadedSignal.dispatch(propertyName, vm);
-    }
-}
-
-// Call Ready function and open lock on the object
-function callReady(model, imports) {
-    // If there´s a ready callback on the object invoke it
-    if ($$.isFunction(imports['ready'])) {
-        imports['ready']();
-    }
-
-    // If theres a ready lock on the object unlock it
-    if ($$.isDefined(model['readyLock'])) {
-        model.readyLock.unlock();
-    }
-}
-
-// Start tracking the loading state of a child object.
-function initTracking(model, imports, name) {
-    // If the specified binding is not an string throw an error (to avoid a common mistake)
-    if (!$$.isString(name)) {
-        throw 'The import value must be an string with the name of the property to create on the parent object';
-    }
-
-    // If the target object doesn´t have a $support property initialize it
-    if (!$$.isObject(imports.$support)) {
-        imports.$support = {};
-    }
-
-    // Sets the childs array wich tracks the dependencies and state of each viewModel to import
-    if (!$$.isObject(imports.$support.tracking)) {
-        imports.$support.tracking = {
-            childs: {}
-        }
-    }
-
-    // Creates a ready lock to fire when the object is ready
-    model.readyLock = $$.lock();
-
-    // Creates a signal to fire when a dependency loads
-    imports.loadedSignal = $$.signal();
-
-    // Creates a signal to fire when a dependency is ready
-    imports.readiedSignal = $$.signal();
-
-    // Start tracking the dependency with the specified name.
-    imports.$support.tracking.childs[name] = {};
-
-    // The child components uses this function to notify that it finished loading.
-    // PropertyName contains the child name, and vm the corresponding viewmodel.
-    imports.$support.tracking.childs[name]['load'] = function(propertyName, vm, imp) {
-        // Sets the child viewmodel and marks it as loaded
-        imports[propertyName] = vm;
-        imports.$support.tracking.childs[propertyName]['loaded'] = true;
-
-        callLoaded(imports, propertyName, vm);
-
-        // Save the property name
-        imports.$support.tracking.childs[propertyName]['propertyName'] = propertyName;
-
-        // If the child is tracking dependencies itself...
-        if ($$.isDefined(imp.$support) && $$.isDefined(imp.$support.tracking)) {
-            // If the child has dependencies mark the dependency as not ready and save
-            // the parent data (reference and state)
-            imports.$support.tracking.childs[propertyName]['ready'] = false;
-
-            imp.$support.tracking.parent = imports;
-            imp.$support.tracking.parentState = imports.$support.tracking.childs[propertyName];
+            // Set the dependency parent data
+            tracker.setParent(self, name);
         } else {
-            // If the child hasn't dependencies mark the dependency on parent as ready
-            imports.$support.tracking.childs[propertyName]['ready'] = true;
-
-            callReadied(imports, propertyName, vm);
-        }
-
-        // If the object is ready, mark it and inform its parent
-        if (checkObjectReady(imports)) {
-            markReadyAndInformParent(model, imports);
+            // If the dependency has no tracker mark it as ready on
+            // this tracker
+            self.readyDependency(name);
         }
     }
 
-    // Initialize the tracking flag of the child component loaded state
-    imports.$support.tracking.childs[name]['loaded'] = false;
+    // Used to indicate that a dependency is ready
+    this.readyDependency = function(name) {
+        // Mark the dependency as ready
+        dependencies[name].ready = true;
 
-    // Defines a function to call when one of this object childs is ready.
-    // It forces the object to reevaluate this object readiness
-    imports.$support.tracking.childReady = function(propertyName, vm) {
-        // If the object is ready, mark it and inform its parent
-        if (checkObjectReady(imports)) {
-            markReadyAndInformParent(model, imports);
+        // Signal the dependency readiness
+        self.readied.dispatch(name, dependencies[name].model);
+
+        // Check this tracker readiness and if its ready mark it and inform
+        // the parent
+        if (checkReady()) {
+            self.ready.unlock();
+
+            // If this tracker has a parent, invoke the readyDependency method
+            // on the parent to signal the readiness
+            if (parent) {
+                parent.readyDependency(nameOnParent, mainModel, self);
+            }
         }
+    }
+
+    // Set the main model of this tracker
+    this.setMainModel = function(model) {
+        mainModel = model;
+    }
+
+    // Sets this tracker parent and dependency name on the parent
+    this.setParent = function(parentTracker, name) {
+        parent = parentTracker;
+        nameOnParent = name;
+    }
+
+    // Returns the dependency model with the specified name
+    this.get = function(name) {
+        // Get the dependency with the specified name
+        var dependency = dependencies[name];
+
+        // If there's a dependency defined return the model
+        if (dependency) {
+            return dependency.model;
+        }
+    }
+
+    // Dispose this tracker removing all dependencies
+    this.dispose = function() {
+        self.ready.dispose();
+        $$.signalClear(self.loaded);
+        $$.signalClear(self.readied);
+
+        // Iterate over all dependencies deleting each one
+        for (var name in dependencies) {
+            self.removeDependency(name);
+        }
+    }
+
+    // Checks if this tracker is ready
+    function checkReady() {
+        // Iteate over all dependencies, and if one dependency is not loaded
+        // or ready return false
+        for (var name in dependencies) {
+            var state = dependencies[name];
+            if (!state.loaded || !state.ready) {
+                return false;
+            }
+        }
+
+        // Otherwise all dependencies are ready and this tracker is ready
+        return true;
     }
 }
 
-// Add the export binding to the model-bindings of this component.
-function addExportBinding(element, name, bindName) {
+// Add the model binding to the specified element
+function addModelBinding(element, name, bindName) {
     // If the element is virtual
     if (element.nodeType == 8) {
         // Search for the model-bind attribute in the virtual tag
@@ -1971,37 +1953,14 @@ ko.bindingHandlers.import = {
             imports = viewModel;
         }
 
-        // Start tracking the loading of imported childs
-        initTracking(model, imports, name);
-
-        // Init the dependency property in the target object
-        imports[name] = {};
+        // Start tracking this dependency
+        imports.addDependency(name);
 
         // Adds the export binding to the element
-        addExportBinding(element, name, 'export');
+        addModelBinding(element, name, 'export');
     }
 }
 ko.virtualElements.allowedBindings.import = true;
-
-function callLoadMethod(property, imports, context) {
-    // Check if the viewmodel is tracking childs properties
-    if ($$.isDefined(imports.$support) && $$.isDefined(imports.$support.tracking)) {
-        if ($$.isDefined(imports.$support.tracking['childs'])) {
-            // If the viewmodel is tracking a model to be loaded in a property with the specified name
-            if ($$.isDefined(imports.$support.tracking.childs[property])) {
-                // Call the load method of the tracking object passing the child object with the viewModel of the child component
-                imports.$support.tracking.childs[property]['load'](property, context.$container, context.$containerContext.$data.getImports());
-            } else {
-                throw 'The specified object doesn´t have a property named ' + property + '. Verify that the object has a property defined with the .components method with the name defined in the vm binding.';
-            }
-        } else {
-            throw 'The specified object doesn´t have the tracking property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
-        }
-    } else {
-        throw 'The specified object doesn´t have the tracking.childs property. This usually is because you don´t used the function .components to set the properties where the vm binding has to set the viewmodel';
-    }
-}
-
 
 ko.bindingHandlers.export = {
     init: function (element, valueAccessor, allBindings, viewModel, context) {
@@ -2010,9 +1969,13 @@ ko.bindingHandlers.export = {
         // Get's the binded value
         value = ko.unwrap(valueAccessor());
 
+        var model;
+        var imports;
+
         // If the binding model has "model" and "imports" properties we assume that is a quark-component's scope.
         if (viewModel && viewModel.model && viewModel.imports) {
-            viewModel = viewModel.imports;
+            model = viewModel.model;
+            imports = viewModel.imports;
         }
 
         var property;
@@ -2023,46 +1986,15 @@ ko.bindingHandlers.export = {
             throw 'The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component';
         }
 
-        callLoadMethod(property, viewModel, context);
-    }
-}
-ko.virtualElements.allowedBindings.export = true;
+        if (imports) {
+            var childModel = context.$childContext.$data.getModel();
+            var childTracker = context.$childContext.$data.getImports();
 
-ko.bindingHandlers.exportToController = {
-    init: function (element, valueAccessor, allBindings, viewModel, context) {
-        var value;
-
-        // Get's the binded value
-        value = ko.unwrap(valueAccessor());
-
-        // Get the current route
-        var current = $$.routing.current();
-
-        // If theres a controller on the current route
-        if (current && current.controller) {
-            var value;
-
-            // Get's the binded value
-            value = ko.unwrap(valueAccessor());
-
-            // If the binding model has "model" and "imports" properties we assume that is a quark-component's scope.
-            if (routers[current.locationName].routes[current.routeName].controllerImports) {
-                viewModel = routers[current.locationName].routes[current.routeName].controllerImports;
-            }
-
-            var property;
-
-            if ($$.isString(value)) {
-                property = value;
-            } else {
-                throw 'The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component';
-            }
-
-            callLoadMethod(property, viewModel, context);
+            imports.loadDependency(property, childModel, childTracker);
         }
     }
 }
-ko.virtualElements.allowedBindings.exportToController = true;
+ko.virtualElements.allowedBindings.export = true;
 
 // Uses jquery to select the nodes to show from the componentTemplateNodes
 function createContentAccesor(valueAccessor, allBindingsAccessor, context) {
@@ -2208,6 +2140,7 @@ ko.virtualElements.allowedBindings.innerHtml = true;
 function QuarkRouter() {
     var self = this;
 
+    // Base path of the controllers
     this.controllersBase = 'controllers';
 
     // Create a new crossroads router
@@ -2215,13 +2148,17 @@ function QuarkRouter() {
     csRouter.normalizeFn = crossroads.NORM_AS_OBJECT;
     csRouter.ignoreState = true;
 
+    // Current page data
     var current = {
         name: ko.observable(),
-        controllers: {}
+        controllers: {},
+        trackers: {}
     };
 
+    // Current route name observable
     this.current = current.name;
 
+    // Defined pages, mappings, crossroads routes and parameters
     var pages = {};
     var mappings = {};
     var routes = {};
@@ -2229,8 +2166,11 @@ function QuarkRouter() {
 
     // Adds defined pages to the collection
     this.pages = function(pagesConfig, paramsConfig) {
+        // Combine current configuration with the new
         $.extend(pages, pagesConfig);
 
+        // If a parameter configuration is specified combine it with the
+        // previous
         if (paramsConfig) {
             $.extend(params, paramsConfig);
         }
@@ -2269,42 +2209,73 @@ function QuarkRouter() {
         return { index: newNames.length, fullName: fullName }
     }
 
+    // Default controller class (empty)
+    function DefaultController() {
+    }
+
+    // Configs an newly created controller
+    function configController(previousName, fullName) {
+        // If the previous name is defined and has a controller loaded
+        if (previousName && current.controllers[previousName]) {
+            // Add a property to the current controller pointing to the previous or parent
+            current.controllers[fullName].parent = current.controllers[previousName];
+        }
+    }
+
+    // Loads controllers given the new page, position where the previous and new page
+    // differ and call the callback when ready
     function addControllers(page, position, callback) {
+        // Page names array
         var names = [];
 
+        // If page is specified, divide it in its parts
         if (page) {
             names = page.split('/');
         }
 
+        // If the differing position is before the end of the names array
         if (position.index < names.length) {
+            // Get the name at the current position
             var name = names[position.index];
+            // Save the previous fullname
             var previousName = position.fullName;
+            // Get the new full name combining the full name and this position's name
             var fullName = position.fullName ? position.fullName + '/' + name : name;
 
+            // Calculate new position
             var newPosition = { index: position.index + 1, fullName: fullName };
 
+            // Load with Require the controller
             require([self.controllersBase + '/' + fullName], function(ControllerClass) {
-                current.controllers[fullName] = new ControllerClass();
+                // If a controller class is found and loaded create the object
+                var tracker = new Tracker();
+                current.trackers[fullName] = tracker;
+                current.controllers[fullName] = new ControllerClass(tracker);
+                tracker.setParent(current.controllers[fullName]);
 
-                if (previousName && current.controllers[previousName]) {
-                    current.controllers[fullName].parent = current.controllers[previousName];
-                }
+                // Config the new controller
+                configController(previousName, fullName);
 
+                // Recursively add the next controller
                 addControllers(page, newPosition, callback);
             }, function(error) {
-                current.controllers[fullName] = {};
+                // If a controller class is not found and loaded create a default (empty) controller
+                current.controllers[fullName] = new DefaultController();
 
-                if (previousName && current.controllers[previousName]) {
-                    current.controllers[fullName].parent = current.controllers[previousName];
-                }
+                // Config the new controller
+                configController(previousName, fullName);
 
+                // Recursively add the next controller
                 addControllers(page, newPosition, callback);
             });
         } else {
+            // If differing position is at the end of the array we are done
+            // routing
             callback();
         }
     }
 
+    // Clears the old controllers passing the given position
     function clearControllers(position) {
         // Get the current page name
         var currentName = current.name();
@@ -2325,40 +2296,48 @@ function QuarkRouter() {
             var name = names[i];
             fullName = fullName ? fullName + '/' + name : name;
 
+            // Get current controller
+            var controller = current.controllers[fullName];
+
+            // If the controller has a dispose method call it allowing code
+            // clean up
+            if (controller && $$.isFunction(controller.dispose)) {
+                controller.dispose();
+            }
+
+            // Delete the controller reference
             delete current.controllers[fullName];
         }
     }
 
-    // Clears the components defined in the current routes
+    // Clears the outlets defined in the current routes
     // passing the specified position
-    function clearComponents(position) {
+    function clearOutlets(position) {
         // Get the current page name
         var currentName = current.name();
 
-        // If theres a current page, split its components, if not
-        // init an empty array
-        var names;
+        // Page name parts
+        var names = [];
+
+        // If theres a current page, split its components
         if (currentName) {
             names = currentName.split('/');
-        } else {
-            names = [];
         }
 
+        // Get the first position full name
         var fullName = position.fullName;
-        var finalName = fullName;
 
         // Iterate over all name parts starting in the specified position
         for (var i = position.index; i < names.length; i++) {
-            // Get the name and fullName
+            // Get the name and fullName of the next position
             var name = names[i];
             fullName = fullName ? fullName + "/" + name : name;
 
-            // Get the part components
+            // Get the part components and current controller
             var components = pages[fullName];
-
             var controller = current.controllers[fullName];
 
-            // Iterate over part componentes and set the empty template
+            // Iterate over part components and set the empty template
             for (var item in components) {
                 controller.outlets[item] = 'empty';
             }
@@ -2367,15 +2346,13 @@ function QuarkRouter() {
 
     // Add all componentes defined in the page parts passing the specified
     // position
-    function addComponents(newPage, position) {
-        var newNames;
+    function addOutlets(newPage, position) {
+        // Page name parts
+        var newNames = [];
 
         // If theres a new page defined split it's parts
-        // if not init with and empty array
         if (newPage) {
             newNames = newPage.split('/');
-        } else {
-            newNames = [];
         }
 
         // Init the full name at the specified position
@@ -2387,27 +2364,37 @@ function QuarkRouter() {
             var name = newNames[i];
             fullName = fullName ? fullName + "/" + name : name;
 
+            // Current controller at position
             var controller = current.controllers[fullName];
 
             // Get all components name for the current position index
             var componentsValues = pages[fullName];
 
+            // If the outlets object is not created on the controller init an
+            // empty object
             if (!controller.outlets) {
                 controller.outlets = {};
             }
 
-            // Iterate over all components and add the to current route
+            // Iterate over all components and add the configured outlets
+            // to current controller
             for (var item in componentsValues) {
                 controller.outlets[item] = componentsValues[item];
             }
 
+            // Get all the parameters configured for this page
             var parameters = params[fullName];
 
+            // If the params object is not created on the controller init an
+            // empty object
             if (!controller.params) {
                 controller.params = {};
             }
 
+            // If there are parameters defined for this route
             if (parameters) {
+                // Iterate over all defined parameters and create an observable
+                // in the controller's param object for each
                 for (var j = 0; j < parameters.length; j++) {
                     controller.params[parameters[j]] = ko.observable();
                 }
@@ -2415,22 +2402,31 @@ function QuarkRouter() {
         }
     }
 
+    // Sets the parameters values with the values specified in the route
     function setParameters(parameterValues, page) {
+        // Page parts and full name
         var names = [];
         var fullName;
 
+        // If a page is defined split its parts
         if (page) {
             names = page.split('/');
         }
 
+        // For each name in the route
         for (var i = 0; i < names.length; i++) {
+            // Get the  name and full name at the current position
             var name = names[i];
             fullName = fullName ? fullName + '/' + name : name;
 
+            // If there are parameters at the current position
             if (params[fullName]) {
+                // Get the current controller
                 var controller = current.controllers[fullName];
 
+                // If the controller params object is created
                 if (controller && controller.params) {
+                    // Iterate over each param name and set the parameter value
                     for (var paramName in controller.params) {
                         var value = parameterValues[paramName];
                         controller.params[paramName](value);
@@ -2448,13 +2444,13 @@ function QuarkRouter() {
             var position = findPosition(page);
 
             // Delete all components of the old page
-            clearComponents(position);
+            clearOutlets(position);
             // Clear the old controllers
             clearControllers(position);
 
             addControllers(page, position, function() {
                 // Add the componentes of the new page
-                addComponents(page, position);
+                addOutlets(page, position);
 
                 // Set the new set of parameters
                 setParameters(parameters, page);
@@ -2467,19 +2463,28 @@ function QuarkRouter() {
 
     // Configure routes for pages
     this.mapRoute = function(maps) {
+        // For each page to be mapped
         for (var page in maps) {
+            // Get the hash
             var hash = maps[page];
 
+            // Create and configure a crossroad route for each route and page
             createRoute(page, hash);
 
+            // Add the mapping between page and hash to the object
             mappings[page] = hash;
         }
     }
 
+    // Parse the specified hash
     this.parse = function(hash) {
+        // Use the crossroad route to parse the hash
         csRouter.parse(hash);
     }
 
+    // Activate the crossroad hasher, you can define a custom function
+    // to execute when the route changes (inside must call to the parse method
+    // to actually perform the routing)
     this.activateHasher = function(callback) {
         function parseHash(newHash, oldHash) {
             if ($$.isDefined(callback)) {
@@ -2494,7 +2499,7 @@ function QuarkRouter() {
         hasher.init();
     }
 
-
+    // Outlet binding, allows to show the configured component for the actual route
     ko.bindingHandlers.outlet = {
         init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
             // Get outlet name
@@ -2506,8 +2511,10 @@ function QuarkRouter() {
 
             // Subscribe to name changes (routing)
             var subscription = current.name.subscribe(function(newValue) {
+                // Route names
                 var names = [];
 
+                // If a new route value is specified
                 if (newValue) {
                     names = newValue.split('/');
                 }
@@ -2517,36 +2524,54 @@ function QuarkRouter() {
 
                 var newComponentName;
                 var newController;
+                var newTracker;
 
+                // For each part in the new route
                 for (var i = 0; i < names.length; i++) {
+                    // Get the name a full name at the given position
                     var name = names[i];
                     fullName = fullName ? fullName + '/' + name : name;
 
+                    // Get the controller at this position
                     var controller = current.controllers[fullName];
+                    var tracker = current.trackers[fullName];
 
+                    // Iterate the outlets defined in the controller
                     for (var outletName in controller.outlets) {
+                        // If the outlet name corresponds to the configured
                         if (outletName == value) {
+                            // Set the new component name and controller
                             newComponentName = controller.outlets[outletName];
                             newController = controller;
+                            newTracker = tracker;
                         }
                     }
                 }
 
+                // If there is a new component defined
                 if (newComponentName) {
+                    // If the new component name and controller differs from previous
                     if (newComponentName != componentData().name || newController != currentController) {
-
+                        // Init the binding data with the component name
                         var data = { name: newComponentName };
 
+                        // If the new controller has a initComponent method call it to
+                        // obtain component's parameters and add them to the binding data
                         if (newController && newController.initComponent) {
                             data.params = newController.initComponent(value, newComponentName);
                         } else {
                             data.params = {};
                         }
 
+                        newTracker.addDependency(value);
+
+                        // Save the current controller and bind the new value
                         currentController = newController;
                         componentData(data);
                     }
                 } else {
+                    // if there isn't a new component clear controller and
+                    // bind to the empty template
                     $$.undefine(currentController);
                     componentData({ name: 'empty' });
                 }
@@ -2558,10 +2583,68 @@ function QuarkRouter() {
                 $$.undefine(currentController);
             });
 
+            // Add model binding to export to controller
+            addModelBinding(element, value, 'exportToController');
+
+            // Apply component binding to node with the new component data
             ko.applyBindingsToNode(element, { 'component': componentData });
         }
     }
     ko.virtualElements.allowedBindings.outlet = true;
+
+    ko.bindingHandlers.exportToController = {
+        init: function(element, valueAccessor, allBindings, viewModel, context) {
+            // Get dependency name
+            var value = ko.unwrap(valueAccessor());
+
+            // Route names
+            var names = [];
+
+            var currentName = current.name();
+
+            // If a new route value is specified
+            if (currentName) {
+                names = currentName.split('/');
+            }
+
+            var controller;
+            var fullName;
+
+            var actualComponentName;
+            var actualController;
+            var actualTracker;
+
+            // For each part in the new route
+            for (var i = 0; i < names.length; i++) {
+                // Get the name a full name at the given position
+                var name = names[i];
+                fullName = fullName ? fullName + '/' + name : name;
+
+                // Get the controller at this position
+                var controller = current.controllers[fullName];
+                var tracker = current.trackers[fullName];
+
+                // Iterate the outlets defined in the controller
+                for (var outletName in controller.outlets) {
+                    // If the outlet name corresponds to the configured
+                    if (outletName == value) {
+                        // Set the new component name and controller
+                        actualComponentName = controller.outlets[outletName];
+                        actualController = controller;
+                        actualTracker = tracker;
+                    }
+                }
+            }
+
+            if (actualController && actualTracker) {
+                var childModel = context.$childContext.$data.getModel();
+                var childTracker = context.$childContext.$data.getImports();
+
+                actualTracker.loadDependency(value, childModel, childTracker);
+            }
+        }
+    }
+    ko.virtualElements.allowedBindings.exportToController = true;
 
 }
 
@@ -2574,7 +2657,7 @@ ko.bindingHandlers.namespace = {
         var value = valueAccessor();
 
         // Get the namespace alias
-        var alias = allBindings.get('alias') || 400;
+        var alias = allBindings.get('alias');
 
         // Validate data
         if (!$$.isString(value)) {

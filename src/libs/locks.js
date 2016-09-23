@@ -39,6 +39,11 @@ function SyncLock() {
             });
         }
     }
+
+    // Dispose locks
+    this.dispose = function() {
+        $$.signalClear(signal);
+    }
 }
 
 // Returns a lock
