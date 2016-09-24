@@ -110,8 +110,13 @@ function QuarkRouter() {
             require([self.controllersBase + '/' + fullName], function(ControllerClass) {
                 // If a controller class is found and loaded create the object
                 var tracker = new Tracker();
+                var newController = new ControllerClass(tracker);
+
+                tracker.setMainModel(newController);
+                tracker.ready.forceLock();
+
                 current.trackers[fullName] = tracker;
-                current.controllers[fullName] = new ControllerClass(tracker);
+                current.controllers[fullName] = newController;
 
                 // Config the new controller
                 configController(previousName, fullName);
@@ -158,15 +163,27 @@ function QuarkRouter() {
 
             // Get current controller
             var controller = current.controllers[fullName];
+            var tracker = current.trackers[fullName];
 
             // If the controller has a dispose method call it allowing code
             // clean up
-            if (controller && $$.isFunction(controller.dispose)) {
-                controller.dispose();
+            if (controller) {
+                if ($$.isFunction(controller.dispose)) {
+                    controller.dispose();
+                }
+
+                if (controller.parent) {
+                    delete controller.parent;
+                }
+            }
+
+            if (tracker) {
+                tracker.dispose();
             }
 
             // Delete the controller reference
             delete current.controllers[fullName];
+            delete current.trackers[fullName];
         }
     }
 
@@ -432,7 +449,7 @@ function QuarkRouter() {
                 } else {
                     // if there isn't a new component clear controller and
                     // bind to the empty template
-                    $$.undefine(currentController);
+                    currentController = '';
                     componentData({ name: 'empty' });
                 }
             });
@@ -440,7 +457,7 @@ function QuarkRouter() {
             // Destroy subscription on element disposal
             ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
                 subscription.dispose();
-                $$.undefine(currentController);
+                currentController = '';
             });
 
             // Add model binding to export to controller
@@ -502,6 +519,9 @@ function QuarkRouter() {
 
                 actualTracker.loadDependency(value, childModel, childTracker);
             }
+
+            actualController = '';
+            actualTracker = '';
         }
     }
     ko.virtualElements.allowedBindings.exportToController = true;

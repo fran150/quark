@@ -513,6 +513,10 @@ function SyncLock(unlocked) {
         dispatched = false;
     }
 
+    this.forceLock = function() {
+        dispatched = true;
+    }
+
     // Unlock calling all blocked functions
     this.unlock = function() {
         dispatched = true;
@@ -1148,6 +1152,7 @@ $$.component = function(viewModel, view) {
 
             // Sets the tracker main model
             $imports.setMainModel(model);
+            $imports.ready.forceLock();
 
             // Calls the function initComponent if exists
             if (model && $$.isFunction(model.initComponent)) {
@@ -1185,7 +1190,7 @@ $$.component = function(viewModel, view) {
             }
 
             if (model && model.ready) {
-                
+
             }
 
             // Undefine all internal variables.
@@ -1744,18 +1749,8 @@ function Tracker() {
     this.readied = $$.signal();
 
     // Return if this tracker is ready
-    this.checkReady = function() {
-        // Iteate over all dependencies, and if one dependency is not loaded
-        // or ready return false
-        for (var name in dependencies) {
-            var state = dependencies[name];
-            if (!state.loaded || !state.ready) {
-                return false;
-            }
-        }
-
-        // Otherwise all dependencies are ready and this tracker is ready
-        return true;
+    this.isReady = function() {
+        return !$$.isLocked(self.ready);
     }
 
     // Adds a dependency to this tracker
@@ -1776,7 +1771,7 @@ function Tracker() {
 
             // If it has a tracker delete the parent reference
             if (tracker) {
-                $$.undefine(tracker.parent);
+                tracker.parent = '';
             }
 
             // Delete the dependency from this tracker
@@ -1800,15 +1795,12 @@ function Tracker() {
             tracker.setParent(self, name);
 
             // Check the dependency state and set it on this tracker
-            if (tracker.checkReady()) {
-                tracker.ready.unlock();
+            if (tracker.isReady()) {
                 self.readyDependency(name);
             } else {
                 dependencies[name].ready = false;
             }
         } else {
-            debugger;
-
             // If the dependency has no tracker mark it as ready on
             // this tracker
             self.readyDependency(name);
@@ -1825,7 +1817,7 @@ function Tracker() {
 
         // Check this tracker readiness and if its ready mark it and inform
         // the parent
-        if (self.checkReady()) {
+        if (checkReady()) {
             self.ready.unlock();
 
             // If this tracker has a parent, invoke the readyDependency method
@@ -1868,6 +1860,20 @@ function Tracker() {
         for (var name in dependencies) {
             self.removeDependency(name);
         }
+    }
+
+    function checkReady() {
+        // Iteate over all dependencies, and if one dependency is not loaded
+        // or ready return false
+        for (var name in dependencies) {
+            var state = dependencies[name];
+            if (!state.loaded || !state.ready) {
+                return false;
+            }
+        }
+
+        // Otherwise all dependencies are ready and this tracker is ready
+        return true;
     }
 }
 
@@ -2247,8 +2253,13 @@ function QuarkRouter() {
             require([self.controllersBase + '/' + fullName], function(ControllerClass) {
                 // If a controller class is found and loaded create the object
                 var tracker = new Tracker();
+                var newController = new ControllerClass(tracker);
+
+                tracker.setMainModel(newController);
+                tracker.ready.forceLock();
+
                 current.trackers[fullName] = tracker;
-                current.controllers[fullName] = new ControllerClass(tracker);
+                current.controllers[fullName] = newController;
 
                 // Config the new controller
                 configController(previousName, fullName);
@@ -2295,15 +2306,27 @@ function QuarkRouter() {
 
             // Get current controller
             var controller = current.controllers[fullName];
+            var tracker = current.trackers[fullName];
 
             // If the controller has a dispose method call it allowing code
             // clean up
-            if (controller && $$.isFunction(controller.dispose)) {
-                controller.dispose();
+            if (controller) {
+                if ($$.isFunction(controller.dispose)) {
+                    controller.dispose();
+                }
+
+                if (controller.parent) {
+                    delete controller.parent;
+                }
+            }
+
+            if (tracker) {
+                tracker.dispose();
             }
 
             // Delete the controller reference
             delete current.controllers[fullName];
+            delete current.trackers[fullName];
         }
     }
 
@@ -2569,7 +2592,7 @@ function QuarkRouter() {
                 } else {
                     // if there isn't a new component clear controller and
                     // bind to the empty template
-                    $$.undefine(currentController);
+                    currentController = '';
                     componentData({ name: 'empty' });
                 }
             });
@@ -2577,7 +2600,7 @@ function QuarkRouter() {
             // Destroy subscription on element disposal
             ko.utils.domNodeDisposal.addDisposeCallback(element, function() {
                 subscription.dispose();
-                $$.undefine(currentController);
+                currentController = '';
             });
 
             // Add model binding to export to controller
@@ -2639,6 +2662,9 @@ function QuarkRouter() {
 
                 actualTracker.loadDependency(value, childModel, childTracker);
             }
+
+            actualController = '';
+            actualTracker = '';
         }
     }
     ko.virtualElements.allowedBindings.exportToController = true;

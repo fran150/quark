@@ -14,6 +14,10 @@ function SyncLock(unlocked) {
         dispatched = false;
     }
 
+    this.forceLock = function() {
+        dispatched = true;
+    }
+
     // Unlock calling all blocked functions
     this.unlock = function() {
         dispatched = true;

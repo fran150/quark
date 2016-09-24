@@ -163,6 +163,7 @@ $$.component = function(viewModel, view) {
 
             // Sets the tracker main model
             $imports.setMainModel(model);
+            $imports.ready.forceLock();
 
             // Calls the function initComponent if exists
             if (model && $$.isFunction(model.initComponent)) {
@@ -200,7 +201,7 @@ $$.component = function(viewModel, view) {
             }
 
             if (model && model.ready) {
-                
+
             }
 
             // Undefine all internal variables.
