@@ -7,8 +7,8 @@ function Tracker() {
     var dependencies = {};
 
     // Reference to this tracker's parent and the name on the parent
-    var parent;
-    var nameOnParent;
+    var parent = false;
+    var nameOnParent = "";
 
     // Stores dependency data
     function DependencyData(name) {
@@ -27,8 +27,18 @@ function Tracker() {
     this.readied = $$.signal();
 
     // Return if this tracker is ready
-    this.isReady = function() {
-        return !$$.isLocked(self.ready);
+    this.checkReady = function() {
+        // Iteate over all dependencies, and if one dependency is not loaded
+        // or ready return false
+        for (var name in dependencies) {
+            var state = dependencies[name];
+            if (!state.loaded || !state.ready) {
+                return false;
+            }
+        }
+
+        // Otherwise all dependencies are ready and this tracker is ready
+        return true;
     }
 
     // Adds a dependency to this tracker
@@ -69,16 +79,19 @@ function Tracker() {
 
         // If the dependency is tracking itself..
         if (tracker) {
+            // Set the dependency parent data
+            tracker.setParent(self, name);
+
             // Check the dependency state and set it on this tracker
-            if (tracker.isReady()) {
+            if (tracker.checkReady()) {
+                tracker.ready.unlock();
                 self.readyDependency(name);
             } else {
                 dependencies[name].ready = false;
             }
-
-            // Set the dependency parent data
-            tracker.setParent(self, name);
         } else {
+            debugger;
+
             // If the dependency has no tracker mark it as ready on
             // this tracker
             self.readyDependency(name);
@@ -95,7 +108,7 @@ function Tracker() {
 
         // Check this tracker readiness and if its ready mark it and inform
         // the parent
-        if (checkReady()) {
+        if (self.checkReady()) {
             self.ready.unlock();
 
             // If this tracker has a parent, invoke the readyDependency method
@@ -138,20 +151,5 @@ function Tracker() {
         for (var name in dependencies) {
             self.removeDependency(name);
         }
-    }
-
-    // Checks if this tracker is ready
-    function checkReady() {
-        // Iteate over all dependencies, and if one dependency is not loaded
-        // or ready return false
-        for (var name in dependencies) {
-            var state = dependencies[name];
-            if (!state.loaded || !state.ready) {
-                return false;
-            }
-        }
-
-        // Otherwise all dependencies are ready and this tracker is ready
-        return true;
     }
 }

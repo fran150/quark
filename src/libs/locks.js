@@ -1,11 +1,11 @@
 // Locks allows to define functions that will not be called inmediately but will wait until when
 // an event occurs unlocking the calls.
 // Once the functions are called they are cleared from the waiting list.
-function SyncLock() {
+function SyncLock(unlocked) {
     var self = this;
 
     // Is the signal dispatched (and unlocked)
-    var dispatched = false;
+    var dispatched = unlocked || false;
     // Signal to notify the unlocking and call all functions
     var signal = $$.signal();
 
@@ -47,8 +47,8 @@ function SyncLock() {
 }
 
 // Returns a lock
-$$.lock = function() {
-    return new SyncLock();
+$$.lock = function(unlocked) {
+    return new SyncLock(unlocked || false);
 }
 
 // Blocks execution of the function until the specified lock unlocks

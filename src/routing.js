@@ -112,7 +112,6 @@ function QuarkRouter() {
                 var tracker = new Tracker();
                 current.trackers[fullName] = tracker;
                 current.controllers[fullName] = new ControllerClass(tracker);
-                tracker.setParent(current.controllers[fullName]);
 
                 // Config the new controller
                 configController(previousName, fullName);
