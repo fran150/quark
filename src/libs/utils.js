@@ -192,25 +192,36 @@ function replaceAll(str, find, replace) {
     return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
 }
 
-// Replaces {0}, {1}.. in the specified string for the first, second.. etc parameter after the string.
+// Can be used in two forms, the first parameter is always the string to format
+// If only two parameters are specified and the second is an object
+// Replaces {propertyName} in the specified string for the value of the
+// property with the same name in the object
+// Otherwise replaces {0}, {1}.. in the specified string for the first, second..
+//  etc parameter after the string.
 // I.e: $$.format('Hello {0}, {1}', 'World', '2016') will return Hello World 2016
 $$.formatString = function() {
+    // Get the arguments of the function
     var args = Array.prototype.slice.call(arguments);
-    var str = args[0]
 
-    for (var i = 1; i < args.length; i++) {
-        str = replaceAll(str, '{' + (i - 1) + '}', args[i]);
+    var str = args[0];
+
+    // If the function has exactly two arguments, the first is the string
+    // and the second is an object assume the first is the string and the
+    // second an object
+    if (args.length == 2 && $$.isString(args[0]) && $$.isObject(args[1])) {
+        var object = args[1];
+        var string;
+
+        for (var name in object) {
+            string = replaceAll(str, '{' + name + '}', object[name]);
+        }
+
+        return string;
+    } else {
+        for (var i = 1; i < args.length; i++) {
+            str = replaceAll(str, '{' + (i - 1) + '}', args[i]);
+        }
+
+        return str;
     }
-
-    return str;
-};
-
-// Replaces {propertyName} in the specified string for the value of the property with the same
-// name in the object
-$$.formatStringObj = function(string, object) {
-    for (var name in object) {
-        string = replaceAll(string, '{' + name + '}', object[name]);
-    }
-
-    return string;
 }

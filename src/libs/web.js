@@ -4,9 +4,9 @@ $$.redirect = function(url) {
     return true;
 }
 
-// Redirect the browser to the specified hash
-$$.redirectHash = function(name, config) {
-    var hash = $$.routing.hash(name, config);
+// Redirect the browser to the specified page
+$$.redirectHash = function(page, config) {
+    var hash = $$.routing.hash(page, config);
     $$.redirect('#' + hash);
 }
 

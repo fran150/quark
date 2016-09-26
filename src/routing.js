@@ -359,6 +359,17 @@ function QuarkRouter() {
         csRouter.parse(hash);
     }
 
+    // Gets the hash for the specified page
+    this.hash = function(page, options) {
+        // Get the crossroad route of the specified page
+        var route = routes[page];
+
+        // If a route is found interpolate the hash
+        if (route) {
+            return route.interpolate(options);
+        }
+    }
+
     // Activate the crossroad hasher, you can define a custom function
     // to execute when the route changes (inside must call to the parse method
     // to actually perform the routing)

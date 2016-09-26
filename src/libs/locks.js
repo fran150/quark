@@ -14,6 +14,7 @@ function SyncLock(unlocked) {
         dispatched = false;
     }
 
+    // Unlocks the object without triggering the attached functions
     this.forceLock = function() {
         dispatched = true;
     }
