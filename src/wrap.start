@@ -1,10 +1,10 @@
-(function (root, factory) {    
+(function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD.
-        define(['knockout', 'jquery', 'knockout-mapping', 'crossroads', 'hasher', 'signals'], factory);
+        define(['knockout', 'jquery', 'knockout-mapping', 'crossroads', 'hasher', 'signals', 'stacktrace'], factory);
     } else {
         // Browser globals.
         root.komapping = ko.mapping;
-        root.$$ = factory(root.ko, root.$, root.komapping, root.crossroads, root.hasher, root.signals);
+        root.$$ = factory(root.ko, root.$, root.komapping, root.crossroads, root.hasher, root.signals, root.Stacktrace);
     }
-}(this, function(ko, $, komapping, crossroads, hasher, signals) {
+}(this, function(ko, $, komapping, crossroads, hasher, signals, stacktrace) {

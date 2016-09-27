@@ -4,7 +4,7 @@ var authorizing = false;
 // Default ajax config.
 // Sets the content for json, async calls and no cache.
 // Define a default (overriden) authorization flow.
-// Quark can automatically authorize your ajax calls, if you specify that an ajax calls needs authorization quark will go thru the
+// Quark can automatically authorize your ajax calls, if you specify that an ajax calls needs authorization quark will go trough the
 // authentication flow.
 // First uses the authorization.has function to determine if the user has credentials, if the function returns true quark assumes that
 // has credentials and doesn't need to ask for. (for example checking session storage for an existing token)

@@ -7,15 +7,15 @@ ko.bindingHandlers.href = {
         var value = ko.unwrap(valueAccessor());
 
         // Get the options object if defined
-        var options = allBindings.get('options');
+        var options = allBindings.get('vars');
 
         // Create the new accessor
         var newAccesor = function() {
-            return { href: $$.routing.hash(value, options) }
+            return { href: "#" + $$.routing.hash(value, options) }
         }
 
         // Use the attr binding to add the href to the element
-        return ko.bindingHandlers.attr.update(element, newAccesor, allBindingsAccessor, viewModel, context);
+        return ko.bindingHandlers.attr.update(element, newAccesor, allBindings, viewModel, context);
     }
 }
 

@@ -16,6 +16,8 @@ function QuarkRequireConf(bowerDir) {
 
             "quark":                bowerDir + "/quark/dist/quark",
             "quark-validators":     bowerDir + "/quark/dist/quark-validators",
+
+            "stacktrace":           bowerDir + "/stacktrace-js/dist/stacktrace-with-promises-and-json-polyfills.min"
         },
         shim: {
             "knockout-mapping": { deps: ["knockout"] }
