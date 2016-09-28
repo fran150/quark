@@ -9,14 +9,14 @@ var authorizing = false;
 // First uses the authorization.has function to determine if the user has credentials, if the function returns true quark assumes that
 // has credentials and doesn't need to ask for. (for example checking session storage for an existing token)
 // If authorization.has function returns false, calls authorization.authorize function to ask for credentials, passing a callback
-// that this function must call when credential has been obtained. (for example showing an popup to enter user and password)
-// Finally before any ajax call that requires authentication calls configAuthorization to config ajax for pass the credentials to the
+// that must be called when a valid credential has been obtained. (for example after showing an popup to enter user and password)
+// Finally, before any ajax call that requires authentication calls configAuthorization to config ajax for pass the credentials to the
 // server (i.e. adding a token to the request header)
 // Both configAuthorization and authorize receive an opts object with the actual ajax configuration to use in any ajax call.
 $$.ajaxConfig = {
     contentType: 'application/json',
     dataType : 'json',
-    'async': true,
+    async: true,
     cache: false,
     authorization: {
         has: function() {

@@ -27,6 +27,7 @@ ko.bindingHandlers.onBind = {
     }
 }
 
+// Returns the format binding accessor
 function createFormatAccessor(valueAccessor, allBindings) {
     // Get the formatter configuration
     var value = valueAccessor();
@@ -59,28 +60,27 @@ function createFormatAccessor(valueAccessor, allBindings) {
 }
 
 // $$.formatters is an object in wich each property is a function
-// that accepts an object and returns the value formatted as must be shown in
-// the page.
-// The binding format allows to specify an observable or item to format
+// that accepts an object and returns the value formatted as must be passed to
+// the binding.
+// This allows to specify an observable or item to format
 // and a formatter name (must correspond to an $$.formatters property)
-// Internally when writing this value quark will call the formatter passing the
-//  value to format as parameter and using the result in a normal text binding.
+// and transform the value before sending it to the actual binding.
+// By default this send the formatted value to the text binding. You can
+// specify another binding using bindTo and the name of the binding.
+// For example "format: item, formatter: 'money', bindTo: 'value'"
 ko.bindingHandlers.format = {
     init: function (element, valueAccessor, allBindings) {
+        // Get the format accessor
         var interceptor = createFormatAccessor(valueAccessor, allBindings);
+        // Get the target binding name or use text as default
+        var bindingName = allBindings.get('bindTo') || 'text';
 
-        // Apply the text binding to the element with the formatted output
-        ko.applyBindingsToNode(element, { text: interceptor });
-    }
-}
+        // Create the binding object using the specified binding
+        var binding = {};
+        binding[bindingName] = interceptor;
 
-// The same as format but applies to value binding instead of text binding
-ko.bindingHandlers.formatValue = {
-    init: function (element, valueAccessor, allBindings) {
-        var interceptor = createFormatAccessor(valueAccessor, allBindings);
-
-        // Apply the value binding to the element with the formatted output
-        ko.applyBindingsToNode(element, { value: interceptor });
+        // Apply the binding to the element with the formatted output
+        ko.applyBindingsToNode(element, binding);
     }
 }
 

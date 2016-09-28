@@ -87,7 +87,10 @@ ko.associativeObservable = function (initialValue) {
 // Extends all observables adding the refresh method wich
 // Clears and refill the observable with the original value to force notify update.
 ko.observable.fn.refresh = function() {
+    // Read the actual value
     var value = this();
+
+    // Clear the observable and refill with the original value
     $$.undefine(this);
     this(value);
 }

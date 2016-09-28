@@ -2,7 +2,7 @@
 var $$ = {};
 // Quark started
 $$.started = false;
-// Client error handlers repository
+// Ajax error handlers repository
 $$.ajaxErrorHandlers = {};
 // Formatters
 $$.formatters = {};

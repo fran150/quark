@@ -13,7 +13,7 @@
 var $$ = {};
 // Quark started
 $$.started = false;
-// Client error handlers repository
+// Ajax error handlers repository
 $$.ajaxErrorHandlers = {};
 // Formatters
 $$.formatters = {};
@@ -335,7 +335,10 @@ ko.associativeObservable = function (initialValue) {
 // Extends all observables adding the refresh method wich
 // Clears and refill the observable with the original value to force notify update.
 ko.observable.fn.refresh = function() {
+    // Read the actual value
     var value = this();
+
+    // Clear the observable and refill with the original value
     $$.undefine(this);
     this(value);
 }
@@ -395,6 +398,7 @@ ko.bindingHandlers.onBind = {
     }
 }
 
+// Returns the format binding accessor
 function createFormatAccessor(valueAccessor, allBindings) {
     // Get the formatter configuration
     var value = valueAccessor();
@@ -427,28 +431,27 @@ function createFormatAccessor(valueAccessor, allBindings) {
 }
 
 // $$.formatters is an object in wich each property is a function
-// that accepts an object and returns the value formatted as must be shown in
-// the page.
-// The binding format allows to specify an observable or item to format
+// that accepts an object and returns the value formatted as must be passed to
+// the binding.
+// This allows to specify an observable or item to format
 // and a formatter name (must correspond to an $$.formatters property)
-// Internally when writing this value quark will call the formatter passing the
-//  value to format as parameter and using the result in a normal text binding.
+// and transform the value before sending it to the actual binding.
+// By default this send the formatted value to the text binding. You can
+// specify another binding using bindTo and the name of the binding.
+// For example "format: item, formatter: 'money', bindTo: 'value'"
 ko.bindingHandlers.format = {
     init: function (element, valueAccessor, allBindings) {
+        // Get the format accessor
         var interceptor = createFormatAccessor(valueAccessor, allBindings);
+        // Get the target binding name or use text as default
+        var bindingName = allBindings.get('bindTo') || 'text';
 
-        // Apply the text binding to the element with the formatted output
-        ko.applyBindingsToNode(element, { text: interceptor });
-    }
-}
+        // Create the binding object using the specified binding
+        var binding = {};
+        binding[bindingName] = interceptor;
 
-// The same as format but applies to value binding instead of text binding
-ko.bindingHandlers.formatValue = {
-    init: function (element, valueAccessor, allBindings) {
-        var interceptor = createFormatAccessor(valueAccessor, allBindings);
-
-        // Apply the value binding to the element with the formatted output
-        ko.applyBindingsToNode(element, { value: interceptor });
+        // Apply the binding to the element with the formatted output
+        ko.applyBindingsToNode(element, binding);
     }
 }
 
@@ -683,14 +686,14 @@ var authorizing = false;
 // First uses the authorization.has function to determine if the user has credentials, if the function returns true quark assumes that
 // has credentials and doesn't need to ask for. (for example checking session storage for an existing token)
 // If authorization.has function returns false, calls authorization.authorize function to ask for credentials, passing a callback
-// that this function must call when credential has been obtained. (for example showing an popup to enter user and password)
-// Finally before any ajax call that requires authentication calls configAuthorization to config ajax for pass the credentials to the
+// that must be called when a valid credential has been obtained. (for example after showing an popup to enter user and password)
+// Finally, before any ajax call that requires authentication calls configAuthorization to config ajax for pass the credentials to the
 // server (i.e. adding a token to the request header)
 // Both configAuthorization and authorize receive an opts object with the actual ajax configuration to use in any ajax call.
 $$.ajaxConfig = {
     contentType: 'application/json',
     dataType : 'json',
-    'async': true,
+    async: true,
     cache: false,
     authorization: {
         has: function() {
@@ -812,7 +815,17 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
     }
 }
 
-$$.onError = $$.signal();
+// Function to be call in case of error.
+// It can return a boolean indicating if it handled the error or not.
+// Also can return an object with two properties:
+// handled: indicating that the error has been handled
+// stack: a function that will be called when the stack trace of the error is ready
+// This is because the stack trace is processed asynchonously
+$$.onError = function(msg, error) { return false; }
+
+// This signal is dispatched whenever an error ocurrs and the stack trace
+// of that error is ready
+$$.errorSignal = $$.signal();
 
 // Error object extension for binding errors
 // Warning it has a reference to the node and component with the error, this
@@ -831,22 +844,59 @@ BindingError.prototype.name = "BindingError";
 BindingError.prototype.message = "";
 BindingError.prototype.constructor = BindingError;
 
+// Trap all errors
+window.onerror = function (msg, file, line, column, error) {
+    var sendStack;
+    var handled;
+
+    // Call the error function passing the message and error
+    var result = $$.onError(msg, error);
+
+    // If result is an object try to get all expected properties
+    if ($$.isObject(result)) {
+        // Get the handled value
+        if (result.handled) {
+            handled = result.handled;
+        }
+
+        // Get the function to be called when the stack trace is processed
+        if (result.stack) {
+            sendStack = result.stack;
+        }
+    } else {
+        // If the result is not an object get the result
+        handled = result;
+    }
+
+    // Process the error stack, when ready dispatch the error signal
+    // And call the stack function if defined
+    stacktrace.fromError(error).then(function(stack) {
+        $$.errorSignal.dispatch(error, stack);
+
+        if (sendStack) {
+            sendStack(stack);
+        }
+    });
+
+    // Return if the error is handled (if true it doesn't show the error on
+    // the console)
+    return handled;
+}
+
+// If an require js error is raised rethrow it so the windows.error can
+// process it
 requirejs.onError = function (error) {
-    stacktrace.fromError(error).then(function(stack) {
-        $$.onError.dispatch(error, stack);
-    });
-
     throw error;
 };
 
+// If a knockout error is raised rethrow it so the windows.error can
+// process it
 ko.onError = function(error) {
-    stacktrace.fromError(error).then(function(stack) {
-        $$.onError.dispatch(error, stack);
-    });
-
     throw error;
 };
 
+// Custom Knockout Binding Provider that wraps the binding process inside
+// a try catch block
 var ErrorHandlingBindingProvider = function() {
     // Get the standard binding provider
     var original = new ko.bindingProvider();
@@ -857,6 +907,9 @@ var ErrorHandlingBindingProvider = function() {
     // Return the bindings given a node and the bindingContext
     this.getBindings = function(node, bindingContext) {
         var result;
+
+        // Process the bindings with the standard provider if it produces an
+        // error throw a binding error specifying the node and component
         try {
             result = original.getBindings(node, bindingContext);
         } catch (ex) {
@@ -867,7 +920,6 @@ var ErrorHandlingBindingProvider = function() {
         return result;
     };
 };
-
 ko.bindingProvider.instance = new ErrorHandlingBindingProvider();
 
 // Modules List
@@ -1261,139 +1313,145 @@ $$.onNamespace = function(namespace, previous) {
 }
 
 // Loaded behaviours array
-var behaviours = {};
+function Behaviours() {
+    var behaviours = {};
 
-// Define a behaviour with the specified name.
-// Behaviours allows to attach functionality to an object. This makes possible to share the same code across various classes
-// enabling a sort of hierachy.
-// If an object has an specific behaviour we can assume it will have certain methods and properties associated with the behaviour.
-// Basically a behaviour definition is a function that receives and object and a configuration and attaches the required methods
-// and properties.
-// The first parameter is the name of the behaviour, it will be used when applying this behaviour to an object.
-// The second parameter is a function that accepts a parameter with the object to wich the behaviour must be applied
-// The last parameter allows to define a function that runs when the object with this behaviour is disposed. This function must accept
-// as parameter the object that is being disposed.
-$$.behaviour = function(name, behaviour, dispose) {
-    // Warn if behaviour is repeated
-    if ($$.behaviour[name]) {
-        console.warn('There was already a behaviour loaded with the name ' + name + '. It will be replaced with the new one.');
-    }
-
-    // Error if behaviour name is not a string
-    if (!$$.isString(name)) {
-        throw 'The behaviour name must be an string.';
-    }
-
-    // Error if behaviour is not a function
-    if (!$$.isFunction(behaviour)) {
-        throw 'The behaviour must be a function that takes an object as a parameter an applies the new functionality to it.';
-    }
-
-    // Error if behaviour dispose is defined but not a function
-    if ($$.isDefined(dispose) && !$$.isFunction(dispose)) {
-        throw 'The behaviour dispose must be a function that performs cleanup of the behaviour when disposing.';
-    }
-
-    // Define the disposal of the behaviour
-    behaviour.dispose = dispose;
-
-    // Adds the new behaviour to the table
-    behaviours[name] = behaviour;
-}
-
-// Applies a behaviour to the object
-function applyBehaviour(behaviourName, object, config) {
-    // Error if behaviour name is not a string
-    if (!$$.isString(behaviourName)) {
-        throw 'The behaviour name must be an string. If you specified an array check that all elements are valid behaviour names';
-    }
-
-    // Check if behaviour exists
-    if (behaviours[behaviourName]) {
-        // Apply new behaviour by calling the behaviour definition function with the target object and
-        // the behaviour config
-        behaviours[behaviourName](object, config);
-
-        // Check if there's a $support variable on the object and if not create one. (Used by quark to store metadata)
-        if (!$$.isDefined(object.$support)) {
-            object.$support = {};
+    // Define a behaviour with the specified name.
+    // Behaviours allows to attach functionality to an object. This makes possible to share the same code across various classes
+    // enabling a sort of hierachy.
+    // If an object has an specific behaviour we can assume it will have certain methods and properties associated with the behaviour.
+    // Basically, a behaviour definition is a function that receives a target object and a configuration
+    // and attaches the required methods and properties based on the configuration to the target object.
+    // The first parameter is the behaviour's name, it will be used when applying this behaviour to an object.
+    // The second parameter is a function that accepts a parameter with the target object and a behaviour configuration.
+    // The last parameter allows to define a function that accepts a target object and disposes the behaviour from the
+    // the given object.
+    this.define = function(name, behaviour, dispose) {
+        // Warn if behaviour is repeated
+        if (behaviours[name]) {
+            console.warn('There was already a behaviour loaded with the name ' + name + '. It will be replaced with the new one.');
         }
 
-        // Check if there's a behaviour array on the object. (Used to maintain the applied behaviours list)
-        if (!$$.isDefined(object.$support.behaviours)) {
-            object.$support.behaviours = {};
+        // Error if behaviour name is not a string
+        if (!$$.isString(name)) {
+            throw 'The behaviour name must be an string.';
         }
 
-        // Add the applied behaviour to the list
-        object.$support.behaviours[behaviourName] = true;
-    } else {
-        throw 'The are no behaviours loaded with the name ' + behaviourName + '.';
-    }
-}
-
-// Applies the behaviour to the object. You can specify a string with the name of a defined behaviour
-// or an array of behaviour names.
-$$.behave = function(behaviour, object, config) {
-    // Validates object
-    if (!$$.isObject(object)) {
-        throw 'You must specifify a valid object to apply the behaviour.';
-    }
-
-    if ($$.isArray(behaviour)) {
-        // If it's an array we iterate it applying each behaviour
-        for (var i = 0; i < behaviour.length; i++) {
-            applyBehaviour(behaviour[i], object, config);
+        // Error if behaviour is not a function
+        if (!$$.isFunction(behaviour)) {
+            throw 'The behaviour must be a function that takes an object as a parameter an applies the new functionality to it.';
         }
-    } else if ($$.isString(behaviour)) {
-        // If it's a string apply the named behaviour
-        applyBehaviour(behaviour, object, config);
-    } else {
-        // Everything else fails
-        throw 'The behaviour name must be an string or an array of strings.';
-    }
-}
 
-// Checks if the behaviour has been added to the object
-$$.hasBehaviour = function(object, behaviourName) {
-    // Validates object
-    if (!$$.isObject(object)) {
-        throw 'You must specifify a valid object to check the behaviour.';
+        // Error if behaviour dispose is defined but not a function
+        if ($$.isDefined(dispose) && !$$.isFunction(dispose)) {
+            throw 'The behaviour dispose must be a function that performs cleanup of the behaviour when disposing.';
+        }
+
+        // Adds the dispose method to the behaviour with the specified function
+        behaviour.dispose = dispose;
+
+        // Adds the new behaviour to the table
+        behaviours[name] = behaviour;
     }
 
-    // Error if behaviour name is not a string
-    if (!$$.isString(behaviourName)) {
-        throw 'The behaviour name must be an string.';
+    // Applies a behaviour to the object
+    function applyBehaviour(behaviourName, object, config) {
+        // Error if behaviour name is not a string
+        if (!$$.isString(behaviourName)) {
+            throw 'The behaviour name must be an string. If you specified an array check that all elements are valid behaviour names';
+        }
+
+        // Check if behaviour exists
+        if (behaviours[behaviourName]) {
+            // Apply new behaviour by calling the behaviour definition function with the target object and
+            // the behaviour config
+            behaviours[behaviourName](object, config);
+
+            // If the behaviours object is not defined, init an empty one
+            if (!$$.isDefined(object.behaviours)) {
+                object.behaviours = {};
+            }
+
+            // Add the applied behaviour to the list
+            object.behaviours[behaviourName] = true;
+        } else {
+            throw 'The are no behaviours loaded with the name ' + behaviourName + '.';
+        }
     }
 
-    // Check if the object has the specified behaviour added
-    if ($$.isDefined(object.$support) && $$.isDefined(object.$support.behaviours)) {
-        if ($$.isDefined(object.$support.behaviours[behaviourName])) {
+    // Applies the behaviour to the object.
+    // Behaviour is a string with the name of a defined behaviour
+    // or an array of behaviour names.
+    // Object is the target object
+    // Config is the configuration of the behaviour or behaviours to apply
+    this.apply = function(behaviour, object, config) {
+        // Validates object
+        if (!$$.isObject(object)) {
+            throw 'You must specifify a valid object to apply the behaviour.';
+        }
+
+        // If an array of behaviours is specified
+        if ($$.isArray(behaviour)) {
+            // Iterate it applying each behaviour
+            for (var i = 0; i < behaviour.length; i++) {
+                applyBehaviour(behaviour[i], object, config);
+            }
+        } else if ($$.isString(behaviour)) {
+            // If it's a string apply the named behaviour
+            applyBehaviour(behaviour, object, config);
+        } else {
+            // Everything else fails
+            throw 'The behaviour name must be an string or an array of strings.';
+        }
+    }
+
+    // Checks if the behaviour has been added to the object
+    this.has = function(object, behaviourName) {
+        // Validates object
+        if (!$$.isObject(object)) {
+            throw 'You must specifify a valid object to check the behaviour.';
+        }
+
+        // Error if behaviour name is not a string
+        if (!$$.isString(behaviourName)) {
+            throw 'The behaviour name must be an string.';
+        }
+
+        if (!$$.isDefined(object.behaviours)) {
+            throw new Error('The object does not have the behaviours property, check if you correctly applied the behaviour to this object');
+        }
+
+        if ($$.isDefined(object.behaviours[behaviourName])) {
             return true;
         }
+
+        return false;
     }
 
-    return false;
-}
+    // Disposes object behaviours
+    this.dispose = function(object) {
+        // Validates object
+        if (!$$.isObject(object)) {
+            throw 'You must specifify a valid object to apply the behaviour.';
+        }
 
-// Disposes object behaviours
-$$.disposeBehaviours = function(object) {
-    // Validates object
-    if (!$$.isObject(object)) {
-        throw 'You must specifify a valid object to apply the behaviour.';
-    }
+        // If theres a behaviours property in the object
+        if ($$.isDefined(object.behaviours)) {
+            // Iterate applied behaviours calling the dispose function of each behaviour
+            for (var name in object.behaviours) {
+                // Get the behaviour
+                var behaviour = behaviours[name];
 
-    // If theres a quark metadata defined with behaviours
-    if ($$.isDefined(object.$support) && $$.isDefined(object.$support.behaviours)) {
-        // Iterate applied behaviours calling the dispose function of each behaviour and passing the disposed object on each
-        for (var name in object.$support.behaviours) {
-            var behaviour = object.$support.behaviours[name];
-
-            if (behaviour.dispose) {
-                behaviour.dispose(object);
+                // If has a dispose method use it to clear the object
+                if (behaviour && $$.isFunction(behaviours[behaviourName].dispose)) {
+                    behaviours[behaviourName].dispose(object);
+                }
             }
         }
     }
 }
+
+$$.behaviour = new Behaviours();
 
 // Registers the quark component in Knockout, it contains the component scope and model binder
 ko.components.register('quark-component', {
@@ -1883,31 +1941,43 @@ ko.bindingHandlers.export = {
 }
 ko.virtualElements.allowedBindings.export = true;
 
-// Uses jquery to select the nodes to show from the componentTemplateNodes
+// Generates the content binding accessor wich uses jquery to select the nodes to
+// show from the componentTemplateNodes
 function createContentAccesor(valueAccessor, allBindingsAccessor, context) {
-    // Gets the value
+    // Gets the value of the content binding
     var value = ko.unwrap(valueAccessor());
-    // Get the namespace alias
+    // Check if the virtual binding is specified
     var virtual = allBindingsAccessor.get('virtual') || false;
 
-    // New Accesor
+    // Create the new accesor
     var newAccesor = function () {
+        // If the virtual binding is specified we must use the content between
+        // virtual tags with the specified name
+        // <!-- example -->This<!-- /example -->
         if (virtual) {
+            // Init the result array of nodes and the number of coincidences
             var result = [];
             var found = 0;
 
+            // Iterate each node in the componentTemplateNodes
             for (var i = 0; i < context.$componentTemplateNodes.length; i++) {
+                // Get the node
                 var node = context.$componentTemplateNodes[i];
 
+                // If the node is virtual and node name and value coincides mark as a
+                // found and this and next nodes will be part of the result
                 if (node.nodeType == 8) {
                     if (node.nodeValue.trim().toUpperCase() == value.toUpperCase()) {
                         found++;
                     }
                 }
 
+                // If an opening tag is found then this node is pushed to the result
                 if (found > 0) {
                     result.push(node);
 
+                    // If the actual node is virtual and is the closing tag, substract
+                    // one coincidence
                     if (node.nodeType == 8) {
                         if (node.nodeValue.trim().toUpperCase() == "/" + value.toUpperCase()) {
                             found--;
@@ -1916,12 +1986,12 @@ function createContentAccesor(valueAccessor, allBindingsAccessor, context) {
                 }
             }
 
+            // Return the found nodes
             return { nodes: result };
         } else {
             // If a value is specified use it as a jquery filter, if not use all the nodes.
             if ($$.isDefined(value)) {
                 var nodes = $(context.$componentTemplateNodes).filter(value);
-
                 return { nodes: nodes };
             } else {
                 return { nodes: context.$componentTemplateNodes };
@@ -1968,16 +2038,23 @@ ko.bindingHandlers.content = {
 ko.virtualElements.allowedBindings.content = true;
 
 // Creates an accesor that returns true if there are elements that matches
-// the specified jquery selector inside the component's content
+// the specified jquery selector inside the component's content, or if virtual
+// node are used, try to find a virtual node with the specified name
 function createHasContentAccesor(valueAccessor, allBindings, context) {
+    // Gets the value of the content binding
     var value = ko.unwrap(valueAccessor());
+    // Check if the virtual binding is specified
     var virtual = allBindings.get('virtual') || false;
 
+    // Creates the new accessor
     var newAccesor = function () {
+        // If virtual node is used
         if (virtual) {
+            // Iterate over all nodes
             for (var i = 0; i < context.$componentTemplateNodes.length; i++) {
                 var node = context.$componentTemplateNodes[i];
 
+                // If an opening node with the specified name is found return true
                 if (node.nodeType == 8) {
                     if (node.nodeValue.trim().toUpperCase() == value.toUpperCase()) {
                         return true;
@@ -1987,6 +2064,7 @@ function createHasContentAccesor(valueAccessor, allBindings, context) {
 
             return false;
         } else {
+            // Check if the filter has any value
             return $(context.$componentTemplateNodes).filter(value).length > 0;
         }
     };
@@ -2014,15 +2092,6 @@ ko.bindingHandlers.hasNotContent = {
     }
 };
 ko.virtualElements.allowedBindings.hasNotContent = true;
-
-
-ko.bindingHandlers.innerHtml = {
-    init: function (element, valueAccessor, allBindingsAccessor, viewModel, context) {
-        var value = ko.unwrap(valueAccessor());
-        $(element).html(value);
-    }
-};
-ko.virtualElements.allowedBindings.innerHtml = true;
 
 function QuarkRouter() {
     var self = this;
@@ -2732,6 +2801,8 @@ ko.validate = function(object, subscribe) {
             if (property['validatable']) {
                 // Validates the property indicating if it must subscribe the validation
                 if (!property.validate(subscribe)) {
+                    // Flag the overall result as false, but not return yet because we want
+                    // to iterate over all properties to find all errors
                     result = false;
                 }
             }
@@ -2743,6 +2814,8 @@ ko.validate = function(object, subscribe) {
 }
 
 // Unsubscribe validation from the object.
+// This must be called when the ko.validate was used with subscription to allow
+// all subscriptions to be correctly disposed
 ko.unsubscribeValidation = function(object) {
     // Iterate each property
     for (var propertyName in object) {
@@ -2763,42 +2836,41 @@ ko.unsubscribeValidation = function(object) {
 
 // Resets errors on all the observables of the object
 ko.validationReset = function(object) {
+    // Iterate over each property of the object
     for (var propertyName in object) {
         var property = object[propertyName];
 
+        // If its an observable an has a validator attached
         if (ko.isObservable(property)) {
             if (property['validatable']) {
-                // Resetea los errores de validacion del observable
+                // Reset its validation errors
                 property.validationReset();
             }
         }
     }
 }
 
-// Adds the validation function to the observables. Calling this function will activate validation on the observable.
-// Name is the field name to show on error messages. Validation config is an object with the configuration of validations to enfoce,
-// if theres an error handler specified every validation error is added to the handler
-ko.observable.fn.validation = function(name, validationConfig, componentErrors) {
+// Attach a validator to the observable.
+// Calling this function will activate validation on the observable.
+// Name is the field name to show on error messages.
+// Validation config is an object with the configuration of validations to enforce,
+ko.observable.fn.validation = function(name, validationConfig) {
     // Indicates that the field is validatable and the name of the field on the error messages
     this.validatable = name;
 
     // Loads the validation configuration
     this.validationConfig = validationConfig;
 
-    // Extends the observable with properties that indicates if the observable has an error, and the error message
+    // Extends the observable with properties that indicates if the observable has an error,
+    // and the error message
     this.hasError = ko.observable();
     this.validationMessage = ko.observable();
 
-    // If an error handler has been specified
-    if (componentErrors) {
-        this.componentErrors = componentErrors;
-    }
-
-    // Returns the observable allowing to chain validate calls on the same
+    // Returns the observable allowing to chain validate calls
     return this;
 }
 
-// Resets validation errors on the observable and clears itself from the objects componentErrors
+// Resets validation errors on the observable
 ko.observable.fn.validationReset = function () {
     var me = this;
 
@@ -2807,11 +2879,6 @@ ko.observable.fn.validationReset = function () {
         // Clears error flag and message
         this.hasError(false);
         this.validationMessage('');
-
-        // If an error handler is defined use stored error key and resolve it (clearing it from the list)
-        if (this.componentErrors && this.errorKey) {
-            this.componentErrors.resolve(this.errorKey);
-        }
     }
 }
 
@@ -2836,11 +2903,6 @@ function validateValue(newValue, target) {
 
             // Perform the actual validation of the new value
             if (!validator.validate(newValue)) {
-                // If there's an error handler defined add the validation error and store the error key.
-                if (target.componentErrors) {
-                    target.errorKey = target.componentErrors.add(target.validationMessage(), { level: 100, type: 'validation' });
-                }
-
                 // Return false if validation fails
                 return false;
             }
@@ -2851,9 +2913,10 @@ function validateValue(newValue, target) {
     return true;
 };
 
-// Validates the observable using the defined rules. Subscribe indicates if the validators must subscribe to the observable
+// Validates the observable using the defined rules.
+// Subscribe indicates if the validators must subscribe to the observable
 // to reevaluate on change.
-ko.observable.fn.validate = function (subscribe) {
+ko.observable.fn.validate = function(subscribe) {
     // If it must subscribe and there is no previous subscrption, subscribe
     if (subscribe && !this['validationSubscription']) {
         this.validationSubscription = this.subscribe(validateValue, this);
@@ -2932,7 +2995,6 @@ ko.bindingHandlers.fieldError = {
         ko.bindingHandlers.text.update(element, textAccessor, allBindings, viewModel, context);
     }
 }
-
 
 if (typeof define === 'function' && define.amd) {
     define('knockout', function() {
