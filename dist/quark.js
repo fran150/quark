@@ -935,16 +935,15 @@ $$.start = function(model) {
 }
 
 // Allows to define a module in quark.
-// With this method you can encapsulate components, routes, css, and js dependencies in one module.
+// With this method you can package together components, css, js dependencies, pages and routes in one module.
 // The module must be defined as a require.js module. As dependency of this module you must define 'module'
 // in wich require.js will inject the module info.
 // Then you must pass this value as the first parameter to this function, this allows the quark module learn info about the associated
 // require.js module in wich is defined.
 // The config parameters allows to define, the components that your module includes, extra configuration for require
-// to define your module's dependencies, css files that your module uses and extra routes you want to configure.
-// The mainConstructor parameter is optional, but allow to define a class that will be called when the module is instantiated.
-// This class will be called instantiated passing as parameter the name defined in require.js for this module.
-// If the class has a ready function defined it will be called when the module is loaded
+// to define your module's dependencies, css files that your module uses, page definitions and routes.
+// The mainConstructor parameter is optional, but allow to define a function that will be called when the module is instantiated.
+// It receives as parameter the name defined in require.js for this module, the module path, and the require js module info.
 $$.module = function(moduleInfo, config, mainConstructor) {
     // Validate parameters
     if (!$$.isDefined(moduleInfo)) {
@@ -992,10 +991,13 @@ $$.module = function(moduleInfo, config, mainConstructor) {
         }
     }
 
+    // Config the given components in the specified namespace
     function configNamespace(namespace, components) {
+        // Iterate each specified component
         for (var name in components) {
             var item = components[name];
 
+            // Construct the component's full name
             var fullName;
 
             if (name) {
@@ -1004,6 +1006,9 @@ $$.module = function(moduleInfo, config, mainConstructor) {
                 fullName = namespace;
             }
 
+            // If the specified component value is a string register as component
+            // if not assume its another namespace and call this function
+            // recursively
             if ($$.isString(item)) {
                 $$.registerComponent(fullName, moduleName + '/' + item);
             } else {
@@ -1021,11 +1026,6 @@ $$.module = function(moduleInfo, config, mainConstructor) {
         }
     }
 
-    // If extra routes are defined call the configure method
-    if (config.routes) {
-        $$.routing.configure(config.routes);
-    }
-
     // If there's a css configuration add links in the header
     if ($$.isArray(config.css)) {
         // Iterate over the css file loading each one
@@ -1034,17 +1034,29 @@ $$.module = function(moduleInfo, config, mainConstructor) {
         }
     }
 
+    // If there's a pages configurations add them to the routing
+    // system
+    if (config.pages) {
+        // If there are also parameters defined for the routes
+        if (config.params) {
+            $$.routing.pages(config.pages, config.params);
+        } else {
+            $$.routing.pages(config.pages);
+        }
+    }
+
+    // If there's a route configuration add the route mappings to the
+    // routing system
+    if (config.routes) {
+        $$.routing.mapRoute(config.routes);
+    }
+
     // Main object
-    var main = {};
+    var main;
 
     // If there's a main object defined create it.
     if (mainConstructor) {
-        main = new mainConstructor(moduleName);
-    }
-
-    // If the main object has an start method call it
-    if (main['start']) {
-        main.start();
+        main = new mainConstructor(moduleName, modulePath, moduleInfo);
     }
 
     // Add the module data to the associative array
