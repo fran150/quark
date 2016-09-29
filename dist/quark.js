@@ -976,7 +976,7 @@ $$.start = function(model) {
 $$.module = function(moduleInfo, config, mainConstructor) {
     // Validate parameters
     if (!$$.isDefined(moduleInfo)) {
-        throw 'Must specify the module configuration. You can define \'module\' as dependency and pass that value in this parameter';
+        throw new Error('Must specify the module configuration. You can define \'module\' as dependency and pass that value in this parameter');
     }
 
     // Get the modules name and path from the require module info removing all text after the last / (the file name)
@@ -1201,17 +1201,17 @@ $$.component = function(viewModel, view) {
 $$.parameters = function(params, values, objects) {
     // Checks the parameters configuration object
     if (!$$.isObject(params)) {
-        throw 'You must specify a parameters config object';
+        throw new Error('You must specify a parameters config object');
     }
 
     // Checks the values object
     if (!$$.isObject(values)) {
-        throw 'You must specify the configured values for the component, usually you can obtain it from the parameters array received in the component\'s constructor.';
+        throw new Error('You must specify the configured values for the component, usually you can obtain it from the parameters array received in the component\'s constructor.');
     }
 
     // Check the objects parameter
     if (!$$.isDefined(objects)) {
-        throw 'You must specify the viewmodel of the component in wich to load the parameters.';
+        throw new Error('You must specify the viewmodel of the component in wich to load the parameters.');
     }
 
     // If objects parameter is not array create one with the specified value
@@ -1257,7 +1257,7 @@ $$.parameters = function(params, values, objects) {
                         } else {
                             // Err if not's a callback
                             if ($$.isDefined(values[name])) {
-                                throw 'The parameter ' + name + ' must be a callback.';
+                                throw new Error('The parameter ' + name + ' must be a callback.');
                             }
                         }
                     }
@@ -1375,17 +1375,17 @@ function Behaviours() {
 
         // Error if behaviour name is not a string
         if (!$$.isString(name)) {
-            throw 'The behaviour name must be an string.';
+            throw new Error('The behaviour name must be an string.');
         }
 
         // Error if behaviour is not a function
         if (!$$.isFunction(behaviour)) {
-            throw 'The behaviour must be a function that takes an object as a parameter an applies the new functionality to it.';
+            throw new Error('The behaviour must be a function that takes an object as a parameter an applies the new functionality to it.');
         }
 
         // Error if behaviour dispose is defined but not a function
         if ($$.isDefined(dispose) && !$$.isFunction(dispose)) {
-            throw 'The behaviour dispose must be a function that performs cleanup of the behaviour when disposing.';
+            throw new Error('The behaviour dispose must be a function that performs cleanup of the behaviour when disposing.');
         }
 
         // Adds the dispose method to the behaviour with the specified function
@@ -1399,7 +1399,7 @@ function Behaviours() {
     function applyBehaviour(behaviourName, object, config) {
         // Error if behaviour name is not a string
         if (!$$.isString(behaviourName)) {
-            throw 'The behaviour name must be an string. If you specified an array check that all elements are valid behaviour names';
+            throw new Error('The behaviour name must be an string. If you specified an array check that all elements are valid behaviour names');
         }
 
         // Check if behaviour exists
@@ -1416,7 +1416,7 @@ function Behaviours() {
             // Add the applied behaviour to the list
             object.behaviours[behaviourName] = true;
         } else {
-            throw 'The are no behaviours loaded with the name ' + behaviourName + '.';
+            throw new Error('The are no behaviours loaded with the name ' + behaviourName + '.');
         }
     }
 
@@ -1428,7 +1428,7 @@ function Behaviours() {
     this.apply = function(behaviour, object, config) {
         // Validates object
         if (!$$.isObject(object)) {
-            throw 'You must specifify a valid object to apply the behaviour.';
+            throw new Error('You must specifify a valid object to apply the behaviour.');
         }
 
         // If an array of behaviours is specified
@@ -1442,7 +1442,7 @@ function Behaviours() {
             applyBehaviour(behaviour, object, config);
         } else {
             // Everything else fails
-            throw 'The behaviour name must be an string or an array of strings.';
+            throw new Error('The behaviour name must be an string or an array of strings.');
         }
     }
 
@@ -1450,12 +1450,12 @@ function Behaviours() {
     this.has = function(object, behaviourName) {
         // Validates object
         if (!$$.isObject(object)) {
-            throw 'You must specifify a valid object to check the behaviour.';
+            throw new Error('You must specifify a valid object to check the behaviour.');
         }
 
         // Error if behaviour name is not a string
         if (!$$.isString(behaviourName)) {
-            throw 'The behaviour name must be an string.';
+            throw new Error('The behaviour name must be an string.');
         }
 
         if (!$$.isDefined(object.behaviours)) {
@@ -1473,7 +1473,7 @@ function Behaviours() {
     this.dispose = function(object) {
         // Validates object
         if (!$$.isObject(object)) {
-            throw 'You must specifify a valid object to apply the behaviour.';
+            throw new Error('You must specifify a valid object to apply the behaviour.');
         }
 
         // If theres a behaviours property in the object
@@ -1969,7 +1969,7 @@ ko.bindingHandlers.export = {
         if ($$.isString(value)) {
             property = value;
         } else {
-            throw 'The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component';
+            throw new Error('The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component');
         }
 
         if (imports) {
@@ -2688,12 +2688,12 @@ ko.bindingHandlers.namespace = {
 
         // Validate data
         if (!$$.isString(value)) {
-            throw 'Must specify namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
+            throw new Error('Must specify namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'');
         }
 
         // If namespace alias is not defined throw error
         if (!$$.isString(alias)) {
-            throw 'Must specify alias to namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
+            throw new Error('Must specify alias to namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'');
         }
 
         // Transform values to lowercase
@@ -3047,3 +3047,4 @@ if (typeof define === 'function' && define.amd) {
 // as local almond modules
 return $$;
 }));
+
