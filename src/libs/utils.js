@@ -129,7 +129,7 @@ $$.call = function (callback) {
     }
 
     if (ko.isObservable(callback)) {
-        throw 'Callback can not be an observable';
+        throw new Error('Callback can not be an observable');
     }
 
     if ($$.isFunction(callback)) {

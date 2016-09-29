@@ -108,7 +108,7 @@ ko.bindingHandlers.export = {
         if ($$.isString(value)) {
             property = value;
         } else {
-            throw 'The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component';
+            throw new Error('The value of the vm value must be an string with the name of the property where quark must load the viewmodel of the nested component');
         }
 
         if (imports) {

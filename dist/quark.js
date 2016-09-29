@@ -149,7 +149,7 @@ $$.call = function (callback) {
     }
 
     if (ko.isObservable(callback)) {
-        throw 'Callback can not be an observable';
+        throw new Error('Callback can not be an observable');
     }
 
     if ($$.isFunction(callback)) {
@@ -402,11 +402,11 @@ ko.bindingHandlers.onBind = {
 function createFormatAccessor(valueAccessor, allBindings) {
     // Get the formatter configuration
     var value = valueAccessor();
-    var formatter = allBindings.get('formatter');
+    var formatterName = allBindings.get('formatter');
 
     // Validate that is correctly invoked
     if (!$$.isString(formatter)) {
-        throw "Must specify formatter name";
+        throw new Error("Must specify formatter name");
     }
 
     // If value its not an observable, create an observable and set the value inside
@@ -414,19 +414,48 @@ function createFormatAccessor(valueAccessor, allBindings) {
         value = ko.observable(value);
     }
 
+    var formatter = $$.formatters[formatterName];
+    var computedConfig = {};
+
+    if ($$.isDefined(formatter)) {
+        if ($$.isFunction(formatter)) {
+            computedConfig.read = function() {
+                if ($$.isDefined(value())) {
+                    return formatter(value());
+                } else {
+                    return value();
+                }
+            }
+        } else if ($$.isObject(formatter)) {
+            if ($$.isFunction(formatter.read)) {
+                computedConfig.read = function() {
+                    if ($$.isDefined(value())) {
+                        return formatter.read(value());
+                    } else {
+                        return value();
+                    }
+                }
+            }
+
+            if ($$.isFunction(formatter.write)) {
+                computedConfig.write = function(newValue) {
+                    if ($$.isDefined(newValue)) {
+                        value(formatter.write(newValue));
+                    } else {
+                        value(newValue);
+                    }
+                }
+            }
+        } else {
+            throw new Error('The formatter object must be a function or an object with read and write properties');
+        }
+    } else {
+        throw new Error('No formatter found with the specified name: ' + formatterName);
+    }
+
     // Create the interceptor that is a pure computed wich transforms the
     // specified value with the formatter.
-    return interceptor = ko.pureComputed({
-        read: function () {
-            // If the value and formatter are defined invoke the formatter
-            // and use the formatted result else use the value as is.
-            if ($$.isDefined(value()) && $$.isDefined(formatter)) {
-                return $$.formatters[formatter](value());
-            } else {
-                return value();
-            }
-        }
-    });
+    return interceptor = ko.pureComputed(computedConfig);
 
 }
 
@@ -726,7 +755,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
 
     // Error if target is not specified
     if (!url) {
-        throw 'Must specify the target URL';
+        throw new Error('Must specify the target URL');
     }
 
     // Check if callbacks is defined as function or object
@@ -2999,11 +3028,10 @@ ko.bindingHandlers.fieldError = {
 if (typeof define === 'function' && define.amd) {
     define('knockout', function() {
         return ko;
-    });      
+    });
 }
 
 // Register in the values from the outer closure for common dependencies
 // as local almond modules
 return $$;
 }));
-

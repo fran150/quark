@@ -8,12 +8,12 @@ ko.bindingHandlers.namespace = {
 
         // Validate data
         if (!$$.isString(value)) {
-            throw 'Must specify namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
+            throw new Error('Must specify namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'');
         }
 
         // If namespace alias is not defined throw error
         if (!$$.isString(alias)) {
-            throw 'Must specify alias to namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'';
+            throw new Error('Must specify alias to namespace as string. The binding must be in the form: namespace: \'namespace\', alias: \'alias\'');
         }
 
         // Transform values to lowercase

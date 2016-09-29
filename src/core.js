@@ -24,7 +24,7 @@ $$.start = function(model) {
 $$.module = function(moduleInfo, config, mainConstructor) {
     // Validate parameters
     if (!$$.isDefined(moduleInfo)) {
-        throw 'Must specify the module configuration. You can define \'module\' as dependency and pass that value in this parameter';
+        throw new Error('Must specify the module configuration. You can define \'module\' as dependency and pass that value in this parameter');
     }
 
     // Get the modules name and path from the require module info removing all text after the last / (the file name)
@@ -236,17 +236,17 @@ $$.component = function(viewModel, view) {
 $$.parameters = function(params, values, objects) {
     // Checks the parameters configuration object
     if (!$$.isObject(params)) {
-        throw 'You must specify a parameters config object';
+        throw new Error('You must specify a parameters config object');
     }
 
     // Checks the values object
     if (!$$.isObject(values)) {
-        throw 'You must specify the configured values for the component, usually you can obtain it from the parameters array received in the component\'s constructor.';
+        throw new Error('You must specify the configured values for the component, usually you can obtain it from the parameters array received in the component\'s constructor.');
     }
 
     // Check the objects parameter
     if (!$$.isDefined(objects)) {
-        throw 'You must specify the viewmodel of the component in wich to load the parameters.';
+        throw new Error('You must specify the viewmodel of the component in wich to load the parameters.');
     }
 
     // If objects parameter is not array create one with the specified value
@@ -292,7 +292,7 @@ $$.parameters = function(params, values, objects) {
                         } else {
                             // Err if not's a callback
                             if ($$.isDefined(values[name])) {
-                                throw 'The parameter ' + name + ' must be a callback.';
+                                throw new Error('The parameter ' + name + ' must be a callback.');
                             }
                         }
                     }

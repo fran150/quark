@@ -49,7 +49,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
 
     // Error if target is not specified
     if (!url) {
-        throw 'Must specify the target URL';
+        throw new Error('Must specify the target URL');
     }
 
     // Check if callbacks is defined as function or object
