@@ -178,8 +178,8 @@ $$.component = function(viewModel, view) {
             $imports.ready.forceLock();
 
             // Calls the function initComponent if exists
-            if (model && $$.isFunction(model.initComponent)) {
-                model.initComponent();
+            if ($imports && $$.isFunction($imports.initComponent)) {
+                $imports.initComponent();
             }
 
             // Adds the created model to the scope.

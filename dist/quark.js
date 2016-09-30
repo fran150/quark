@@ -1131,8 +1131,8 @@ $$.component = function(viewModel, view) {
             $imports.ready.forceLock();
 
             // Calls the function initComponent if exists
-            if (model && $$.isFunction(model.initComponent)) {
-                model.initComponent();
+            if ($imports && $$.isFunction($imports.initComponent)) {
+                $imports.initComponent();
             }
 
             // Adds the created model to the scope.
@@ -2578,10 +2578,10 @@ function QuarkRouter() {
                         // Init the binding data with the component name
                         var data = { name: newComponentName };
 
-                        // If the new controller has a initComponent method call it to
+                        // If the new controller has a sendParameters method call it to
                         // obtain component's parameters and add them to the binding data
-                        if (newController && newController.initComponent) {
-                            data.params = newController.initComponent(value, newComponentName);
+                        if (newController && newController.sendParameters) {
+                            data.params = newController.sendParameters(value, newComponentName);
                         } else {
                             data.params = {};
                         }
@@ -2615,7 +2615,13 @@ function QuarkRouter() {
             addModelBinding(element, value, 'exportToController');
 
             // Apply component binding to node with the new component data
-            ko.applyBindingsToNode(element, { 'component': componentData });
+            //ko.applyBindingsToNode(element, { 'component': componentData });
+
+            var newAccessor = function() {
+                return componentData;
+            }
+
+            return ko.bindingHandlers.component.init(element, newAccessor, allBindingsAccessor, viewModel, context);
         }
     }
     ko.virtualElements.allowedBindings.outlet = true;
