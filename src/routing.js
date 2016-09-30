@@ -397,8 +397,7 @@ function QuarkRouter() {
             // Component name to show on this outlet
             var componentData = ko.observable({ name: 'empty' });
 
-            // Subscribe to name changes (routing)
-            var subscription = current.name.subscribe(function(newValue) {
+            function updateValue(newValue) {
                 // Route names
                 var names = [];
 
@@ -463,7 +462,12 @@ function QuarkRouter() {
                     currentController = '';
                     componentData({ name: 'empty' });
                 }
-            });
+            }
+
+            // Subscribe to name changes (routing)
+            var subscription = current.name.subscribe(updateValue);
+
+            updateValue(current.name());
 
             // Destroy subscription on element disposal
             ko.utils.domNodeDisposal.addDisposeCallback(element, function() {

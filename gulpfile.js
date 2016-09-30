@@ -22,13 +22,6 @@ gulp.task('component', function () {
         .pipe(gulp.dest('./dist/'));
 });
 
-// Copies the default validators
-gulp.task('validators', function () {
-    return gulp.src('./src/validators/validators.js')
-        .pipe(rename('quark-validators.js'))
-        .pipe(gulp.dest('./dist/'));
-});
-
 // Copies the require configurator
 gulp.task('require.configurator', function () {
     return gulp.src('./src/require.configurator.js')
@@ -82,7 +75,7 @@ gulp.task('clean', function() {
         .pipe(clean());
 });
 
-gulp.task('default', ['clean', 'js', 'component', 'validators', 'require.configurator', 'require.conf'], function(callback) {
+gulp.task('default', ['clean', 'js', 'component', 'require.configurator', 'require.conf'], function(callback) {
     callback();
     console.log('\nPlaced optimized files in ' + chalk.magenta('dist/\n'));
 });
