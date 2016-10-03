@@ -22,13 +22,23 @@ ko.bindingHandlers.namespace = {
 
         // If theres a context defined
         if (context) {
+            var extension;
+
             // Check if theres a namespaces object defined in the context
             if (!context.namespaces) {
-                context.namespaces = {};
+                extension = { namespaces: {} };
+            } else {
+                extension = { namespaces: context.namespaces };
             }
 
             // Add the alias to the list
-            context.namespaces[alias] = namespace;
+            extension.namespaces[alias] = namespace;
+
+            var innerBindingContext = context.extend(extension);
+            ko.applyBindingsToDescendants(innerBindingContext, element);
+
+            // Also tell KO *not* to bind the descendants itself, otherwise they will be bound twice
+            return { controlsDescendantBindings: true };
         }
     }
 }
