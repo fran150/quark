@@ -124,8 +124,15 @@ function QuarkRouter() {
                 // Recursively add the next controller
                 addControllers(page, newPosition, callback);
             }, function(error) {
-                // If a controller class is not found and loaded create a default (empty) controller
-                current.controllers[fullName] = new DefaultController();
+                // If a controller class is not found create the default controller
+                var tracker = new Tracker();
+                var newController = new DefaultController(tracker);
+
+                tracker.setMainModel(newController);
+                tracker.ready.forceLock();
+
+                current.trackers[fullName] = tracker;
+                current.controllers[fullName] = newController;
 
                 // Config the new controller
                 configController(previousName, fullName);
