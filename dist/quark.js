@@ -378,7 +378,7 @@ ko.bindingHandlers.href = {
         var value = ko.unwrap(valueAccessor());
 
         // Get the options object if defined
-        var options = allBindings.get('vars');
+        var options = ko.unwrap(allBindings.get('vars'));
 
         // Create the new accessor
         var newAccesor = function() {
