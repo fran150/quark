@@ -74,15 +74,6 @@ function QuarkRouter() {
     function DefaultController() {
     }
 
-    // Configs an newly created controller
-    function configController(previousName, fullName) {
-        // If the previous name is defined and has a controller loaded
-        if (previousName && current.controllers[previousName]) {
-            // Add a property to the current controller pointing to the previous or parent
-            current.controllers[fullName].parent = current.controllers[previousName];
-        }
-    }
-
     // Loads controllers given the new page, position where the previous and new page
     // differ and call the callback when ready
     function addControllers(page, position, callback) {
@@ -100,6 +91,14 @@ function QuarkRouter() {
             var name = names[position.index];
             // Save the previous fullname
             var previousName = position.fullName;
+
+            // Get parent controller
+            var parentController;
+
+            if (previousName && current.controllers[previousName]) {
+                parentController = current.controllers[previousName];
+            }
+
             // Get the new full name combining the full name and this position's name
             var fullName = position.fullName ? position.fullName + '/' + name : name;
 
@@ -110,32 +109,26 @@ function QuarkRouter() {
             require([self.controllersBase + '/' + fullName], function(ControllerClass) {
                 // If a controller class is found and loaded create the object
                 var tracker = new Tracker();
-                var newController = new ControllerClass(tracker);
+                var newController = new ControllerClass(parentController, tracker);
 
                 tracker.setMainModel(newController);
                 tracker.ready.forceLock();
 
                 current.trackers[fullName] = tracker;
                 current.controllers[fullName] = newController;
-
-                // Config the new controller
-                configController(previousName, fullName);
 
                 // Recursively add the next controller
                 addControllers(page, newPosition, callback);
             }, function(error) {
                 // If a controller class is not found create the default controller
                 var tracker = new Tracker();
-                var newController = new DefaultController(tracker);
+                var newController = new DefaultController(parentController, tracker);
 
                 tracker.setMainModel(newController);
                 tracker.ready.forceLock();
 
                 current.trackers[fullName] = tracker;
                 current.controllers[fullName] = newController;
-
-                // Config the new controller
-                configController(previousName, fullName);
 
                 // Recursively add the next controller
                 addControllers(page, newPosition, callback);
@@ -177,10 +170,6 @@ function QuarkRouter() {
             if (controller) {
                 if ($$.isFunction(controller.dispose)) {
                     controller.dispose();
-                }
-
-                if (controller.parent) {
-                    delete controller.parent;
                 }
             }
 
@@ -277,10 +266,18 @@ function QuarkRouter() {
 
             // If there are parameters defined for this route
             if (parameters) {
-                // Iterate over all defined parameters and create an observable
-                // in the controller's param object for each
-                for (var j = 0; j < parameters.length; j++) {
-                    controller.params[parameters[j]] = ko.observable();
+                if ($$.isArray(parameters)) {
+                    // Iterate over all defined parameters and create an observable
+                    // in the controller's param object for each
+                    for (var j = 0; j < parameters.length; j++) {
+                        controller.params[parameters[j]] = ko.observable();
+                    }
+                } else if ($$.isObject(parameters)) {
+                    for (var name in parameters) {
+                        controller.params[name] = ko.observable(parameters[name]);
+                    }
+                } else {
+                    throw new Error('The parameters of \'' + fullName + '\' must be an object or array');
                 }
             }
         }
