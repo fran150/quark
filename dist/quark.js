@@ -2210,6 +2210,23 @@ function QuarkRouter() {
     function DefaultController() {
     }
 
+    // Configs an newly created controller
+    function configControllerAndTracker(fullName, controller, tracker, parentController) {
+        // Sets the tracker main model to the controller and force open the lock
+        tracker.setMainModel(controller);
+        tracker.ready.forceLock();
+
+        // Set the trackers and controllers of the current page
+        current.trackers[fullName] = tracker;
+        current.controllers[fullName] = controller;
+
+        // If the previous controller is defined
+        if (parentController) {
+            // Add a property to the current controller pointing to the parent
+            controller.parent = parentController;
+        }
+    }
+
     // Loads controllers given the new page, position where the previous and new page
     // differ and call the callback when ready
     function addControllers(page, position, callback) {
@@ -2247,11 +2264,8 @@ function QuarkRouter() {
                 var tracker = new Tracker();
                 var newController = new ControllerClass(parentController, tracker);
 
-                tracker.setMainModel(newController);
-                tracker.ready.forceLock();
-
-                current.trackers[fullName] = tracker;
-                current.controllers[fullName] = newController;
+                // Config the new controller and tracker
+                configControllerAndTracker(fullName, newController, tracker, parentController);
 
                 // Recursively add the next controller
                 addControllers(page, newPosition, callback);
@@ -2260,11 +2274,8 @@ function QuarkRouter() {
                 var tracker = new Tracker();
                 var newController = new DefaultController(parentController, tracker);
 
-                tracker.setMainModel(newController);
-                tracker.ready.forceLock();
-
-                current.trackers[fullName] = tracker;
-                current.controllers[fullName] = newController;
+                // Config the new controller and tracker
+                configControllerAndTracker(fullName, newController, tracker, parentController);
 
                 // Recursively add the next controller
                 addControllers(page, newPosition, callback);
