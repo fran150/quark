@@ -86,7 +86,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
             if (!handled) {
                 // Call all handlers in registration order until someone handles it (must return true)
                 for (var handlerName in $$.ajaxErrorHandlers) {
-                    if ($$.ajaxErrorHandlers[handlerName](url, opts.source, jqXHR, textStatus, errorThrown)) {
+                    if ($$.ajaxErrorHandlers[handlerName](url, jqXHR, textStatus, errorThrown)) {
                         // If its handled stop executing handlers
                         handled = true;
                         break;

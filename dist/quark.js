@@ -2155,6 +2155,9 @@ function QuarkRouter() {
     // Current route name observable
     this.current = current.name;
 
+    // Routed signal
+    this.routed = $$.signal();
+
     // Defined pages, mappings, crossroads routes and parameters
     var pages = {};
     var mappings = {};
@@ -2477,7 +2480,7 @@ function QuarkRouter() {
             clearControllers(position);
 
             addControllers(page, position, function() {
-                // Add the componentes of the new page
+                // Add the components of the new page
                 addOutlets(page, position);
 
                 // Set the new set of parameters
@@ -2485,6 +2488,9 @@ function QuarkRouter() {
 
                 // Set the new page name
                 current.name(page);
+
+                // Dispatch the routed signal
+                self.routed.dispatch(page);
             });
         });
     }
