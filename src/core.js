@@ -147,7 +147,7 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     return $$.modules.get(moduleName);
 }
 
-$$.moduleMain(function(moduleInfo) {
+$$.moduleMain = function(moduleInfo) {
     // Validate parameters
     if (!$$.isDefined(moduleInfo)) {
         throw new Error('Must specify the module configuration. You can define \'module\' as dependency and pass that value as parameter');
@@ -160,7 +160,7 @@ $$.moduleMain(function(moduleInfo) {
     if (module) {
         return module.main;
     }
-})
+}
 
 // Defines a quark component.
 // The first parameter is the component model class, and the second is the component's template.

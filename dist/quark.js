@@ -792,7 +792,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
             if (!handled) {
                 // Call all handlers in registration order until someone handles it (must return true)
                 for (var handlerName in $$.ajaxErrorHandlers) {
-                    if ($$.ajaxErrorHandlers[handlerName](url, opts.source, jqXHR, textStatus, errorThrown)) {
+                    if ($$.ajaxErrorHandlers[handlerName](url, jqXHR, textStatus, errorThrown)) {
                         // If its handled stop executing handlers
                         handled = true;
                         break;
@@ -980,7 +980,7 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     }
 
     // Get the modules name and path from the require module info removing all text after the last / (the file name)
-    var moduleName = moduleInfo.id.substring(0, moduleInfo.id.lastIndexOf('/'));
+    var moduleName = moduleInfo.id.substring(0, moduleInfo.id.indexOf('/'));
     var modulePath = moduleInfo.uri.substring(0, moduleInfo.uri.lastIndexOf('/'));
 
     // If there is already a module with this name defined return it
@@ -1098,6 +1098,21 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     });
 
     return $$.modules.get(moduleName);
+}
+
+$$.moduleMain = function(moduleInfo) {
+    // Validate parameters
+    if (!$$.isDefined(moduleInfo)) {
+        throw new Error('Must specify the module configuration. You can define \'module\' as dependency and pass that value as parameter');
+    }
+
+    // Get the modules name and path from the require module info removing all text after the last / (the file name)
+    var moduleName = moduleInfo.id.substring(0, moduleInfo.id.indexOf('/'));
+    var module = $$.modules.get(moduleName);
+
+    if (module) {
+        return module.main;
+    }
 }
 
 // Defines a quark component.
@@ -2554,6 +2569,8 @@ function QuarkRouter() {
             // Component name to show on this outlet
             var componentData = ko.observable({ name: 'empty' });
 
+            var resetScroll = allBindingsAccessor.get('resetScroll') || true;
+
             function updateValue(newValue) {
                 // Route names
                 var names = [];
@@ -2612,6 +2629,10 @@ function QuarkRouter() {
                         // Save the current controller and bind the new value
                         currentController = newController;
                         componentData(data);
+
+                        if (resetScroll) {
+                            window.scrollTo(0, 0);
+                        }
                     }
                 } else {
                     // if there isn't a new component clear controller and

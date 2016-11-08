@@ -418,6 +418,8 @@ function QuarkRouter() {
             // Component name to show on this outlet
             var componentData = ko.observable({ name: 'empty' });
 
+            var resetScroll = allBindingsAccessor.get('resetScroll') || true;
+
             function updateValue(newValue) {
                 // Route names
                 var names = [];
@@ -476,6 +478,10 @@ function QuarkRouter() {
                         // Save the current controller and bind the new value
                         currentController = newController;
                         componentData(data);
+
+                        if (resetScroll) {
+                            window.scrollTo(0, 0);
+                        }
                     }
                 } else {
                     // if there isn't a new component clear controller and
