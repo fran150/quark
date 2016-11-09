@@ -81,7 +81,7 @@ function QuarkRouter() {
     function configControllerAndTracker(fullName, controller, tracker, parentController) {
         // Sets the tracker main model to the controller and force open the lock
         tracker.setMainModel(controller);
-        tracker.ready.forceLock();
+        tracker.ready.force();
 
         // Set the trackers and controllers of the current page
         current.trackers[fullName] = tracker;

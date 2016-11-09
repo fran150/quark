@@ -405,7 +405,7 @@ function createFormatAccessor(valueAccessor, allBindings) {
     var formatterName = allBindings.get('formatter');
 
     // Validate that is correctly invoked
-    if (!$$.isString(formatter)) {
+    if (!$$.isString(formatterName)) {
         throw new Error("Must specify formatter name");
     }
 
@@ -455,7 +455,7 @@ function createFormatAccessor(valueAccessor, allBindings) {
 
     // Create the interceptor that is a pure computed wich transforms the
     // specified value with the formatter.
-    return interceptor = ko.pureComputed(computedConfig);
+    return ko.pureComputed(computedConfig);
 
 }
 
@@ -538,7 +538,7 @@ function SyncLock(unlocked) {
     }
 
     // Unlocks the object without triggering the attached functions
-    this.forceLock = function() {
+    this.force = function() {
         dispatched = true;
     }
 
@@ -582,11 +582,6 @@ $$.lock = function(unlocked) {
 // Blocks execution of the function until the specified lock unlocks
 $$.wait = function(lock, callback) {
     lock.call(callback);
-}
-
-// Returns if the lock is locked or not
-$$.isLocked = function(lock) {
-    return lock.isLocked();
 }
 
 // Redirect the browser to the specified url
@@ -1143,7 +1138,7 @@ $$.component = function(viewModel, view) {
 
             // Sets the tracker main model
             $imports.setMainModel(model);
-            $imports.ready.forceLock();
+            $imports.ready.force();
 
             // Calls the function initComponent if exists
             if ($imports && $$.isFunction($imports.initComponent)) {
@@ -2232,7 +2227,7 @@ function QuarkRouter() {
     function configControllerAndTracker(fullName, controller, tracker, parentController) {
         // Sets the tracker main model to the controller and force open the lock
         tracker.setMainModel(controller);
-        tracker.ready.forceLock();
+        tracker.ready.force();
 
         // Set the trackers and controllers of the current page
         current.trackers[fullName] = tracker;

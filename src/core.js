@@ -190,7 +190,7 @@ $$.component = function(viewModel, view) {
 
             // Sets the tracker main model
             $imports.setMainModel(model);
-            $imports.ready.forceLock();
+            $imports.ready.force();
 
             // Calls the function initComponent if exists
             if ($imports && $$.isFunction($imports.initComponent)) {

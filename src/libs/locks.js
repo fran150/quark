@@ -15,7 +15,7 @@ function SyncLock(unlocked) {
     }
 
     // Unlocks the object without triggering the attached functions
-    this.forceLock = function() {
+    this.force = function() {
         dispatched = true;
     }
 
@@ -59,9 +59,4 @@ $$.lock = function(unlocked) {
 // Blocks execution of the function until the specified lock unlocks
 $$.wait = function(lock, callback) {
     lock.call(callback);
-}
-
-// Returns if the lock is locked or not
-$$.isLocked = function(lock) {
-    return lock.isLocked();
 }

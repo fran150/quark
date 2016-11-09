@@ -34,7 +34,7 @@ function createFormatAccessor(valueAccessor, allBindings) {
     var formatterName = allBindings.get('formatter');
 
     // Validate that is correctly invoked
-    if (!$$.isString(formatter)) {
+    if (!$$.isString(formatterName)) {
         throw new Error("Must specify formatter name");
     }
 
@@ -84,7 +84,7 @@ function createFormatAccessor(valueAccessor, allBindings) {
 
     // Create the interceptor that is a pure computed wich transforms the
     // specified value with the formatter.
-    return interceptor = ko.pureComputed(computedConfig);
+    return ko.pureComputed(computedConfig);
 
 }
 
