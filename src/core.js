@@ -31,7 +31,7 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     var modulePath = moduleInfo.uri.substring(0, moduleInfo.uri.lastIndexOf('/'));
 
     // If there is already a module with this name defined return it
-    if ($$.modules.get(moduleName)) {
+    if ($$.modules.exists(moduleName)) {
         return $$.modules.get(moduleName);
     }
 

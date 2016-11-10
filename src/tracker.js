@@ -28,7 +28,7 @@ function Tracker() {
 
     // Return if this tracker is ready
     this.isReady = function() {
-        return !$$.isLocked(self.ready);
+        return !self.ready.isLocked();
     }
 
     // Adds a dependency to this tracker

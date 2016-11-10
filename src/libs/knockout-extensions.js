@@ -1,24 +1,24 @@
 // This is an associative observable, it allows to maintain a collection of key -> values
 // To be able to track changes, modifications must be made using the provided methods
 ko.associativeObservable = function (initialValue) {
+    // Underlying observable (used to store the object)
+    var underlying = ko.observable(initialValue);
+
     // Allows to read or write associative array directly into the observable
     function associative() {
         // If called with arguments its a write, or else reads the value.
         if (arguments.length > 0) {
-            associative.underlying(arguments[0]);
+            underlying(arguments[0]);
             return this;
         }
         else {
-            return associative.underlying();
+            return underlying();
         }
     }
 
-    // Underlying observable (used to store the object)
-    associative.underlying = ko.observable(initialValue);
-
     // Adds the specified key value pair
     associative.add = function(key, item) {
-        var object = associative.underlying();
+        var object = underlying();
 
         // If object is not created initilize it
         if (!object) {
@@ -27,32 +27,77 @@ ko.associativeObservable = function (initialValue) {
 
         object[key] = item;
 
-        associative.underlying(object);
+        underlying(object);
     }
 
     // Gets the item with the specified key
     associative.get = function(key) {
-        var object = associative.underlying();
+        var object = underlying();
 
         if (object) {
-            return object[key];
+            if ($$.isDefined(object[key])) {
+                return object[key];
+            } else {
+                throw new Error('The specified key does not exists');
+            }
+        } else {
+            throw new Error('The specified key does not exists');
+        }
+    }
+
+    // Return true if the item with the specified key exists
+    associative.exists = function(key) {
+        var object = underlying();
+
+        if (object) {
+            if ($$.isDefined(object[key])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    associative.update = function(key, value) {
+        var object = underlying();
+
+        if (object) {
+            if ($$.isDefined(object[key])) {
+                // Get the original value
+                var original = object[key];
+
+                // Update to new value
+                object[key] = value;
+
+                // Rewrite the object and return the original value
+                underlying(object);
+                return original;
+            } else {
+                throw new Error('The specified key does not exists');
+            }
+        } else {
+            throw new Error('The specified key does not exists');
         }
     }
 
     // Deletes the item with the specified key
     associative.remove = function(key) {
-        var object = associative.underlying();
+        var object = underlying();
+        var original;
 
         if (object && $$.isDefined(object[key])) {
+            original = object[key];
             delete object[key];
+
+            underlying(object);
         }
 
-        associative.underlying(object);
+        return original;
     }
 
     // Returns an array with all the values
     associative.array = ko.pureComputed(function() {
-        var object = associative.underlying();
+        var object = underlying();
         var result = [];
 
         if (object) {
@@ -67,7 +112,7 @@ ko.associativeObservable = function (initialValue) {
 
     // Invokes the callback method passing key value of each element in the array
     associative.each = function(callback) {
-        var object = associative.underlying();
+        var object = underlying();
 
         if (object) {
             for (var key in object) {
@@ -78,7 +123,7 @@ ko.associativeObservable = function (initialValue) {
 
     // Subscribe to this element
     associative.subscribe = function(callback) {
-        return associative.underlying.subscribe(callback);
+        return underlying.subscribe(callback);
     }
 
     return associative

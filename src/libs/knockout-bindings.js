@@ -127,12 +127,15 @@ ko.bindingHandlers.waitReady = {
 
         var newAccessor = ko.observable(false);
 
+        function checkReady(propertyName) {
+            if (propertyName == value) {
+                newAccessor(true);
+                viewModel.imports.readied.remove(checkReady);
+            }
+        }
+
         if (viewModel && viewModel.imports && viewModel.imports.readied) {
-            viewModel.imports.readied.addOnce(function(propertyName) {
-                if (propertyName == value) {
-                    newAccessor(true);
-                }
-            });
+            viewModel.imports.readied.add(checkReady);
         }
 
         return ko.bindingHandlers['if'].init(element, newAccessor, allBindingsAccessor, viewModel, context);
