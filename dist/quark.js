@@ -893,7 +893,6 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
 // handled: indicating that the error has been handled
 // stack: a function that will be called when the stack trace of the error is ready
 // This is because the stack trace is processed asynchonously
-/*
 $$.onError = function(msg, error) { return false; }
 
 // This signal is dispatched whenever an error ocurrs and the stack trace
@@ -954,8 +953,8 @@ window.onerror = function (msg, file, line, column, error) {
     // Return if the error is handled (if true it doesn't show the error on
     // the console)
     return handled;
-}*/
-/*
+}
+
 // If an require js error is raised rethrow it so the windows.error can
 // process it
 requirejs.onError = function (error) {
@@ -967,10 +966,10 @@ requirejs.onError = function (error) {
 ko.onError = function(error) {
     throw error;
 };
-*/
+
 // Custom Knockout Binding Provider that wraps the binding process inside
 // a try catch block
-/*
+
 var ErrorHandlingBindingProvider = function() {
     // Get the standard binding provider
     var original = new ko.bindingProvider();
@@ -995,7 +994,7 @@ var ErrorHandlingBindingProvider = function() {
     };
 };
 ko.bindingProvider.instance = new ErrorHandlingBindingProvider();
-*/
+
 // Modules List
 $$.modules = ko.associativeObservable({});
 
