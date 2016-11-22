@@ -147,21 +147,6 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     return $$.modules.get(moduleName);
 }
 
-$$.moduleMain = function(moduleInfo) {
-    // Validate parameters
-    if (!$$.isDefined(moduleInfo)) {
-        throw new Error('Must specify the module configuration. You can define \'module\' as dependency and pass that value as parameter');
-    }
-
-    // Get the modules name and path from the require module info removing all text after the last / (the file name)
-    var moduleName = moduleInfo.id.substring(0, moduleInfo.id.indexOf('/'));
-    var module = $$.modules.get(moduleName);
-
-    if (module) {
-        return module.main;
-    }
-}
-
 // Defines a quark component.
 // The first parameter is the component model class, and the second is the component's template.
 $$.component = function(viewModel, view) {
