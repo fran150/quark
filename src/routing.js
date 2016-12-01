@@ -331,6 +331,35 @@ function QuarkRouter() {
         }
     }
 
+    // Calls init method on all new controllers
+    function initControllers(newPage, position) {
+        // Page name parts
+        var newNames = [];
+
+        // If theres a new page defined split it's parts
+        if (newPage) {
+            newNames = newPage.split('/');
+        }
+
+        // Init the full name at the specified position
+        var fullName = position.fullName;
+
+        // Iterate over all name parts stating on the specified position
+        for (var i = position.index; i < newNames.length; i++) {
+            // Get the name and full name
+            var name = newNames[i];
+            fullName = fullName ? fullName + "/" + name : name;
+
+            // Current controller at position
+            var controller = current.controllers[fullName];
+
+            // If controller and init method are defined call it
+            if (controller && controller.init) {
+                controller.init();
+            }
+        }
+    }
+
     // Creates a new crossroad route for each specified page map
     function createRoute(page, hash) {
         // Create a route for the page and hash
@@ -349,6 +378,9 @@ function QuarkRouter() {
 
                 // Set the new set of parameters
                 setParameters(parameters, page);
+
+                // Call init method on all new controllers
+                initControllers(page, position);
 
                 // Set the new page name
                 current.name(page);

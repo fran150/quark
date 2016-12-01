@@ -1144,21 +1144,6 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     return $$.modules.get(moduleName);
 }
 
-$$.moduleMain = function(moduleInfo) {
-    // Validate parameters
-    if (!$$.isDefined(moduleInfo)) {
-        throw new Error('Must specify the module configuration. You can define \'module\' as dependency and pass that value as parameter');
-    }
-
-    // Get the modules name and path from the require module info removing all text after the last / (the file name)
-    var moduleName = moduleInfo.id.substring(0, moduleInfo.id.indexOf('/'));
-    var module = $$.modules.get(moduleName);
-
-    if (module) {
-        return module.main;
-    }
-}
-
 // Defines a quark component.
 // The first parameter is the component model class, and the second is the component's template.
 $$.component = function(viewModel, view) {
@@ -2526,6 +2511,33 @@ function QuarkRouter() {
         }
     }
 
+    function initControllers(newPage, position) {
+        // Page name parts
+        var newNames = [];
+
+        // If theres a new page defined split it's parts
+        if (newPage) {
+            newNames = newPage.split('/');
+        }
+
+        // Init the full name at the specified position
+        var fullName = position.fullName;
+
+        // Iterate over all name parts stating on the specified position
+        for (var i = position.index; i < newNames.length; i++) {
+            // Get the name and full name
+            var name = newNames[i];
+            fullName = fullName ? fullName + "/" + name : name;
+
+            // Current controller at position
+            var controller = current.controllers[fullName];
+
+            if (controller && controller.init) {
+                controller.init();
+            }
+        }
+    }
+
     // Creates a new crossroad route for each specified page map
     function createRoute(page, hash) {
         // Create a route for the page and hash
@@ -2550,6 +2562,8 @@ function QuarkRouter() {
 
                 // Dispatch the routed signal
                 self.routed.dispatch(page);
+
+                initControllers(page, position);
             });
         });
     }
