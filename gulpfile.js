@@ -54,6 +54,7 @@ gulp.task('js', function () {
         './src/import-export.js',
         './src/content-bindings.js',
         './src/page-bindings.js',
+        './src/controller-provider.js',
         './src/routing.js',
         './src/default-locationFinder.js',
         './src/default-urlGenerator.js',

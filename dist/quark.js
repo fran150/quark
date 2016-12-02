@@ -2178,11 +2178,20 @@ ko.bindingHandlers.hasNotContent = {
 };
 ko.virtualElements.allowedBindings.hasNotContent = true;
 
-function QuarkRouter() {
-    var self = this;
 
+// Default controller provider
+$$.controllerProvider = function(page, successCallback, errorCallback) {
     // Base path of the controllers
     this.controllersBase = 'controllers';
+
+    require(page, function(ControllerClass) {
+        successCallback(ControllerClass);
+    }, function(error) {
+        errorCallback();
+    });
+}
+function QuarkRouter() {
+    var self = this;
 
     // Create a new crossroads router
     var csRouter = crossroads.create();
@@ -2306,7 +2315,7 @@ function QuarkRouter() {
             var newPosition = { index: position.index + 1, fullName: fullName };
 
             // Load with Require the controller
-            require([self.controllersBase + '/' + fullName], function(ControllerClass) {
+            $$.controllerProvider([self.controllersBase + '/' + fullName], function(ControllerClass) {
                 // If a controller class is found and loaded create the object
                 var tracker = new Tracker();
                 var newController = new ControllerClass(parentController, tracker);
@@ -2511,6 +2520,7 @@ function QuarkRouter() {
         }
     }
 
+    // Calls init method on all new controllers
     function initControllers(newPage, position) {
         // Page name parts
         var newNames = [];
@@ -2532,6 +2542,7 @@ function QuarkRouter() {
             // Current controller at position
             var controller = current.controllers[fullName];
 
+            // If controller and init method are defined call it
             if (controller && controller.init) {
                 controller.init();
             }
@@ -2557,13 +2568,14 @@ function QuarkRouter() {
                 // Set the new set of parameters
                 setParameters(parameters, page);
 
+                // Call init method on all new controllers
+                initControllers(page, position);
+
                 // Set the new page name
                 current.name(page);
 
                 // Dispatch the routed signal
                 self.routed.dispatch(page);
-
-                initControllers(page, position);
             });
         });
     }

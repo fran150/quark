@@ -1,9 +1,6 @@
 function QuarkRouter() {
     var self = this;
 
-    // Base path of the controllers
-    this.controllersBase = 'controllers';
-
     // Create a new crossroads router
     var csRouter = crossroads.create();
     csRouter.normalizeFn = crossroads.NORM_AS_OBJECT;
@@ -126,7 +123,7 @@ function QuarkRouter() {
             var newPosition = { index: position.index + 1, fullName: fullName };
 
             // Load with Require the controller
-            require([self.controllersBase + '/' + fullName], function(ControllerClass) {
+            $$.controllerProvider([self.controllersBase + '/' + fullName], function(ControllerClass) {
                 // If a controller class is found and loaded create the object
                 var tracker = new Tracker();
                 var newController = new ControllerClass(parentController, tracker);
