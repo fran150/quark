@@ -123,7 +123,7 @@ function QuarkRouter() {
             var newPosition = { index: position.index + 1, fullName: fullName };
 
             // Load with Require the controller
-            $$.controllerProvider([self.controllersBase + '/' + fullName], function(ControllerClass) {
+            $$.controllerProvider(fullName, function(ControllerClass) {
                 // If a controller class is found and loaded create the object
                 var tracker = new Tracker();
                 var newController = new ControllerClass(parentController, tracker);
