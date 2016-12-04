@@ -14,8 +14,9 @@ function QuarkRequireConf(bowerDir) {
 
             "text":                 bowerDir + "/requirejs-text/text",
 
-            "quark":                bowerDir + "/quark/dist/quark",
-            "quark-validators":     bowerDir + "/quark/dist/quark-validators",
+            "quark":                bowerDir + "/quark/dist/quark.min",
+            "quark-debug":          bowerDir + "/quark/dist/quark",
+            "quark-testviewloader": bowerDir + "/quark/dist/testview.loader",
 
             "stacktrace":           bowerDir + "/stacktrace-js/dist/stacktrace-with-promises-and-json-polyfills.min"
         },

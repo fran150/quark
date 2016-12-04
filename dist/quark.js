@@ -1746,6 +1746,10 @@ function createModelBinderContext(context) {
     return newContext;
 }
 
+$$.tracker = function() {
+    return new Tracker();
+}
+
 function Tracker() {
     var self = this;
 
@@ -1876,6 +1880,15 @@ function Tracker() {
         }
     }
 
+    this.reset = function() {
+        self.ready.lock();
+
+        // Iterate over all dependencies deleting each one
+        for (var name in dependencies) {
+            self.removeDependency(name);
+        }
+    }
+
     // Dispose this tracker removing all dependencies
     this.dispose = function() {
         self.ready.dispose();
@@ -1978,9 +1991,11 @@ ko.bindingHandlers.import = {
         if (viewModel && viewModel.imports && viewModel.model) {
             model = viewModel.model;
             imports = viewModel.imports;
-        } else {
+        } else if (viewModel && viewModel.$imports) {
             model = viewModel;
-            imports = viewModel;
+            imports = viewModel.$imports;
+        } else {
+            throw new Error('The import binding can only import to Quark components or objects with a propery $imports that contains a Tracker object');
         }
 
         // Start tracking this dependency
@@ -2002,10 +2017,16 @@ ko.bindingHandlers.export = {
         var model;
         var imports;
 
-        // If the binding model has "model" and "imports" properties we assume that is a quark-component's scope.
-        if (viewModel && viewModel.model && viewModel.imports) {
+        // If the target object has "model" and "imports" properties, then assume that is a quark scope and
+        // extract the model and imports object
+        if (viewModel && viewModel.imports && viewModel.model) {
             model = viewModel.model;
             imports = viewModel.imports;
+        } else if (viewModel && viewModel.$imports) {
+            model = viewModel;
+            imports = viewModel.$imports;
+        } else {
+            throw new Error('The import binding can only import to Quark components or objects with a propery $imports that contains a Tracker object');
         }
 
         var property;

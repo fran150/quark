@@ -34,6 +34,11 @@ gulp.task('require.conf', function () {
         .pipe(gulp.dest('./dist/'));
 });
 
+gulp.task('testview.loader', function () {
+    return gulp.src('./src/testview.loader.js')
+        .pipe(gulp.dest('./dist/'));
+});
+
 // Concatenates together all required .js files, minifies them generating the normal lib and minified lib
 gulp.task('js', function () {
     return gulp.src([
@@ -76,7 +81,7 @@ gulp.task('clean', function() {
         .pipe(clean());
 });
 
-gulp.task('default', ['clean', 'js', 'component', 'require.configurator', 'require.conf'], function(callback) {
+gulp.task('default', ['clean', 'js', 'component', 'require.configurator', 'require.conf', 'testview.loader'], function(callback) {
     callback();
     console.log('\nPlaced optimized files in ' + chalk.magenta('dist/\n'));
 });

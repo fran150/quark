@@ -1,3 +1,7 @@
+$$.tracker = function() {
+    return new Tracker();
+}
+
 function Tracker() {
     var self = this;
 
@@ -125,6 +129,15 @@ function Tracker() {
         // If there's a dependency defined return the model
         if (dependency) {
             return dependency.model;
+        }
+    }
+
+    this.reset = function() {
+        self.ready.lock();
+
+        // Iterate over all dependencies deleting each one
+        for (var name in dependencies) {
+            self.removeDependency(name);
         }
     }
 

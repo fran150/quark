@@ -10,7 +10,6 @@
     "gulp-concat": "~2.2.0",
     "gulp-copy": "0.0.2",
     "gulp-html-replace": "~1.0.0",
-    "gulp-jsdoc": "^0.1.4",
     "gulp-rename": "^1.2.2",
     "gulp-replace": "~0.2.0",
     "gulp-requirejs-bundler": "^0.1.1",
