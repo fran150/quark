@@ -16,31 +16,15 @@ var gulp = require('gulp'),
         htmlreplace = require('gulp-html-replace'),
         gulpCopy = require('gulp-copy');
 
-// Copies the component object
-gulp.task('component', function () {
-    return gulp.src('./src/quark-component.html')
-        .pipe(gulp.dest('./dist/'));
+// Removes all files from ./dist/
+gulp.task('clean', function() {
+    return gulp.src('./dist/**/*', { read: false })
+        .pipe(clean());
 });
 
-// Copies the require configurator
-gulp.task('require.configurator', function () {
-    return gulp.src('./src/require.configurator.js')
-        .pipe(gulp.dest('./dist/'));
-});
-
-// Copies the require configuration
-gulp.task('require.conf', function () {
-    return gulp.src('./src/quark.require.conf.js')
-        .pipe(gulp.dest('./dist/'));
-});
-
-gulp.task('testview.loader', function () {
-    return gulp.src('./src/testview.loader.js')
-        .pipe(gulp.dest('./dist/'));
-});
-
-// Concatenates together all required .js files, minifies them generating the normal lib and minified lib
-gulp.task('js', function () {
+// Waits for clean concatenates together all required .js files, minifies them generating the
+// normal quark.js and minified quark.min.js
+gulp.task('js', ['clean'], function () {
     return gulp.src([
         './src/wrap.start',
         './src/init.js',
@@ -75,13 +59,18 @@ gulp.task('js', function () {
         .pipe(gulp.dest('./dist/'))
 });
 
-// Removes all files from ./dist/
-gulp.task('clean', function() {
-    return gulp.src('./dist/**/*', { read: false })
-        .pipe(clean());
+// Waits for clean and moves support files to dist folder
+gulp.task('libs', ['clean'], function () {
+    return gulp.src([
+            './src/quark-component.html',
+            './src/require.configurator.js',
+            './src/quark.require.conf.js',
+            './src/testview.loader.js'
+        ])
+        .pipe(gulp.dest('./dist/'));
 });
 
-gulp.task('default', ['clean', 'js', 'component', 'require.configurator', 'require.conf', 'testview.loader'], function(callback) {
+gulp.task('default', ['clean', 'js', 'libs'], function(callback) {
     callback();
     console.log('\nPlaced optimized files in ' + chalk.magenta('dist/\n'));
 });

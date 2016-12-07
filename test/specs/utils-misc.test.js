@@ -46,7 +46,7 @@ define(['knockout', 'quark'], function(ko, $$) {
 
             it('Must throw error if callback is observable', function() {
                 var fn = function() { $$.call(ko.observable(ko.observable('test')), 'Hola', 'Mundo'); }
-                expect(fn).toThrow('Callback can not be an observable');
+                expect(fn).toThrowError('Callback can not be an observable');
             });
         });
 

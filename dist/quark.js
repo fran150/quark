@@ -1491,7 +1491,7 @@ function Behaviours() {
     }
 
     // Checks if the behaviour has been added to the object
-    this.has = function(object, behaviourName) {
+    this.has = function(behaviourName, object) {
         // Validates object
         if (!$$.isObject(object)) {
             throw new Error('You must specifify a valid object to check the behaviour.');
@@ -1502,11 +1502,7 @@ function Behaviours() {
             throw new Error('The behaviour name must be an string.');
         }
 
-        if (!$$.isDefined(object.behaviours)) {
-            throw new Error('The object does not have the behaviours property, check if you correctly applied the behaviour to this object');
-        }
-
-        if ($$.isDefined(object.behaviours[behaviourName])) {
+        if ($$.isDefined(object.behaviours) && $$.isDefined(object.behaviours[behaviourName])) {
             return true;
         }
 

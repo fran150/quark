@@ -35,5 +35,8 @@
     "src/bower_modules",
     "test",
     "tests"
-  ]
+  ],
+  "devDependencies": {
+    "jasmine-core": "jasmine#^2.5.2"
+  }
 }

@@ -8,7 +8,7 @@ define(['quark'], function($$) {
             someProperty: 'Test'
         }
 
-        $$.behaviour('counter', function(object) {
+        $$.behaviour.define('counter', function(object) {
             if (!$$.isDefined(object.id)) {
                 throw 'To apply this behaviour to the object it must have an id property.';
             }
@@ -22,24 +22,20 @@ define(['quark'], function($$) {
             }
         });
 
+        $$.behaviour.apply('counter', countMe);
+
         it('Must add the count behaviour to the valid object', function() {
-            $$.behave(countMe, 'counter');
             countMe.increase();
             expect(countMe.id).toBe(1);
         });
 
         it('Must know that the object has the behaviour', function() {
-            var hasIt = $$.hasBehaviour(countMe, 'counter');
+            var hasIt = $$.behaviour.has('counter', countMe);
             expect(hasIt).toBe(true);
         });
 
-        it('Must not allow to add the behaviour', function() {
-            var fn = function() { $$.behave(dontCountMe, 'counter'); }
-            expect(fn).toThrow('To apply this behaviour to the object it must have an id property.');
-        });
-
         it('Must havent got the behaviour', function() {
-            var hasIt = $$.hasBehaviour(dontCountMe, 'counter');
+            var hasIt = $$.behaviour.has('counter', dontCountMe);
             expect(hasIt).toBe(false);
         });
     });
