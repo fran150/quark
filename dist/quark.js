@@ -4,8 +4,7 @@
         define(['knockout', 'jquery', 'knockout-mapping', 'crossroads', 'hasher', 'signals', 'stacktrace'], factory);
     } else {
         // Browser globals.
-        root.komapping = ko.mapping;
-        root.$$ = factory(root.ko, root.$, root.komapping, root.crossroads, root.hasher, root.signals, root.Stacktrace);
+        throw new Error('Quark.js must be used as an AMD module, it must not be included with an script tag');
     }
 }(this, function(ko, $, komapping, crossroads, hasher, signals, stacktrace) {
 
@@ -1039,13 +1038,6 @@ $$.module = function(moduleInfo, config, mainConstructor) {
 
     // If there's a require configuration append module's path to the defined paths and apply
     if ($$.isDefined(config.require)) {
-        if (config.require.paths) {
-            // Iterate over the paths adding the module path as root
-            for (var pathName in config.require.paths) {
-                config.require.paths[pathName] = modulePath + '/' + config.require.paths[pathName];
-            }
-        }
-
         // Apply configuration to require
         require(config.require);
     }

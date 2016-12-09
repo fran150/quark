@@ -1,6 +1,6 @@
 {
   "name": "quark",
-  "version": "2.0.0",
+  "version": "0.9.0",
   "dependencies": {
     "requirejs": "~2.3.2",
     "requirejs-text": "~2.0.15",
@@ -9,7 +9,8 @@
     "knockout-mapping": "~2.4.1",
     "crossroads": "~0.12.0",
     "hasher": "~1.2.0",
-    "stacktrace-js": "stacktrace#~1.3.1"
+    "stacktrace-js": "stacktrace#~1.3.1",
+    "require-loadcss": "^0.1.7"
   },
   "authors": [
     "fran150 <panchi150@gmail.com>"
@@ -27,15 +28,8 @@
     "quark"
   ],
   "license": "MIT",
-  "homepage": "www.quarkjs.com.ar",
-  "ignore": [
-    "**/.*",
-    "node_modules",
-    "bower_components",
-    "src/bower_modules",
-    "test",
-    "tests"
-  ],
+  "homepage": "http://www.quarkjs.com.ar",
+  "ignore": [],
   "devDependencies": {
     "jasmine-core": "jasmine#^2.5.2"
   }

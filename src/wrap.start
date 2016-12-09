@@ -4,7 +4,6 @@
         define(['knockout', 'jquery', 'knockout-mapping', 'crossroads', 'hasher', 'signals', 'stacktrace'], factory);
     } else {
         // Browser globals.
-        root.komapping = ko.mapping;
-        root.$$ = factory(root.ko, root.$, root.komapping, root.crossroads, root.hasher, root.signals, root.Stacktrace);
+        throw new Error('Quark.js must be used as an AMD module, it must not be included with an script tag');
     }
 }(this, function(ko, $, komapping, crossroads, hasher, signals, stacktrace) {

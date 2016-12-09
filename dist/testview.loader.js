@@ -1,11 +1,12 @@
 define(['quark', 'jquery', 'knockout'], function($$, $, ko) {
-    function TestViewLoader(testViewBase) {
+    function TestViewLoader(main, testViewBase) {
         var self = this;
 
-        this.testViewBase = testViewBase || './views';
+        this.main = main;
+
+        this.testViewBase = testViewBase || './tests/views';
 
         var body = $(document).find('body');
-        var test;
 
         // Callback when loading is done
         var done = function() {};
@@ -30,19 +31,19 @@ define(['quark', 'jquery', 'knockout'], function($$, $, ko) {
             done = callback;
 
             // Add a new div to the body
-            test = $('<div></div>').appendTo(body);
+            self.testArea = $('<div></div>').appendTo(body);
 
             // Load the required view
             require(['text!' + self.testViewBase + '/' + view + '.html'], function(template) {
-                test.append(template);
+                self.testArea.append(template);
 
-                ko.applyBindings(self, test.get(0));
+                ko.applyBindings(self, self.testArea.get(0));
             });
         }
 
         this.reset = function() {
-            ko.cleanNode(test.get(0));
-            $(test).remove();
+            ko.cleanNode(self.testArea.get(0));
+            $(self.testArea).remove();
             self.$imports.reset();
             self.models = {};
             $$.wait(self.$imports.ready, function(name) {
