@@ -1,5 +1,5 @@
 function QuarkRequireConf(bowerDir, debug) {
-    bowerDir = bowerDir || 'bower_components';
+    bowerDir = bowerDir || 'bower_modules';
     debug = debug || false;
     var paths;
 
@@ -17,7 +17,7 @@ function QuarkRequireConf(bowerDir, debug) {
             "css":                  bowerDir + "/require-loadcss/css",
 
             "quark":                bowerDir + "/quark/dist/quark",
-            "quark-testviewloader": bowerDir + "/quark/dist/testview.loader",
+            "quark-testing-helper": bowerDir + "/quark/dist/testing.helper",
 
             "stacktrace":           bowerDir + "/stacktrace-js/dist/stacktrace-with-promises-and-json-polyfills"
         }
@@ -35,7 +35,7 @@ function QuarkRequireConf(bowerDir, debug) {
             "css":                  bowerDir + "/require-loadcss/css",
 
             "quark":                bowerDir + "/quark/dist/quark.min",
-            "quark-testviewloader": bowerDir + "/quark/dist/testview.loader",
+            "quark-testing-helper": bowerDir + "/quark/dist/testing.helper",
 
             "stacktrace":           bowerDir + "/stacktrace-js/dist/stacktrace-with-promises-and-json-polyfills.min"
         }

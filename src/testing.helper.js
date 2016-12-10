@@ -1,10 +1,8 @@
 define(['quark', 'jquery', 'knockout'], function($$, $, ko) {
-    function TestViewLoader(main, testViewBase) {
+    function TestingHelper(main, testViewBase) {
         var self = this;
 
         this.main = main;
-
-        this.testViewBase = testViewBase || './tests/views';
 
         var body = $(document).find('body');
 
@@ -34,11 +32,21 @@ define(['quark', 'jquery', 'knockout'], function($$, $, ko) {
             self.testArea = $('<div></div>').appendTo(body);
 
             // Load the required view
-            require(['text!' + self.testViewBase + '/' + view + '.html'], function(template) {
+            require(['text!testing-views/' + view + '.html'], function(template) {
                 self.testArea.append(template);
 
                 ko.applyBindings(self, self.testArea.get(0));
             });
+        }
+
+        this.hasDOM = function(selector) {
+            var found = $(self.testArea).find(selector);
+            return found.length > 0;
+        }
+
+        this.findDOM = function(selector) {
+            var found = $(self.testArea).find(selector);
+            return found;
         }
 
         this.reset = function() {
@@ -52,5 +60,5 @@ define(['quark', 'jquery', 'knockout'], function($$, $, ko) {
         }
     }
 
-    return TestViewLoader;
+    return TestingHelper;
 });

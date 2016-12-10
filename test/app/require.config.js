@@ -1,9 +1,10 @@
 var require;
 require = requireConfigure(QuarkRequireConf('bower_modules'));
 
+require.paths['testing-views'] = "./views";
 require.paths['quark'] = "../dist/quark";
 require.paths['quark-debug'] = "../dist/quark";
-require.paths['quark-testviewloader'] = "../dist/testview.loader";
+require.paths['quark-testing-helper'] = "../dist/testing.helper";
 
 
 // It's not obvious, but this is a way of making Jasmine load and run in an AMD environment

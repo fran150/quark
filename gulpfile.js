@@ -65,7 +65,7 @@ gulp.task('libs', ['clean'], function () {
             './src/quark-component.html',
             './src/require.configurator.js',
             './src/quark.require.conf.js',
-            './src/testview.loader.js'
+            './src/testing.helper.js'
         ])
         .pipe(gulp.dest('./dist/'));
 });

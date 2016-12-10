@@ -10,6 +10,43 @@ $$.start = function(model) {
     }
 }
 
+// Config the given components in the specified namespace
+function configNamespace(namespace, components, moduleName) {
+    moduleName = moduleName || '';
+
+    // Iterate each specified component
+    for (var name in components) {
+        var item = components[name];
+
+        // Construct the component's full name
+        var fullName;
+
+        if (name) {
+            if (namespace) {
+                fullName = namespace + '-' + name;
+            } else {
+                fullName = name;
+            }
+        } else {
+            fullName = namespace;
+        }
+
+        // If the specified component value is a string register as component
+        // if not assume its another namespace and call this function
+        // recursively
+        if ($$.isString(item)) {
+            if (moduleName) {
+                $$.registerComponent(fullName, moduleName + '/' + item);
+            } else {
+                $$.registerComponent(fullName, item);
+            }
+        } else {
+            configNamespace(fullName, item, moduleName);
+        }
+    }
+}
+
+
 // Allows to define a module in quark.
 // With this method you can package together components, css, js dependencies, pages and routes in one module.
 // The module must be defined as a require.js module. As dependency of this module you must define 'module'
@@ -60,38 +97,12 @@ $$.module = function(moduleInfo, config, mainConstructor) {
         }
     }
 
-    // Config the given components in the specified namespace
-    function configNamespace(namespace, components) {
-        // Iterate each specified component
-        for (var name in components) {
-            var item = components[name];
-
-            // Construct the component's full name
-            var fullName;
-
-            if (name) {
-                fullName = namespace + '-' + name;
-            } else {
-                fullName = namespace;
-            }
-
-            // If the specified component value is a string register as component
-            // if not assume its another namespace and call this function
-            // recursively
-            if ($$.isString(item)) {
-                $$.registerComponent(fullName, moduleName + '/' + item);
-            } else {
-                configNamespace(fullName, item);
-            }
-        }
-    }
-
     // If theres namespace component registrations
     if (config.namespaces) {
         if (config.prefix) {
-            configNamespace(config.prefix, config.namespaces);
+            configNamespace(config.prefix, config.namespaces, moduleName);
         } else {
-            configNamespace('', config.namespaces);
+            configNamespace('', config.namespaces, moduleName);
         }
     }
 
@@ -360,6 +371,11 @@ $$.emptyTemplate = function(virtual) {
 $$.registerComponent = function(tag, url) {
     ko.components.register(tag, { require: url });
 }
+
+$$.registerComponents = function(config) {
+    configNamespace('', config);
+}
+
 
 ko.components.register('empty', { template: ' ' });
 

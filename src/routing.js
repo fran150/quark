@@ -34,6 +34,12 @@ function QuarkRouter() {
         // previous
         if (paramsConfig) {
             $.extend(params, paramsConfig);
+
+            for (var pageName in paramsConfig) {
+                if (!$$.isDefined(pages[pageName])) {
+                    pages[pageName] = {};
+                }
+            }
         }
     }
 
@@ -320,8 +326,10 @@ function QuarkRouter() {
                 if (controller && controller.params) {
                     // Iterate over each param name and set the parameter value
                     for (var paramName in controller.params) {
-                        var value = parameterValues[paramName];
-                        controller.params[paramName](value);
+                        if ($$.isDefined(parameterValues[paramName])) {
+                            var value = parameterValues[paramName];
+                            controller.params[paramName](value);
+                        }
                     }
                 }
             }
