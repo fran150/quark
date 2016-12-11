@@ -1,5 +1,8 @@
 (function (root, factory) {
-    if (typeof define === 'function' && define.amd) {
+	if (typeof require === "function" && typeof exports === "object" && typeof module === "object") {
+		// CommonJS or Node: hard-coded dependency on "knockout"
+		factory(require(['knockout', 'jquery', 'knockout-mapping', 'crossroads', 'hasher', 'signals', 'stacktrace']), exports);
+	} else if (typeof define === 'function' && define.amd) {
         // AMD.
         define(['knockout', 'jquery', 'knockout-mapping', 'crossroads', 'hasher', 'signals', 'stacktrace'], factory);
     } else {

@@ -30,8 +30,9 @@ $$.getParam = function (parameterName) {
 
 // Replace the placeholder content with the html specified and bind the model to the new context
 $$.replaceAndBind = function (placeholderSelector, html, model) {
-    $(placeholderSelector).html(html);
     ko.cleanNode($(placeholderSelector).get(0));
+    $(placeholderSelector).empty();
+    $(placeholderSelector).html(html);
     ko.applyBindings(model, $(placeholderSelector).get(0));
 }
 

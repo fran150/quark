@@ -5,7 +5,7 @@ $$.controllerProvider = function(page, successCallback, errorCallback) {
     // Base path of the controllers
     this.controllersBase = 'controllers';
 
-    require([self.controllersBase + '/' + page], function(ControllerClass) {
+    require([self.controllersBase + '/' + page + '.controller'], function(ControllerClass) {
         successCallback(ControllerClass);
     }, function(error) {
         errorCallback();

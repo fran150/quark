@@ -1,5 +1,8 @@
 (function (root, factory) {
-    if (typeof define === 'function' && define.amd) {
+	if (typeof require === "function" && typeof exports === "object" && typeof module === "object") {
+		// CommonJS or Node: hard-coded dependency on "knockout"
+		factory(require(['knockout', 'jquery', 'knockout-mapping', 'crossroads', 'hasher', 'signals', 'stacktrace']), exports);
+	} else if (typeof define === 'function' && define.amd) {
         // AMD.
         define(['knockout', 'jquery', 'knockout-mapping', 'crossroads', 'hasher', 'signals', 'stacktrace'], factory);
     } else {
@@ -7,7 +10,6 @@
         throw new Error('Quark.js must be used as an AMD module, it must not be included with an script tag');
     }
 }(this, function(ko, $, komapping, crossroads, hasher, signals, stacktrace) {
-
 // Quark global
 var $$ = {};
 // Quark started
@@ -663,8 +665,9 @@ $$.getParam = function (parameterName) {
 
 // Replace the placeholder content with the html specified and bind the model to the new context
 $$.replaceAndBind = function (placeholderSelector, html, model) {
-    $(placeholderSelector).html(html);
     ko.cleanNode($(placeholderSelector).get(0));
+    $(placeholderSelector).empty();
+    $(placeholderSelector).html(html);
     ko.applyBindings(model, $(placeholderSelector).get(0));
 }
 
@@ -2210,7 +2213,7 @@ $$.controllerProvider = function(page, successCallback, errorCallback) {
     // Base path of the controllers
     this.controllersBase = 'controllers';
 
-    require([self.controllersBase + '/' + page], function(ControllerClass) {
+    require([self.controllersBase + '/' + page + '.controller'], function(ControllerClass) {
         successCallback(ControllerClass);
     }, function(error) {
         errorCallback();
