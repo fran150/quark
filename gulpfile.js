@@ -7,7 +7,7 @@ var fs = require('fs'),
 
 // Gulp and plugins
 var gulp = require('gulp'),
-        rjs = require('gulp-requirejs-bundler'),
+        rjs = require('gulp-requirejs-bundler-quark'),
         concat = require('gulp-concat'),
         rename = require('gulp-rename'),
         clean = require('gulp-clean'),

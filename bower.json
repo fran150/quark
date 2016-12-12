@@ -10,7 +10,7 @@
     "crossroads": "~0.12.0",
     "hasher": "~1.2.0",
     "stacktrace-js": "stacktrace#~1.3.1",
-    "require-loadcss": "^0.1.7"
+    "require-loadcss-quark": "^0.1.8"
   },
   "authors": [
     "fran150 <panchi150@gmail.com>"

@@ -14,7 +14,7 @@ function QuarkRequireConf(bowerDir, debug) {
             "knockout-mapping":     bowerDir + "/knockout-mapping/knockout.mapping",
 
             "text":                 bowerDir + "/requirejs-text/text",
-            "loadCss":              bowerDir + "/require-loadcss/css",
+            "loadCss":              bowerDir + "/require-loadcss-quark/css",
 
             "quark":                bowerDir + "/quark/dist/quark",
             "quark-testing-helper": bowerDir + "/quark/dist/testing.helper",
@@ -32,7 +32,7 @@ function QuarkRequireConf(bowerDir, debug) {
             "knockout-mapping":     bowerDir + "/knockout-mapping/knockout.mapping",
 
             "text":                 bowerDir + "/requirejs-text/text",
-            "loadCss":              bowerDir + "/require-loadcss/css",
+            "loadCss":              bowerDir + "/require-loadcss-quark/css",
 
             "quark":                bowerDir + "/quark/dist/quark.min",
             "quark-testing-helper": bowerDir + "/quark/dist/testing.helper",

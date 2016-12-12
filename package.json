@@ -12,7 +12,7 @@
     "gulp-html-replace": "~1.6.2",
     "gulp-rename": "~1.2.2",
     "gulp-replace": "~0.5.4",
-    "gulp-requirejs-bundler": "~0.1.1",
+    "gulp-requirejs-bundler-quark": "~0.1.2",
     "gulp-uglify": "~2.0.0",
     "requirejs": "~2.3.2"
   }
