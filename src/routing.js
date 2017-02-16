@@ -9,12 +9,15 @@ function QuarkRouter() {
     // Current page data
     var current = {
         name: ko.observable(),
+        module: ko.observable(),
         controllers: {},
         trackers: {}
     };
 
     // Current route name observable
     this.current = current.name;
+    this.currentModule = current.module;
+    this.currentHash = ko.observable();
 
     // Routed signal
     this.routed = $$.signal();
@@ -25,8 +28,34 @@ function QuarkRouter() {
     var routes = {};
     var params = {};
 
+    // Used to store the module in wich the page was defined
+    var pagesModule = {};
+
     // Adds defined pages to the collection
-    this.pages = function(pagesConfig, paramsConfig) {
+    this.pages = function(pagesConfig, paramsConfig, module) {
+        // If a module is defined
+        if (module) {
+            for (var pageName in pagesConfig) {
+                var pageParts = pageName.split('/');
+
+                var fullName = '';
+
+                for (var i = 0; i < pageParts.length; i++) {
+                    var part = pageParts[i];
+
+                    if (fullName != '') {
+                        fullName += '/';
+                    }
+
+                    fullName += part;
+
+                    if (!pages[fullName]) {
+                        pagesModule[fullName] = module;
+                    }
+                }
+            }
+        }
+
         // Combine current configuration with the new
         $.extend(pages, pagesConfig);
 
@@ -41,6 +70,30 @@ function QuarkRouter() {
                 }
             }
         }
+    }
+
+    // Returns the configuration of the specified page
+    this.getPageConfig = function(pageName) {
+        var config = {};
+
+        if (pages[pageName]) {
+            config.name = pageName;
+            config.outlets = pages[pageName];
+        }
+
+        if (mappings[pageName]) {
+            config.route = mappings[pageName];
+        }
+
+        if (params[pageName]) {
+            config.param = params[pageName];
+        }
+
+        if (pagesModule[pageName]) {
+            config.module = pagesModule[pageName];
+        }
+
+        return config;
     }
 
     // Gets the index and full path name of the shared parts
@@ -387,8 +440,16 @@ function QuarkRouter() {
                 // Call init method on all new controllers
                 initControllers(page, position);
 
-                // Set the new page name
+                // Set the new page name and module
                 current.name(page);
+
+                var pageConfig = self.getPageConfig(page);
+                if (pageConfig.module) {
+                    current.module(pageConfig.module);
+                } else {
+                    $$.undefine(current.module);
+                }
+
 
                 // Dispatch the routed signal
                 self.routed.dispatch(page);
@@ -413,6 +474,9 @@ function QuarkRouter() {
 
     // Parse the specified hash
     this.parse = function(hash) {
+        // Sets the current Hash
+        self.currentHash(hash);
+
         // Use the crossroad route to parse the hash
         csRouter.parse(hash);
     }

@@ -15,6 +15,7 @@ function QuarkRequireConf(bowerDir, debug) {
 
             "text":                 bowerDir + "/requirejs-text/text",
             "loadCss":              bowerDir + "/require-loadcss-quark/css",
+            "service":              bowerDir + "/require-service/service",
 
             "quark":                bowerDir + "/quark/dist/quark",
             "quark-testing-helper": bowerDir + "/quark/dist/testing.helper",
@@ -33,6 +34,7 @@ function QuarkRequireConf(bowerDir, debug) {
 
             "text":                 bowerDir + "/requirejs-text/text",
             "loadCss":              bowerDir + "/require-loadcss-quark/css",
+            "service":              bowerDir + "/require-service/service",
 
             "quark":                bowerDir + "/quark/dist/quark.min",
             "quark-testing-helper": bowerDir + "/quark/dist/testing.helper",

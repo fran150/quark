@@ -28,7 +28,14 @@ ko.bindingProvider.instance.preprocessNode = function(node) {
             var comment = " ko component: { name: '" + node.nodeName.toLowerCase() + "' ";
 
             if (params) {
-                comment += ", params: { " + params.value + " } ";
+                var directParamRegExp = /^\$\{(.+)\}$/;
+                var directParamMatch = params.value.match(directParamRegExp);
+
+                if (directParamMatch) {
+                    comment += ", params: " + directParamMatch[1] + " ";
+                } else {
+                    comment += ", params: { " + params.value + " } ";
+                }
             } else {
                 comment += ", params: {}";
             }

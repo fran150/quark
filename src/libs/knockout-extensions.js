@@ -165,3 +165,36 @@ ko.mapToJS = function(observable) {
 ko.mapFromJS = function(observable) {
     return komapping.fromJS(komapping.toJS(observable));
 }
+
+// Allows for using ${object} to pass an entire object as parameters on the custom elements
+// Thanks to: Jeff Mercado
+// http://stackoverflow.com/questions/25692720/can-a-custom-element-be-passed-an-object-for-the-params-like-the-component-bindi
+var originalParseBindingsString = ko.bindingProvider.prototype.parseBindingsString,
+    re = /^\$\{(.+)\}$/;
+
+function extractBindableObject(objExpr, bindingContext, node, options) {
+    var objBindingString = '_object: ' + objExpr,
+        objGetter = originalParseBindingsString.call(this, objBindingString, bindingContext, node, options),
+        obj = objGetter['_object']();
+    return objectMap(obj, function (value) {
+        return function () { return value; };
+    });
+}
+
+function objectMap(obj, mapper) {
+    if (!obj) return obj;
+    var result = {};
+    for (var prop in obj) {
+        if (obj.hasOwnProperty(prop))
+            result[prop] = mapper(obj[prop], prop, obj);
+    }
+    return result;
+}
+
+ko.bindingProvider.prototype.parseBindingsString = function (bindingsString, bindingContext, node, options) {
+    var m = bindingsString.match(re);
+    if (m) {
+        return extractBindableObject.call(this, m[1], bindingContext, node, options);
+    }
+    return originalParseBindingsString.apply(this, arguments);
+};

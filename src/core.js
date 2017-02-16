@@ -119,9 +119,9 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     if (config.pages) {
         // If there are also parameters defined for the routes
         if (config.params) {
-            $$.routing.pages(config.pages, config.params);
+            $$.routing.pages(config.pages, config.params, moduleName);
         } else {
-            $$.routing.pages(config.pages);
+            $$.routing.pages(config.pages, undefined, moduleName);
         }
     }
 
@@ -277,11 +277,6 @@ $$.parameters = function(params, values, objects) {
             // Get the target object
             var object = objects[i];
 
-            // Warn if config exists
-            if ($$.isDefined(object[name])) {
-                console.warn('There is already a property named ' + name + ' in the target component. It will be replaced with the specified parameter.');
-            }
-
             // Create an object property with the parameter
             object[name] = params[name];
 
@@ -300,7 +295,11 @@ $$.parameters = function(params, values, objects) {
                 } else if (!ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
                     // Check if the parameter should be a callback, if not set the value
                     if (!$$.isFunction(object[name])) {
-                        object[name] = values[name];
+                        if ($$.isObject(params[name]) && $$.isObject(values[name])) {
+                            $$.parameters(params[name], values[name], object[name]);
+                        } else {
+                            object[name] = values[name];
+                        }
                     } else {
                         // If the parameter should be a callback and the target is a function then replace it.
                         if ($$.isFunction(values[name])) {
@@ -316,6 +315,52 @@ $$.parameters = function(params, values, objects) {
             }
         }
     }
+}
+
+$$.repackParameters = function(params, values) {
+    var result = {};
+    var toExport = new Array();
+    var toSend = {};
+
+    if ($$.isArray(params)) {
+        toExport = params;
+    } else if ($$.isObject(params)) {
+        if ($$.isArray(params['export']) || $$.isString(params['export']) || $$.isObject(params['send'])) {
+            if ($$.isDefined(params['export'])) {
+                toExport = params['export'];
+            }
+
+            if ($$.isObject(params['send'])) {
+                toSend = params['send'];
+            }
+        } else {
+            throw new Error('The params object must be an array of values to export, or an object with at least an export or send property, or a string with the name of the property to export');
+        }
+    } else if ($$.isString(params)) {
+        toExport = params;
+    } else {
+        throw new Error('The params object must be an array of values to export, or an object with at least an export or send property, or a string with the name of the property to export');
+    }
+
+    if ($$.isArray(toExport)) {
+        for (var i = 0; i < toExport.length; i++) {
+            var name = toExport[i];
+
+            if ($$.isDefined(values[name])) {
+                result = $.extend(result, values[name]);
+            }
+        }
+    } else {
+        if ($$.isDefined(values[toExport])) {
+            result = $.extend(result, values[toExport]);
+        }
+    }
+
+    for (var name in toSend) {
+        result[name] = toSend[name];
+    }
+
+    return result;
 }
 
 // Copies one object into other. If recursively is false or not specified it copies all properties in the "to" object

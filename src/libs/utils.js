@@ -210,10 +210,10 @@ $$.formatString = function() {
     // second an object
     if (args.length == 2 && $$.isString(args[0]) && $$.isObject(args[1])) {
         var object = args[1];
-        var string;
+        var string = str;
 
         for (var name in object) {
-            string = replaceAll(str, '{' + name + '}', object[name]);
+            string = replaceAll(string, '{' + name + '}', object[name]);
         }
 
         return string;
@@ -224,4 +224,11 @@ $$.formatString = function() {
 
         return str;
     }
+}
+
+// Allows to extend a class
+$$.extends = function(newClass, baseClass) {
+    newClass.prototype = new baseClass();
+    newClass.prototype.constructor = newClass;
+    newClass.super = baseClass.prototype;
 }

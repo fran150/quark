@@ -231,10 +231,10 @@ $$.formatString = function() {
     // second an object
     if (args.length == 2 && $$.isString(args[0]) && $$.isObject(args[1])) {
         var object = args[1];
-        var string;
+        var string = str;
 
         for (var name in object) {
-            string = replaceAll(str, '{' + name + '}', object[name]);
+            string = replaceAll(string, '{' + name + '}', object[name]);
         }
 
         return string;
@@ -245,6 +245,13 @@ $$.formatString = function() {
 
         return str;
     }
+}
+
+// Allows to extend a class
+$$.extends = function(newClass, baseClass) {
+    newClass.prototype = new baseClass();
+    newClass.prototype.constructor = newClass;
+    newClass.super = baseClass.prototype;
 }
 
 // This is an associative observable, it allows to maintain a collection of key -> values
@@ -414,6 +421,39 @@ ko.mapToJS = function(observable) {
 ko.mapFromJS = function(observable) {
     return komapping.fromJS(komapping.toJS(observable));
 }
+
+// Allows for using ${object} to pass an entire object as parameters on the custom elements
+// Thanks to: Jeff Mercado
+// http://stackoverflow.com/questions/25692720/can-a-custom-element-be-passed-an-object-for-the-params-like-the-component-bindi
+var originalParseBindingsString = ko.bindingProvider.prototype.parseBindingsString,
+    re = /^\$\{(.+)\}$/;
+
+function extractBindableObject(objExpr, bindingContext, node, options) {
+    var objBindingString = '_object: ' + objExpr,
+        objGetter = originalParseBindingsString.call(this, objBindingString, bindingContext, node, options),
+        obj = objGetter['_object']();
+    return objectMap(obj, function (value) {
+        return function () { return value; };
+    });
+}
+
+function objectMap(obj, mapper) {
+    if (!obj) return obj;
+    var result = {};
+    for (var prop in obj) {
+        if (obj.hasOwnProperty(prop))
+            result[prop] = mapper(obj[prop], prop, obj);
+    }
+    return result;
+}
+
+ko.bindingProvider.prototype.parseBindingsString = function (bindingsString, bindingContext, node, options) {
+    var m = bindingsString.match(re);
+    if (m) {
+        return extractBindableObject.call(this, m[1], bindingContext, node, options);
+    }
+    return originalParseBindingsString.apply(this, arguments);
+};
 
 // This binding can be used on links to specify a page name as href and quark will
 // automatically convert it to the url mapped.
@@ -1118,9 +1158,9 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     if (config.pages) {
         // If there are also parameters defined for the routes
         if (config.params) {
-            $$.routing.pages(config.pages, config.params);
+            $$.routing.pages(config.pages, config.params, moduleName);
         } else {
-            $$.routing.pages(config.pages);
+            $$.routing.pages(config.pages, undefined, moduleName);
         }
     }
 
@@ -1276,11 +1316,6 @@ $$.parameters = function(params, values, objects) {
             // Get the target object
             var object = objects[i];
 
-            // Warn if config exists
-            if ($$.isDefined(object[name])) {
-                console.warn('There is already a property named ' + name + ' in the target component. It will be replaced with the specified parameter.');
-            }
-
             // Create an object property with the parameter
             object[name] = params[name];
 
@@ -1299,7 +1334,11 @@ $$.parameters = function(params, values, objects) {
                 } else if (!ko.isObservable(object[name]) && !ko.isObservable(values[name])) {
                     // Check if the parameter should be a callback, if not set the value
                     if (!$$.isFunction(object[name])) {
-                        object[name] = values[name];
+                        if ($$.isObject(params[name]) && $$.isObject(values[name])) {
+                            $$.parameters(params[name], values[name], object[name]);
+                        } else {
+                            object[name] = values[name];
+                        }
                     } else {
                         // If the parameter should be a callback and the target is a function then replace it.
                         if ($$.isFunction(values[name])) {
@@ -1315,6 +1354,52 @@ $$.parameters = function(params, values, objects) {
             }
         }
     }
+}
+
+$$.repackParameters = function(params, values) {
+    var result = {};
+    var toExport = new Array();
+    var toSend = {};
+
+    if ($$.isArray(params)) {
+        toExport = params;
+    } else if ($$.isObject(params)) {
+        if ($$.isArray(params['export']) || $$.isString(params['export']) || $$.isObject(params['send'])) {
+            if ($$.isDefined(params['export'])) {
+                toExport = params['export'];
+            }
+
+            if ($$.isObject(params['send'])) {
+                toSend = params['send'];
+            }
+        } else {
+            throw new Error('The params object must be an array of values to export, or an object with at least an export or send property, or a string with the name of the property to export');
+        }
+    } else if ($$.isString(params)) {
+        toExport = params;
+    } else {
+        throw new Error('The params object must be an array of values to export, or an object with at least an export or send property, or a string with the name of the property to export');
+    }
+
+    if ($$.isArray(toExport)) {
+        for (var i = 0; i < toExport.length; i++) {
+            var name = toExport[i];
+
+            if ($$.isDefined(values[name])) {
+                result = $.extend(result, values[name]);
+            }
+        }
+    } else {
+        if ($$.isDefined(values[toExport])) {
+            result = $.extend(result, values[toExport]);
+        }
+    }
+
+    for (var name in toSend) {
+        result[name] = toSend[name];
+    }
+
+    return result;
 }
 
 // Copies one object into other. If recursively is false or not specified it copies all properties in the "to" object
@@ -2210,10 +2295,25 @@ ko.virtualElements.allowedBindings.hasNotContent = true;
 // Default controller provider
 $$.controllerProvider = function(page, successCallback, errorCallback) {
     var self = this;
-    // Base path of the controllers
+
+    // Module path
+    var path = '';
+
+    // Set the controllers base
     this.controllersBase = 'controllers';
 
-    require([self.controllersBase + '/' + page + '.controller'], function(ControllerClass) {
+    // Get the page config
+    var pageConfig = $$.routing.getPageConfig(page);
+
+    // If is a page module
+    if (pageConfig.module) {
+        path = pageConfig.module + '/' + self.controllersBase + '/' + page + '.controller';
+    } else {
+        path = self.controllersBase + '/' + page + '.controller';
+    }
+
+    // Base path of the controllers
+    require([path], function(ControllerClass) {
         successCallback(ControllerClass);
     }, function(error) {
         errorCallback();
@@ -2231,12 +2331,15 @@ function QuarkRouter() {
     // Current page data
     var current = {
         name: ko.observable(),
+        module: ko.observable(),
         controllers: {},
         trackers: {}
     };
 
     // Current route name observable
     this.current = current.name;
+    this.currentModule = current.module;
+    this.currentHash = ko.observable();
 
     // Routed signal
     this.routed = $$.signal();
@@ -2247,8 +2350,34 @@ function QuarkRouter() {
     var routes = {};
     var params = {};
 
+    // Used to store the module in wich the page was defined
+    var pagesModule = {};
+
     // Adds defined pages to the collection
-    this.pages = function(pagesConfig, paramsConfig) {
+    this.pages = function(pagesConfig, paramsConfig, module) {
+        // If a module is defined
+        if (module) {
+            for (var pageName in pagesConfig) {
+                var pageParts = pageName.split('/');
+
+                var fullName = '';
+
+                for (var i = 0; i < pageParts.length; i++) {
+                    var part = pageParts[i];
+
+                    if (fullName != '') {
+                        fullName += '/';
+                    }
+
+                    fullName += part;
+
+                    if (!pages[fullName]) {
+                        pagesModule[fullName] = module;
+                    }
+                }
+            }
+        }
+
         // Combine current configuration with the new
         $.extend(pages, pagesConfig);
 
@@ -2263,6 +2392,30 @@ function QuarkRouter() {
                 }
             }
         }
+    }
+
+    // Returns the configuration of the specified page
+    this.getPageConfig = function(pageName) {
+        var config = {};
+
+        if (pages[pageName]) {
+            config.name = pageName;
+            config.outlets = pages[pageName];
+        }
+
+        if (mappings[pageName]) {
+            config.route = mappings[pageName];
+        }
+
+        if (params[pageName]) {
+            config.param = params[pageName];
+        }
+
+        if (pagesModule[pageName]) {
+            config.module = pagesModule[pageName];
+        }
+
+        return config;
     }
 
     // Gets the index and full path name of the shared parts
@@ -2609,8 +2762,16 @@ function QuarkRouter() {
                 // Call init method on all new controllers
                 initControllers(page, position);
 
-                // Set the new page name
+                // Set the new page name and module
                 current.name(page);
+
+                var pageConfig = self.getPageConfig(page);
+                if (pageConfig.module) {
+                    current.module(pageConfig.module);
+                } else {
+                    $$.undefine(current.module);
+                }
+
 
                 // Dispatch the routed signal
                 self.routed.dispatch(page);
@@ -2635,6 +2796,9 @@ function QuarkRouter() {
 
     // Parse the specified hash
     this.parse = function(hash) {
+        // Sets the current Hash
+        self.currentHash(hash);
+
         // Use the crossroad route to parse the hash
         csRouter.parse(hash);
     }
@@ -2914,7 +3078,14 @@ ko.bindingProvider.instance.preprocessNode = function(node) {
             var comment = " ko component: { name: '" + node.nodeName.toLowerCase() + "' ";
 
             if (params) {
-                comment += ", params: { " + params.value + " } ";
+                var directParamRegExp = /^\$\{(.+)\}$/;
+                var directParamMatch = params.value.match(directParamRegExp);
+
+                if (directParamMatch) {
+                    comment += ", params: " + directParamMatch[1] + " ";
+                } else {
+                    comment += ", params: { " + params.value + " } ";
+                }
             } else {
                 comment += ", params: {}";
             }
@@ -3204,6 +3375,31 @@ ko.bindingHandlers.fieldError = {
         // Use the text and visible binding
         ko.bindingHandlers.visible.update(element, visibleAccessor, allBindings, viewModel, context);
         ko.bindingHandlers.text.update(element, textAccessor, allBindings, viewModel, context);
+    }
+}
+
+function ServiceContext() {
+    var self = this;
+
+    this.imported = {};
+
+    this.get = function(name) {
+        if (self.imported[name]) {
+            return self.imported[name];
+        } else {
+            var ImportedClass = require("service!" + name);
+            var imported = new ImportedClass(self);
+            self.imported[name] = imported;
+            return imported;
+        }
+    }
+}
+
+$$.serviceContext = function(params) {
+    if (params && params.context && params.context instanceof ServiceContext) {
+        return params.context;
+    } else {
+        return new ServiceContext();
     }
 }
 

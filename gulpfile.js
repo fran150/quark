@@ -50,6 +50,7 @@ gulp.task('js', ['clean'], function () {
         './src/namespaces.js',
         './src/ko-preprocessors.js',
         './src/libs/validation.js',
+        './src/services.js',
         './src/wrap.end'
         ])
         .pipe(concat('quark.js'))
