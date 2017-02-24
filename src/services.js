@@ -1,16 +1,16 @@
 function ServiceContext() {
     var self = this;
 
-    this.imported = {};
+    var services = {};
 
     this.get = function(name) {
-        if (self.imported[name]) {
-            return self.imported[name];
+        if (services[name]) {
+            return services[name];
         } else {
-            var ImportedClass = require("service!" + name);
-            var imported = new ImportedClass(self);
-            self.imported[name] = imported;
-            return imported;
+            var ServiceClass = require("service!" + name);
+            var service = new ServiceClass(self);
+            services[name] = service;
+            return service;
         }
     }
 }

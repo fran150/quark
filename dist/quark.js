@@ -491,8 +491,8 @@ function createFormatAccessor(valueAccessor, allBindings) {
     var formatterName = allBindings.get('formatter');
 
     // Validate that is correctly invoked
-    if (!$$.isString(formatterName)) {
-        throw new Error("Must specify formatter name");
+    if (!$$.isString(formatterName) && !$$.isObject(formatterName) && !$$.isFunction(formatterName)) {
+        throw new Error("Must specify formatter name, function or object");
     }
 
     // If value its not an observable, create an observable and set the value inside
@@ -500,7 +500,14 @@ function createFormatAccessor(valueAccessor, allBindings) {
         value = ko.observable(value);
     }
 
-    var formatter = $$.formatters[formatterName];
+    var formatter;
+
+    if ($$.isString(formatterName)) {
+        formatter = $$.formatters[formatterName];
+    } else {
+        formatter = formatterName;
+    }
+
     var computedConfig = {};
 
     if ($$.isDefined(formatter)) {
@@ -1206,15 +1213,18 @@ $$.component = function(viewModel, view) {
         // Creates empty scope
         var $scope = {
         };
+        var $context;
 
         // Creates an empty imports object
         var $imports = new Tracker();
 
         // If theres a model defined
         if (viewModel && !model) {
+            $context = $$.serviceContext(p);
+
             // Creates the model passing the received parameters an empty scope and the
             // tracker object
-            model = new viewModel(p, $scope, $imports);
+            model = new viewModel(p, $scope, $imports, $context);
 
             // Sets the tracker main model
             $imports.setMainModel(model);
@@ -1229,6 +1239,8 @@ $$.component = function(viewModel, view) {
             $scope.model = model;
             // Add the imported objects to the scope
             $scope.imports = $imports;
+            // Adds the context to the scope
+            $scope.context = $context;
         }
 
         // Creates model, scope and error handlers getters.
@@ -1253,10 +1265,6 @@ $$.component = function(viewModel, view) {
             // If there's an imports object dispose it
             if ($imports) {
                 $imports.dispose();
-            }
-
-            if (model && model.ready) {
-
             }
 
             // Undefine all internal variables.
@@ -3381,16 +3389,16 @@ ko.bindingHandlers.fieldError = {
 function ServiceContext() {
     var self = this;
 
-    this.imported = {};
+    var services = {};
 
     this.get = function(name) {
-        if (self.imported[name]) {
-            return self.imported[name];
+        if (services[name]) {
+            return services[name];
         } else {
-            var ImportedClass = require("service!" + name);
-            var imported = new ImportedClass(self);
-            self.imported[name] = imported;
-            return imported;
+            var ServiceClass = require("service!" + name);
+            var service = new ServiceClass(self);
+            services[name] = service;
+            return service;
         }
     }
 }

@@ -34,8 +34,8 @@ function createFormatAccessor(valueAccessor, allBindings) {
     var formatterName = allBindings.get('formatter');
 
     // Validate that is correctly invoked
-    if (!$$.isString(formatterName)) {
-        throw new Error("Must specify formatter name");
+    if (!$$.isString(formatterName) && !$$.isObject(formatterName) && !$$.isFunction(formatterName)) {
+        throw new Error("Must specify formatter name, function or object");
     }
 
     // If value its not an observable, create an observable and set the value inside
@@ -43,7 +43,14 @@ function createFormatAccessor(valueAccessor, allBindings) {
         value = ko.observable(value);
     }
 
-    var formatter = $$.formatters[formatterName];
+    var formatter;
+
+    if ($$.isString(formatterName)) {
+        formatter = $$.formatters[formatterName];
+    } else {
+        formatter = formatterName;
+    }
+
     var computedConfig = {};
 
     if ($$.isDefined(formatter)) {

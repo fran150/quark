@@ -167,15 +167,18 @@ $$.component = function(viewModel, view) {
         // Creates empty scope
         var $scope = {
         };
+        var $context;
 
         // Creates an empty imports object
         var $imports = new Tracker();
 
         // If theres a model defined
         if (viewModel && !model) {
+            $context = $$.serviceContext(p);
+
             // Creates the model passing the received parameters an empty scope and the
             // tracker object
-            model = new viewModel(p, $scope, $imports);
+            model = new viewModel(p, $scope, $imports, $context);
 
             // Sets the tracker main model
             $imports.setMainModel(model);
@@ -190,6 +193,8 @@ $$.component = function(viewModel, view) {
             $scope.model = model;
             // Add the imported objects to the scope
             $scope.imports = $imports;
+            // Adds the context to the scope
+            $scope.context = $context;
         }
 
         // Creates model, scope and error handlers getters.
@@ -214,10 +219,6 @@ $$.component = function(viewModel, view) {
             // If there's an imports object dispose it
             if ($imports) {
                 $imports.dispose();
-            }
-
-            if (model && model.ready) {
-
             }
 
             // Undefine all internal variables.
