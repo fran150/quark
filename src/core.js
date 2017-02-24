@@ -131,6 +131,11 @@ $$.module = function(moduleInfo, config, mainConstructor) {
         $$.routing.mapRoute(config.routes);
     }
 
+    // If there's a services configuration load the configuration into quark
+    if (config.services) {
+        $$.services(config.services);
+    }
+
     // Main object
     var main;
 

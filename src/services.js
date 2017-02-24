@@ -15,6 +15,14 @@ function ServiceContext() {
     }
 }
 
+$$.services = function(config) {
+    require.config({
+        config: {
+            services: config
+        }
+    });
+}
+
 $$.serviceContext = function(params) {
     if (params && params.context && params.context instanceof ServiceContext) {
         return params.context;
