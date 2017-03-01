@@ -1126,7 +1126,7 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     // If there's a require configuration append module's path to the defined paths and apply
     if ($$.isDefined(config.require)) {
         // Apply configuration to require
-        require(config.require);
+        require.config(config.require);
     }
 
     // If there's a components configuration add the prefix to the tag name of each component,
@@ -1175,11 +1175,6 @@ $$.module = function(moduleInfo, config, mainConstructor) {
     // routing system
     if (config.routes) {
         $$.routing.mapRoute(config.routes);
-    }
-
-    // If there's a services configuration load the configuration into quark
-    if (config.services) {
-        $$.services(config.services);
     }
 
     // Main object
@@ -3406,14 +3401,6 @@ function ServiceContext() {
             return service;
         }
     }
-}
-
-$$.services = function(config) {
-    require.config({
-        config: {
-            services: config
-        }
-    });
 }
 
 $$.serviceContext = function(params) {
