@@ -826,6 +826,12 @@ $$.ajaxConfig = {
         authorize: function(opts, callback) {
             callback(true);
         }
+    },
+    globalEvents: {
+        start: $$.signal(),
+        authorizing: $$.signal(),
+        authorized: $$.signal(),
+        complete: $$.signal()
     }
 }
 
@@ -867,6 +873,8 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
         data: data,
         success: onSuccess,
         complete: function() {
+            $$.ajaxConfig.globalEvents.complete.dispatch(url, method, data, options);
+
             if ($$.isDefined(clbks.onComplete)) {
                 clbks.onComplete();
             }
@@ -899,6 +907,8 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
     // Override ajax default options with this call specifics
     ajaxOptions = $.extend(ajaxOptions, opts);
 
+    $$.ajaxConfig.globalEvents.start.dispatch(url, method, data, options);
+
     // If we are authorizing or the ajax call doesnt need authorization we make the call directly (no authorization flow)
     // If the call needs authorization and we are not authorizing we do the authorization flow
     if (!authorizing && auth) {
@@ -916,6 +926,8 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
             // Set the flag to true so any ajax call during authorization does not trigger the authorization flow (again)
             authorizing = true;
 
+            $$.ajaxConfig.globalEvents.authorizing.dispatch(url, method, data, options);
+
             // Call the function to authorize and wait for callback
             ajaxOptions.authorization.authorize(function(authorized) {
                 // When authorization is obtained clear the authorizing flag
@@ -923,6 +935,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
 
                 // Then if credentials are obtained make the ajax call
                 if (authorized) {
+                    $$.ajaxConfig.globalEvents.authorized.dispatch(url, method, data, options);
                     invoke();
                 }
             });
@@ -3414,7 +3427,7 @@ $$.serviceContext = function(params) {
 if (typeof define === 'function' && define.amd) {
     define('knockout', function() {
         return ko;
-    });
+    });      
 }
 
 // Register in the values from the outer closure for common dependencies
