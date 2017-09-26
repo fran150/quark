@@ -931,7 +931,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
             $$.ajaxConfig.globalEvents.authorizing.dispatch(url, method, data, ajaxOptions);
 
             // Call the function to authorize and wait for callback
-            ajaxOptions.authorization.authorize(function(authorized) {
+            ajaxOptions.authorization.authorize(function(authorized, data) {
                 // When authorization is obtained clear the authorizing flag
                 authorizing = false;
 
@@ -941,7 +941,7 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
                     invoke();
                 } else {
                     if ($$.isObject(clbks) && $$.isFunction(clbks.onAuthorizeError)) {
-                        clbks.onAuthorizeError();
+                        clbks.onAuthorizeError(data);
                     }
                 }
             });
