@@ -939,6 +939,10 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
                 if (authorized) {
                     $$.ajaxConfig.globalEvents.authorized.dispatch(url, method, data, ajaxOptions);
                     invoke();
+                } else {
+                    if ($$.isObject(clbks) && $$.isFunction(clbks.onAuthorizeError)) {
+                        clbks.onAuthorizeError();
+                    }
                 }
             });
         } else {
