@@ -74,15 +74,15 @@ $$.ajax = function (url, method, data, callbacks, auth, options) {
         type: method || 'GET',
         data: data,
         success: onSuccess,
-        complete: function() {
-            $$.ajaxConfig.globalEvents.complete.dispatch(url, method, data, ajaxOptions);
+        complete: function(jqXHR) {
+            $$.ajaxConfig.globalEvents.complete.dispatch(url, method, data, ajaxOptions, jqXHR);
 
             if ($$.isDefined(clbks.onComplete)) {
                 clbks.onComplete();
             }
         },
         error: function (jqXHR, textStatus, errorThrown) {
-            $$.ajaxConfig.globalEvents.complete.dispatch(url, method, data, ajaxOptions);
+            $$.ajaxConfig.globalEvents.complete.dispatch(url, method, data, ajaxOptions, jqXHR);
             
             // Check if some handler processed the error.
             var handled = false;
