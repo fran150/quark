@@ -254,6 +254,64 @@ $$.extends = function(newClass, baseClass) {
     newClass.super = baseClass.prototype;
 }
 
+$$.format = {
+    read: function(formatterName, value) {
+        var formatter;
+
+        if ($$.isString(formatterName)) {
+            formatter = $$.formatters[formatterName];
+        } else {
+            formatter = formatterName;
+        }
+
+        if ($$.isDefined(formatter)) {
+            if ($$.isFunction(formatter)) {
+                if ($$.isDefined(value)) {
+                    return formatter(value);
+                } else {
+                    return value;
+                }
+            } else if ($$.isObject(formatter)) {
+                if ($$.isFunction(formatter.read)) {
+                    if ($$.isDefined(value)) {
+                        return formatter.read(value);
+                    } else {
+                        return value;
+                    }
+                }
+            } else {
+                throw new Error('The formatter object must be a function or an object with read and write properties');
+            }
+        } else {
+            throw new Error('No formatter found with the specified name: ' + formatterName);
+        }           
+    },
+    write: function() {
+        var formatter;
+
+        if ($$.isString(formatterName)) {
+            formatter = $$.formatters[formatterName];
+        } else {
+            formatter = formatterName;
+        }
+
+        if ($$.isDefined(formatter)) {
+            if ($$.isObject(formatter)) {
+                if ($$.isFunction(formatter.write)) {
+                    if ($$.isDefined(newValue)) {
+                        value(formatter.write(newValue));
+                    } else {
+                        value(newValue);
+                    }
+                }
+            } else {
+                throw new Error('The formatter object must be a function or an object with read and write properties');
+            }
+        } else {
+            throw new Error('No formatter found with the specified name: ' + formatterName);
+        }
+    }
+}
 // This is an associative observable, it allows to maintain a collection of key -> values
 // To be able to track changes, modifications must be made using the provided methods
 ko.associativeObservable = function (initialValue) {
