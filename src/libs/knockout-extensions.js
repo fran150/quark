@@ -140,6 +140,13 @@ ko.observable.fn.refresh = function() {
     this(value);
 }
 
+// Change when the specified observable changes
+ko.observable.fn.follow = function(target) {
+    return target.subscribe(function(newValue) {
+        this(newValue);
+    });
+}
+
 // Check if it's an observable array
 ko.isObservableArray = function(elem) {
     if (ko.isObservable(elem) && elem.indexOf !== undefined) {
