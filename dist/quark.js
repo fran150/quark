@@ -461,6 +461,13 @@ ko.observable.fn.follow = function(target) {
     });
 }
 
+// Change when the specified observable changes
+ko.observable.fn.length = function() {
+    if (ko.isObservableArray(this)) {
+        return this().length;
+    }
+}
+
 // Check if it's an observable array
 ko.isObservableArray = function(elem) {
     if (ko.isObservable(elem) && elem.indexOf !== undefined) {
