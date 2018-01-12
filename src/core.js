@@ -318,52 +318,6 @@ $$.parameters = function(params, values, objects) {
     }
 }
 
-$$.repackParameters = function(params, values) {
-    var result = {};
-    var toExport = new Array();
-    var toSend = {};
-
-    if ($$.isArray(params)) {
-        toExport = params;
-    } else if ($$.isObject(params)) {
-        if ($$.isArray(params['export']) || $$.isString(params['export']) || $$.isObject(params['send'])) {
-            if ($$.isDefined(params['export'])) {
-                toExport = params['export'];
-            }
-
-            if ($$.isObject(params['send'])) {
-                toSend = params['send'];
-            }
-        } else {
-            throw new Error('The params object must be an array of values to export, or an object with at least an export or send property, or a string with the name of the property to export');
-        }
-    } else if ($$.isString(params)) {
-        toExport = params;
-    } else {
-        throw new Error('The params object must be an array of values to export, or an object with at least an export or send property, or a string with the name of the property to export');
-    }
-
-    if ($$.isArray(toExport)) {
-        for (var i = 0; i < toExport.length; i++) {
-            var name = toExport[i];
-
-            if ($$.isDefined(values[name])) {
-                result = $.extend(result, values[name]);
-            }
-        }
-    } else {
-        if ($$.isDefined(values[toExport])) {
-            result = $.extend(result, values[toExport]);
-        }
-    }
-
-    for (var name in toSend) {
-        result[name] = toSend[name];
-    }
-
-    return result;
-}
-
 // Copies one object into other. If recursively is false or not specified it copies all properties in the "to" object
 // that exists in "from" object, if recursively is true does the same with each property (copying object graphs)}
 // It copies observable's contents not the observable itself.
@@ -453,4 +407,41 @@ $$.onNamespace = function(namespace, previous) {
     }
 
     return self;
+}
+
+// Gets the requirejs loaded module list
+// If withReferences is false or not defined it returns an array of module names
+// If withReferences is true it returns an object in wich each property is the module name and its 
+// value the module's reference
+$$.requireModules = function(withReferences) {
+    var modules = require.s.contexts._.defined;
+
+    if (withReferences) {
+        return modules;
+    } else {
+        var modules = new Array(); 
+
+        for (var name in modules) {
+            var pluginPosition = name.indexOf("!");
+
+            if (pluginPosition != -1) {
+                name = name.substring(pluginPosition + 1);
+            }
+
+            modules.push(name);
+        }
+
+        return modules;
+    }
+}
+
+// Returns the list of registered componentes
+$$.registeredComponents = function() {
+    var components = new Array();
+
+    for (var name in ko.components.Ec) {
+        components.push(name);
+    }
+
+    return name;
 }
