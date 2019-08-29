@@ -1,111 +1,99 @@
-// Node Preproccesors, allows the use of custom tags
-ko.bindingProvider.instance.preprocessNode = function(node) {
-    // Only react if this is a comment node of the form <!-- quark-component -->
-    if (node.nodeType == 8) {
+import ko from 'knockout';
+import is from './is';
+/**
+ * If the node is of a comment type, check if the node is a quark-component
+ * element.
+ * @param {Node} node Comment node to process
+ * @return {Node} Node if the element is a quark-component type or undefined
+ * if the node is not a quark-component virtual tag
+ */
+function processQuarkComponentVirtualTag(node) {
+  // Allows component definition open with <!-- quark-component -->
+  let match = node.nodeValue.match(/^\s*(quark-component[\s\S]+)/);
+  if (match) {
+    node.data = ' ko component: { name: \'quark-component\' } ';
+    return node;
+  }
 
-        // Allows component definition open with <!-- quark-component -->
-        var match = node.nodeValue.match(/^\s*(quark-component[\s\S]+)/);
-        if (match) {
-            node.data = " ko component: { name: \'quark-component\' } ";
-            return node;
-        }
-
-        // Allows component definition close with <!-- /quark-component -->
-        var match = node.nodeValue.match(/^\s*(\/quark-component[\s\S]+)/);
-        if (match) {
-            node.data = " /ko ";
-
-            return node;
-        }
-    }
-
-    if (node && node.nodeName && ko.components.isRegistered(node.nodeName.toLowerCase())) {
-        if (node.attributes['virtual']) {
-            var params = node.attributes['params'];
-            var bind = node.attributes['data-bind'];
-            var modelBind = node.attributes['model-bind'];
-
-            var comment = " ko component: { name: '" + node.nodeName.toLowerCase() + "' ";
-
-            if (params) {
-                var directParamRegExp = /^\$\{(.+)\}$/;
-                var directParamMatch = params.value.match(directParamRegExp);
-
-                if (directParamMatch) {
-                    comment += ", params: " + directParamMatch[1] + " ";
-                } else {
-                    comment += ", params: { " + params.value + " } ";
-                }
-            } else {
-                comment += ", params: {}";
-            }
-
-            comment += " } ";
-
-            if (bind) {
-                comment += ", " + bind.value + " ";
-            }
-
-            if (modelBind) {
-                comment += ", model-bind: \"" + modelBind.value + "\"";
-            }
-
-            var openTag = document.createComment(comment);
-            var closeTag = document.createComment(" /ko ");
-
-            node.parentNode.insertBefore(closeTag, node.nextSibling);
-            node.parentNode.replaceChild(openTag, node);
-
-            while (node.childNodes.length > 0) {
-                openTag.parentNode.insertBefore(node.childNodes[0], closeTag);
-            }
-
-            return [openTag, closeTag];
-        }
-    }
+  // Allows component definition close with <!-- /quark-component -->
+  match = node.nodeValue.match(/^\s*(\/quark-component[\s\S]+)/);
+  if (match) {
+    node.data = ' /ko ';
+    return node;
+  }
 }
+/**
+ * Convert the component tag to its virtual representation
+ * @param {string} nodeName Name of the node
+ * @param {Node} node Node to convert
+ * @return {Array} Converted nodes
+ */
+function convertNodeToVirtual(nodeName, node) {
+  const params = node.attributes['params'];
+  const bind = node.attributes['data-bind'];
+  const modelBind = node.attributes['model-bind'];
 
-// Custom node processor for custom components.
-// It allows to use namespaces
-ko.components.getComponentNameForNode = function(node) {
-    // Get the tag name and transform it to lower case
-    var tagNameLower = node.tagName && node.tagName.toLowerCase();
+  let comment = ' ko component: { name: \'' + nodeName + '\' ';
 
-    // If the tag has a component registered as is use the component directly
-    if (ko.components.isRegistered(tagNameLower)) {
-        // If the element's name exactly matches a preregistered
-        // component, use that component
-        return tagNameLower;
+  if (params) {
+    const directParamRegExp = /^\$\{(.+)\}$/;
+    const directParamMatch = params.value.match(directParamRegExp);
+
+    if (directParamMatch) {
+      comment += ', params: ' + directParamMatch[1] + ' ';
     } else {
-        // If the tag name contains a colon indicating that is using an alias notation
-        if (tagNameLower.indexOf(':') !== -1) {
-            // Get the tag parts
-            var parts = tagNameLower.split(':');
-
-            // Extract the alias and the tag name
-            var alias = parts[0];
-            var tag = parts[1];
-
-            // Get the context for the node
-            var context = ko.contextFor(node);
-
-            // If there's namespaces alias defined in the context and...
-            if (context && $$.isObject(context.namespaces)) {
-                // If there's a matching alias on the context's list
-                if (context.namespaces[alias]) {
-                    // Get the namespace and form the component's full name
-                    var namespace = context.namespaces[alias];
-                    var fullName = namespace + '-' + tag;
-
-                    // If component with the full name is registered then return it
-                    if (ko.components.isRegistered(fullName)) {
-                        return fullName;
-                    }
-                }
-            }
-        }
-
-        // Treat anything else as not representing a component
-        return null;
+      comment += ', params: { ' + params.value + ' } ';
     }
+  } else {
+    comment += ', params: {}';
+  }
+
+  comment += ' } ';
+
+  if (bind) {
+    comment += ', ' + bind.value + ' ';
+  }
+
+  if (modelBind) {
+    comment += ', model-bind: "' + modelBind.value + '"';
+  }
+
+  const openTag = document.createComment(comment);
+  const closeTag = document.createComment(' /ko ');
+
+  node.parentNode.insertBefore(closeTag, node.nextSibling);
+  node.parentNode.replaceChild(openTag, node);
+
+  while (node.childNodes.length > 0) {
+    openTag.parentNode.insertBefore(node.childNodes[0], closeTag);
+  }
+
+  return [openTag, closeTag];
 }
+
+/**
+ * This node preprocessor allows to use the quark-component in a
+ * virtual tag form.
+ * Also it transform custom element tags with the virtual attribute
+ * into knockout component virtual tag.
+ * Both useful when the css flow doesn't allow the quark-component or
+ * component tag to be present.
+ * @param {Node} node Node to process
+ * @return {Node} Modified node
+ */
+ko.bindingProvider.instance.preprocessNode = function(node) {
+  // Only react if this is a comment node of the form <!-- quark-component -->
+  if (node.nodeType == 8) {
+    const quarkComponentTag = processQuarkComponentVirtualTag(node);
+    if (is.defined(quarkComponentTag)) {
+      return quarkComponentTag;
+    }
+  }
+
+  const nodeName = node && node.nodeName && node.nodeName.toLowerCase();
+  if (ko.components.isRegistered(nodeName)) {
+    if (node.attributes['virtual']) {
+      return convertNodeToVirtual(nodeName, node);
+    }
+  }
+};
